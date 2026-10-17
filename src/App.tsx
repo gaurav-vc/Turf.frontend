@@ -34,6 +34,7 @@ import UmpireDashboard from '@/pages/player/UmpireDashboard'
 
 import AdminLayout from '@/layouts/AdminLayout'
 import AdminDashboard from '@/pages/admin/AdminDashboard'
+import AdminSports from '@/pages/admin/AdminSports'
 import AdminUsers from '@/pages/admin/AdminUsers'
 import AdminSettings from '@/pages/admin/AdminSettings'
 import AdminTurfs from '@/pages/admin/AdminTurfs'
@@ -88,6 +89,7 @@ export default function App() {
         
         <Route path="/admin" element={<AuthGuard><AdminLayout /></AuthGuard>}>
           <Route index element={<AdminDashboard />} />
+          <Route path="sports" element={<AdminSports />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="turfs" element={<AdminTurfs />} />

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/useAuthStore'
-import { LayoutDashboard, Users, LogOut, ArrowLeft, ChevronDown, Key, ShieldCheck, MapPin, ShoppingBag, Search, Bell, Check, Clock, Package } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, ArrowLeft, ChevronDown, Key, ShieldCheck, MapPin, ShoppingBag, Search, Bell, Check, Clock, Package, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -160,6 +160,7 @@ export default function AdminLayout() {
         
         <nav className="flex-1 p-4 space-y-2">
           <Link to="/admin" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${location.pathname === '/admin' ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><LayoutDashboard className="w-5 h-5 mr-3" /> Dashboard</Link>
+          <Link to="/admin/sports" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/sports') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Trophy className="w-5 h-5 mr-3" /> Manage Sports</Link>
           <Link to="/admin/orders" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/orders') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Package className="w-5 h-5 mr-3" /> Manage Orders</Link>
           <Link to="/admin/shop" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/shop') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><ShoppingBag className="w-5 h-5 mr-3" /> Manage Shop</Link>
           <Link to="/admin/turfs" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/turfs') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><MapPin className="w-5 h-5 mr-3" /> Manage Turfs</Link>

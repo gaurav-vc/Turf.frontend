@@ -39,6 +39,35 @@ export default function TournamentsHub() {
     start_date: '',
   })
 
+  const [showQuickSportModal, setShowQuickSportModal] = useState(false)
+  const [quickSportName, setQuickSportName] = useState('')
+  const [quickSportSaving, setQuickSportSaving] = useState(false)
+
+  const handleQuickAddSport = async (nameToAdd?: string) => {
+    const sportTitle = (nameToAdd || quickSportName).trim()
+    if (!sportTitle) return
+    setQuickSportSaving(true)
+    try {
+      const res = await apiClient.post(ENDPOINTS.SPORTS, {
+        name: sportTitle,
+        team_size_min: 1,
+        team_size_max: 11,
+        scoring_engine: 'standard'
+      })
+      await fetchSports()
+      if (res.data?.id) {
+        setFormData(prev => ({ ...prev, sport: res.data.id.toString() }))
+      }
+      setShowQuickSportModal(false)
+      setQuickSportName('')
+    } catch (err) {
+      console.error('Failed to create sport', err)
+      alert('Failed to add sport. It may already exist.')
+    } finally {
+      setQuickSportSaving(false)
+    }
+  }
+
   useEffect(() => {
     fetchTournaments()
     fetchSports()
@@ -174,7 +203,16 @@ export default function TournamentsHub() {
             </div>
             
             <div className="space-y-2">
-              <Label>Sport</Label>
+              <div className="flex items-center justify-between">
+                <Label>Sport</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickSportModal(true)}
+                  className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Sport
+                </button>
+              </div>
               <select 
                 required
                 value={formData.sport}
@@ -337,6 +375,70 @@ export default function TournamentsHub() {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* Quick Add Sport Modal */}
+      {showQuickSportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-md rounded-2xl p-6 border border-border shadow-2xl relative">
+            <h3 className="text-lg font-black text-foreground mb-1">Add Sport</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Type a sport name or tap any popular preset:
+            </p>
+
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {['Cricket', 'Box Cricket', 'Football', 'Futsal', 'Pickleball', 'Tennis', 'Badminton', 'Basketball'].map(name => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => handleQuickAddSport(name)}
+                  disabled={quickSportSaving}
+                  className="text-xs px-2.5 py-1 rounded-lg border border-border bg-muted/50 hover:bg-brand hover:text-white hover:border-brand transition font-medium"
+                >
+                  + {name}
+                </button>
+              ))}
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleQuickAddSport()
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <Label htmlFor="customSport" className="text-xs font-bold">Custom Sport Name</Label>
+                <Input
+                  id="customSport"
+                  required
+                  placeholder="e.g. Volleyball, Dodgeball"
+                  value={quickSportName}
+                  onChange={(e) => setQuickSportName(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowQuickSportModal(false)}
+                  disabled={quickSportSaving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={quickSportSaving || !quickSportName.trim()}
+                  className="bg-brand text-white hover:bg-brand-hover font-bold"
+                >
+                  {quickSportSaving ? 'Adding...' : 'Add & Select'}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
