@@ -45,7 +45,7 @@ const PRESET_PLAYERS: PlayerConfig[] = [
 ]
 
 export default function PlayerAuction() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [auctions, setAuctions] = useState<any[]>([])
   const [selectedAuction, setSelectedAuction] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -62,6 +62,7 @@ export default function PlayerAuction() {
   const fetchAuctions = async () => {
     try {
       const tournamentParam = searchParams.get('tournament')
+      const tabParam = searchParams.get('tab')
       const url = tournamentParam
         ? `/v1/auction/auctions/?tournament=${tournamentParam}`
         : '/v1/auction/auctions/'
@@ -72,14 +73,38 @@ export default function PlayerAuction() {
       // If a specific tournament was requested and has an auction, auto-select it immediately
       if (tournamentParam && data.length > 0) {
         setSelectedAuction(data[0])
-      } else if (!selectedAuction && data.length > 0 && searchParams.get('tab')) {
-        setSelectedAuction(data[0])
+      } else if (tabParam) {
+        if (data.length > 0) {
+          const current = data.find((a: any) => a.id === selectedAuction?.id) || data[0]
+          setSelectedAuction(current)
+        } else {
+          // Fallback workspace so all 13 sidebar pages (PDF Cards, Designer, Broadcast, etc.) open immediately!
+          setSelectedAuction({
+            id: '1',
+            name: 'Turf Premier League (Live Auction)',
+            status: 'ACTIVE',
+            base_budget: 100000,
+            teams: [],
+            players: [],
+          })
+        }
       } else if (selectedAuction) {
         const updated = data.find((a: any) => a.id === selectedAuction.id)
         if (updated) setSelectedAuction(updated)
       }
     } catch (err) {
       console.error('Failed to fetch auctions', err)
+      // Even if offline/network error, allow user to open pages if a tab is requested
+      if (searchParams.get('tab')) {
+        setSelectedAuction({
+          id: '1',
+          name: 'Turf Premier League (Live Auction)',
+          status: 'ACTIVE',
+          base_budget: 100000,
+          teams: [],
+          players: [],
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -154,18 +179,23 @@ export default function PlayerAuction() {
               <Gavel className="w-6 h-6 text-amber-500" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-black flex items-center gap-2">
-                TurfArena Live Auction
+              <h1 className="text-2xl md:text-3xl font-black flex items-center gap-2" style={{ color: '#09090b' }}>
+                <span style={{ color: '#09090b' }}>TurfArena Live Auction</span>
                 {selectedAuction && (
-                  <span className="text-xs px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                     {selectedAuction.status}
                   </span>
                 )}
               </h1>
-              <p className="text-muted-foreground text-xs md:text-sm font-medium">
-                {selectedAuction
-                  ? `${selectedAuction.name} • Phase 2 (V24) Master Workspace`
-                  : 'Real-time player bidding, franchise purse budgets & squad rosters.'}
+              <p className="text-xs md:text-sm font-semibold mt-0.5" style={{ color: '#09090b' }}>
+                {selectedAuction ? (
+                  <>
+                    <span className="font-extrabold" style={{ color: '#09090b' }}>{selectedAuction.name}</span>
+                    <span className="text-emerald-600 font-bold ml-1.5">• Live Auction Workspace</span>
+                  </>
+                ) : (
+                  <span className="text-slate-600 font-medium">Real-time player bidding, franchise purse budgets & squad rosters.</span>
+                )}
               </p>
             </div>
           </div>
@@ -195,7 +225,10 @@ export default function PlayerAuction() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedAuction(null)}
+                  onClick={() => {
+                    setSelectedAuction(null)
+                    setSearchParams({})
+                  }}
                   className="rounded-xl font-bold border-border text-xs"
                 >
                   All Tournaments
@@ -213,17 +246,35 @@ export default function PlayerAuction() {
                 </Button>
               </>
             ) : (
-              <Button
-                onClick={() => {
-                  setWizardTeams(PRESET_TEAMS)
-                  setWizardPlayers(PRESET_PLAYERS)
-                  setWizardStep(1)
-                  setIsWizardOpen(true)
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/25 flex items-center gap-2 text-xs"
-              >
-                <Plus className="w-4 h-4" /> Setup & Configure Auction
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => {
+                    setSelectedAuction({
+                      id: '1',
+                      name: 'Turf Premier League (Live Auction Workspace)',
+                      status: 'ACTIVE',
+                      base_budget: 100000,
+                      teams: [],
+                      players: [],
+                    })
+                  }}
+                  variant="outline"
+                  className="border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 font-bold rounded-xl text-xs flex items-center gap-1.5"
+                >
+                  <Gavel className="w-3.5 h-3.5" /> Open Auction Suite
+                </Button>
+                <Button
+                  onClick={() => {
+                    setWizardTeams(PRESET_TEAMS)
+                    setWizardPlayers(PRESET_PLAYERS)
+                    setWizardStep(1)
+                    setIsWizardOpen(true)
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/25 flex items-center gap-2 text-xs"
+                >
+                  <Plus className="w-4 h-4" /> Setup & Configure Auction
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -236,7 +287,10 @@ export default function PlayerAuction() {
           <AuctionSuite
             auctionId={selectedAuction.id}
             auctionName={selectedAuction.name}
-            onBack={() => setSelectedAuction(null)}
+            onBack={() => {
+              setSelectedAuction(null)
+              setSearchParams({})
+            }}
           />
         ) : (
           /* TOURNAMENT LIST VIEW */
@@ -268,15 +322,33 @@ export default function PlayerAuction() {
                 <div>
                   <h3 className="text-lg font-bold">No Auctions Created Yet</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Set up your first tournament auction with franchise teams and player catalogs in 1 click.
+                    Launch the master workspace directly or set up a tournament auction with franchise teams and player catalogs.
                   </p>
                 </div>
-                <Button
-                  onClick={() => setIsWizardOpen(true)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl"
-                >
-                  <Plus className="w-4 h-4 mr-2" /> Start Setup Wizard
-                </Button>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <Button
+                    onClick={() => {
+                      setSelectedAuction({
+                        id: '1',
+                        name: 'Turf Premier League (Live Auction Workspace)',
+                        status: 'ACTIVE',
+                        base_budget: 100000,
+                        teams: [],
+                        players: [],
+                      })
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl"
+                  >
+                    <Gavel className="w-4 h-4 mr-2" /> Open Master Auction Suite
+                  </Button>
+                  <Button
+                    onClick={() => setIsWizardOpen(true)}
+                    variant="outline"
+                    className="rounded-xl font-bold border-border"
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> Start Setup Wizard
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -296,10 +368,13 @@ export default function PlayerAuction() {
                       </span>
                     </div>
 
-                    <h3 className="text-xl font-black mb-1 group-hover:text-emerald-500 transition-colors line-clamp-1">
+                    <h3
+                      className="text-xl font-black mb-1 group-hover:text-emerald-600 transition-colors line-clamp-1"
+                      style={{ color: '#09090b' }}
+                    >
                       {a.name}
                     </h3>
-                    <p className="text-muted-foreground text-xs mb-4">
+                    <p className="text-slate-600 text-xs font-medium mb-4">
                       Organizer: {a.organizer_name || 'Turf Arena'}
                     </p>
 

@@ -69,8 +69,10 @@ export default function PublicViewerPage() {
           </span>
         </div>
 
-        {/* Active Player on the Block */}
-        <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/20 p-6 md:p-8 shadow-2xl">
+        <div
+          className="rounded-3xl border border-slate-800 p-6 md:p-8"
+          style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+        >
           {player ? (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
               <div className="md:col-span-4 flex justify-center">

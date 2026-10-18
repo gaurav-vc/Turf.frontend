@@ -118,13 +118,13 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
   return (
     <div className="space-y-6">
       {/* Control Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Shuffle className="h-5 w-5 text-purple-400" />
+          <h2 className="text-lg font-black text-zinc-900 flex items-center gap-2">
+            <Shuffle className="h-5 w-5 text-purple-600" />
             Tournament Interactive Blind Group Draw
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
             Server-side blind lottery shuffle. Group names remain concealed until card reveal.
           </p>
         </div>
@@ -135,7 +135,7 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
               <select
                 value={groupCount}
                 onChange={(e) => setGroupCount(parseInt(e.target.value) || 2)}
-                className="rounded-lg border border-white/20 bg-slate-800 p-2 text-xs text-white"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-zinc-900 font-semibold focus:outline-none"
               >
                 <option value={2}>2 Groups (A & B)</option>
                 <option value={3}>3 Groups (A, B, C)</option>
@@ -143,35 +143,37 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
               </select>
               <Button
                 onClick={handleGenerateDraw}
-                disabled={actionLoading || teams.length === 0}
-                className="bg-purple-600 font-bold text-white hover:bg-purple-500"
+                disabled={actionLoading}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-sm"
               >
                 <Shuffle className="h-4 w-4 mr-1.5" />
-                Generate Blind Cards
+                {actionLoading ? 'Generating...' : 'Generate Blind Cards'}
               </Button>
             </>
           ) : (
             <>
               {/* Franchise Selector for Assignment */}
-              <select
-                value={selectedTeamId}
-                onChange={(e) => setSelectedTeamId(e.target.value)}
-                className="rounded-lg border border-white/20 bg-slate-800 p-2 text-xs text-white max-w-xs"
-              >
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    Assign: {t.team_name || t.name}
-                  </option>
-                ))}
-              </select>
+              {teams.length > 0 && (
+                <select
+                  value={selectedTeamId}
+                  onChange={(e) => setSelectedTeamId(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-zinc-900 font-semibold max-w-xs focus:outline-none"
+                >
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Assign: {t.team_name || t.name}
+                    </option>
+                  ))}
+                </select>
+              )}
 
               <Button
                 variant="outline"
                 onClick={handleResetDraw}
                 disabled={actionLoading}
-                className="border-red-500/40 text-red-300 hover:bg-red-500/20"
+                className="border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold"
               >
-                <RotateCcw className="h-4 w-4 mr-1.5" /> Reset Draw
+                <RotateCcw className="h-4 w-4 mr-1.5 text-rose-600" /> Reset Draw
               </Button>
             </>
           )}
@@ -189,21 +191,21 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
               <motion.div
                 key={c.id || c.card_number}
                 whileHover={{ scale: 1.02 }}
-                className={`relative flex min-h-[170px] flex-col justify-between rounded-2xl border p-4 text-center shadow-xl transition-all ${
+                className={`relative flex min-h-[170px] flex-col justify-between rounded-2xl border p-4 text-center transition-all ${
                   isRevealed
-                    ? 'border-amber-500/50 bg-gradient-to-b from-amber-500/20 to-slate-900 shadow-amber-950/40'
+                    ? 'border-amber-300 bg-amber-50/70 shadow-sm'
                     : isAssigned
-                    ? 'border-purple-500/40 bg-slate-900 shadow-purple-950/20'
-                    : 'border-white/10 bg-slate-900/60'
+                    ? 'border-purple-200 bg-purple-50/60 shadow-sm'
+                    : 'border-slate-200 bg-white shadow-sm'
                 }`}
               >
                 {/* Card Number Badge */}
                 <div className="flex items-center justify-between">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 font-mono text-xs font-bold text-white">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-slate-100 font-mono text-xs font-black text-zinc-900 border border-slate-200">
                     #{c.card_number}
                   </span>
                   {isRevealed && (
-                    <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-extrabold uppercase text-slate-950">
+                    <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-black uppercase text-zinc-950">
                       REVEALED
                     </span>
                   )}
@@ -213,32 +215,32 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
                 <div className="my-2">
                   {isRevealed ? (
                     <div>
-                      <p className="text-xl font-extrabold tracking-tight text-amber-300">
+                      <p className="text-xl font-black tracking-tight text-amber-700">
                         {c.group_name}
                       </p>
-                      <p className="mt-1 text-xs font-bold text-white truncate">{c.team_name}</p>
+                      <p className="mt-1 text-xs font-bold text-zinc-900 truncate">{c.team_name || 'Team Assigned'}</p>
                     </div>
                   ) : isAssigned ? (
                     <div>
-                      <p className="text-xs text-slate-400">Assigned Team:</p>
-                      <p className="text-sm font-bold text-purple-300 truncate mt-1">{c.team_name}</p>
+                      <p className="text-xs text-slate-500 font-semibold">Assigned Team:</p>
+                      <p className="text-sm font-black text-purple-700 truncate mt-1">{c.team_name}</p>
                     </div>
                   ) : (
-                    <div className="text-slate-500">
-                      <Shield className="h-8 w-8 mx-auto mb-1 text-slate-600" />
-                      <span className="text-[10px] font-semibold uppercase">UNASSIGNED</span>
+                    <div className="text-slate-400">
+                      <Shield className="h-8 w-8 mx-auto mb-1 text-slate-400" />
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">UNASSIGNED</span>
                     </div>
                   )}
                 </div>
 
                 {/* Card Actions */}
-                <div className="pt-2 border-t border-white/5">
+                <div className="pt-2 border-t border-slate-100">
                   {!isAssigned ? (
                     <Button
                       size="sm"
                       onClick={() => handleAssignTeam(c.card_number)}
-                      disabled={actionLoading}
-                      className="w-full h-7 text-[10px] bg-purple-600 text-white font-semibold hover:bg-purple-500"
+                      disabled={actionLoading || teams.length === 0}
+                      className="w-full h-7 text-[10px] bg-purple-600 text-white font-bold hover:bg-purple-700 rounded-lg"
                     >
                       Assign Card
                     </Button>
@@ -247,12 +249,12 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
                       size="sm"
                       onClick={() => handleRevealCard(c.card_number)}
                       disabled={actionLoading}
-                      className="w-full h-7 text-[10px] bg-amber-500 text-slate-950 font-bold hover:bg-amber-400"
+                      className="w-full h-7 text-[10px] bg-amber-500 text-zinc-950 font-black hover:bg-amber-600 rounded-lg"
                     >
                       <Eye className="h-3 w-3 mr-1" /> REVEAL
                     </Button>
                   ) : (
-                    <span className="text-[10px] text-emerald-400 font-semibold flex items-center justify-center gap-1">
+                    <span className="text-[10px] text-emerald-700 font-bold flex items-center justify-center gap-1">
                       ✓ Group Locked
                     </span>
                   )}
@@ -262,10 +264,10 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-12 text-center backdrop-blur-xl">
-          <Trophy className="h-12 w-12 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-300">No Blind Cards Generated</h3>
-          <p className="text-xs text-slate-500 mt-1">
+        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+          <Trophy className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-base font-black text-zinc-900">No Blind Cards Generated</h3>
+          <p className="text-xs text-slate-500 font-medium mt-1">
             Choose your group count above and generate blind draw cards for active franchise teams.
           </p>
         </div>

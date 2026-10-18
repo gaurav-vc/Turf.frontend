@@ -79,7 +79,7 @@ export default function CustomFieldsStudio({ auctionId }: CustomFieldsStudioProp
       <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-xl">
         <h3 className="text-base font-bold text-white flex items-center gap-2 mb-2">
           <Tag className="h-5 w-5 text-amber-400" />
-          Extensible Custom Field Studio (Phase 2 V24 EAV)
+          Extensible Custom Field Studio
         </h3>
         <p className="text-xs text-slate-400 mb-4">
           Add dynamic attributes for players and teams. Select fields automatically learn distinct options when uploaded via CSV or Excel.

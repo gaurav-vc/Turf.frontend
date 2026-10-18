@@ -47,6 +47,35 @@ export default function TeamsHub() {
     Array(5).fill(null).map(() => ({ name: '', role: '', is_substitute: false }))
   )
 
+  const [showQuickSportModal, setShowQuickSportModal] = useState(false)
+  const [quickSportName, setQuickSportName] = useState('')
+  const [quickSportSaving, setQuickSportSaving] = useState(false)
+
+  const handleQuickAddSport = async () => {
+    const title = quickSportName.trim()
+    if (!title) return
+    setQuickSportSaving(true)
+    try {
+      const res = await apiClient.post(ENDPOINTS.SPORTS, {
+        name: title,
+        team_size_min: 1,
+        team_size_max: 11,
+        scoring_engine: 'standard'
+      })
+      await fetchSports()
+      if (res.data?.id) {
+        setFormData(prev => ({ ...prev, sport: res.data.id.toString() }))
+      }
+      setShowQuickSportModal(false)
+      setQuickSportName('')
+    } catch (err) {
+      console.error('Failed to create sport', err)
+      alert('Failed to add sport. It may already exist.')
+    } finally {
+      setQuickSportSaving(false)
+    }
+  }
+
   useEffect(() => {
     fetchTeams()
     fetchSports()
@@ -64,7 +93,8 @@ export default function TeamsHub() {
   const fetchSports = async () => {
     try {
       const res = await apiClient.get(ENDPOINTS.SPORTS)
-      setSports(res.data)
+      const list = Array.isArray(res.data) ? res.data : (res.data?.results || [])
+      setSports(list)
     } catch (err) {
       console.error('Failed to fetch sports', err)
     }
@@ -95,6 +125,7 @@ export default function TeamsHub() {
   }
 
   const openForm = (team?: Team) => {
+    fetchSports()
     if (team) {
       setEditingTeamId(team.id)
       setFormData({
@@ -202,7 +233,16 @@ export default function TeamsHub() {
             </div>
             
             <div className="space-y-3">
-              <Label className="text-sm font-bold text-gray-700 ml-1">Select Sport</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold text-gray-700 ml-1">Select Sport</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickSportModal(true)}
+                  className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Sport
+                </button>
+              </div>
               <select 
                 required
                 value={formData.sport}
@@ -368,6 +408,57 @@ export default function TeamsHub() {
             </Button>
           </div>
         </form>
+
+        {/* Quick Add Sport Modal */}
+        {showQuickSportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-white dark:bg-card w-full max-w-md rounded-2xl p-6 border border-border shadow-2xl relative">
+              <h3 className="text-lg font-black text-foreground mb-1">Add Sport</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Type any custom sport name to add it dynamically:
+              </p>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleQuickAddSport()
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <Label htmlFor="quickSport" className="text-xs font-bold">Sport Name</Label>
+                  <Input
+                    id="quickSport"
+                    required
+                    autoFocus
+                    placeholder="e.g. Cricket, Volleyball, Dodgeball"
+                    value={quickSportName}
+                    onChange={(e) => setQuickSportName(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowQuickSportModal(false)}
+                    disabled={quickSportSaving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={quickSportSaving || !quickSportName.trim()}
+                    className="bg-brand text-white hover:bg-brand-hover font-bold"
+                  >
+                    {quickSportSaving ? 'Adding...' : 'Add & Select'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </motion.div>
     )
   }

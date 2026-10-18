@@ -172,6 +172,7 @@ export default function TournamentsHub() {
       name: '', sport: '', privacy: 'PUBLIC', venue: '', start_date: ''
     })
     setEditingId(null)
+    fetchSports()
     setIsCreating(true)
   }
 
@@ -270,6 +271,57 @@ export default function TournamentsHub() {
             </Button>
           </div>
         </form>
+
+        {/* Quick Add Sport Modal */}
+        {showQuickSportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-card w-full max-w-md rounded-2xl p-6 border border-border shadow-2xl relative">
+              <h3 className="text-lg font-black text-foreground mb-1">Add Sport</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Type any custom sport name to add it dynamically:
+              </p>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleQuickAddSport()
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <Label htmlFor="customSport" className="text-xs font-bold">Sport Name</Label>
+                  <Input
+                    id="customSport"
+                    required
+                    autoFocus
+                    placeholder="e.g. Cricket, Volleyball, Dodgeball"
+                    value={quickSportName}
+                    onChange={(e) => setQuickSportName(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowQuickSportModal(false)}
+                    disabled={quickSportSaving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={quickSportSaving || !quickSportName.trim()}
+                    className="bg-brand text-white hover:bg-brand-hover font-bold"
+                  >
+                    {quickSportSaving ? 'Adding...' : 'Add & Select'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

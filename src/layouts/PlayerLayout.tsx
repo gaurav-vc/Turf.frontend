@@ -43,7 +43,7 @@ export default function PlayerLayout() {
 
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [isAuctionDropdownOpen, setIsAuctionDropdownOpen] = useState(true)
+  const [isAuctionDropdownOpen, setIsAuctionDropdownOpen] = useState(false)
   
   const unreadCount = notifications.filter(n => !n.is_read).length
 
@@ -167,44 +167,38 @@ export default function PlayerLayout() {
 
           {/* Live Auction Main Sidebar Section (Positioned Directly Below Tournaments) */}
           <div className="rounded-xl overflow-hidden">
-            <div
-              className={`flex items-center justify-between px-3 py-2.5 text-sm font-semibold rounded-xl transition-colors ${
+            <button
+              type="button"
+              onClick={() => {
+                const nextState = !isAuctionDropdownOpen
+                setIsAuctionDropdownOpen(nextState)
+                if (nextState && !location.pathname.startsWith('/auction')) {
+                  navigate('/auction')
+                }
+              }}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-colors cursor-pointer text-left ${
                 isActive('/auction')
                   ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm font-bold'
                   : 'hover:bg-muted hover:text-brand'
               }`}
             >
-              <Link to="/auction" className="flex items-center flex-1 py-0.5">
+              <div className="flex items-center flex-1">
                 <Gavel className="w-5 h-5 mr-3 text-amber-500 shrink-0" />
                 <span className="truncate">Live Auction</span>
-              </Link>
+              </div>
               
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsAuctionDropdownOpen(!isAuctionDropdownOpen)
-                }}
-                className="p-1 rounded-lg hover:bg-brand/20 text-muted-foreground hover:text-brand transition-colors shrink-0 ml-1"
-                title={isAuctionDropdownOpen ? 'Hide pages' : 'Display pages'}
-              >
+              <div className="p-0.5 shrink-0 ml-1">
                 {isAuctionDropdownOpen ? (
                   <ChevronUp className="w-4 h-4 text-brand transition-transform duration-200" />
                 ) : (
                   <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200" />
                 )}
-              </button>
-            </div>
+              </div>
+            </button>
 
             {/* Collapsible Dropdown List of Live Auction Pages */}
             {isAuctionDropdownOpen && (
               <div className="ml-3 pl-3 border-l-2 border-brand/40 my-1 space-y-0.5 py-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                <div className="pr-2 py-0.5 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
-                    Pages (13)
-                  </span>
-                </div>
                 {[
                   { tab: 'overview', label: 'Command Center' },
                   { tab: 'live', label: 'Live Broadcast' },

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FileText, Save, CheckCircle2, Grid } from 'lucide-react'
+import { FileText, Save, CheckCircle2, Grid, Users, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { apiClient } from '@/api/apiClient'
@@ -58,6 +58,8 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
+  const apiBase = apiClient.defaults.baseURL || window.location.origin
+
   useEffect(() => {
     loadDesign()
   }, [auctionId])
@@ -107,6 +109,48 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     }
   }
 
+  const handleDownloadCardsPdf = async () => {
+    try {
+      const res = await apiClient.get(`/v1/auction/console/${auctionId}/export_cards_pdf/?cols=${cols}&rows=${rows}`, {
+        responseType: 'blob',
+      })
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Player_Cards_${cols}x${rows}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Failed to download cards PDF', err)
+      const downloadUrl = `${apiBase}/v1/auction/console/${auctionId}/export_cards_pdf/?cols=${cols}&rows=${rows}`
+      window.open(downloadUrl, '_blank')
+    }
+  }
+
+  const handleDownloadTeamsPdf = async () => {
+    try {
+      const res = await apiClient.get(`/v1/auction/console/${auctionId}/export_teams_pdf/`, {
+        responseType: 'blob',
+      })
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Auction_Squads_Report.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Failed to export teams PDF', err)
+      const downloadUrl = `${apiBase}/v1/auction/console/${auctionId}/export_teams_pdf/`
+      window.open(downloadUrl, '_blank')
+    }
+  }
+
   const updateProp = (key: string, prop: keyof CardElement, val: any) => {
     setElements((prev) => ({
       ...prev,
@@ -118,37 +162,55 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   }
 
   const selectedEl = elements[selectedKey] || elements.name
-
-  // Sample repeating cards count
   const sampleCount = Math.min(cols * rows, 8)
 
   return (
     <div className="space-y-6">
       {/* Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-400" />
+          <h2 className="text-xl font-black text-zinc-900 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-indigo-600" />
             PDF Design Studio & Printable Sheet Engine
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Design one player card. Choose your grid dimensions and the print engine automatically repeats it across every A4 page.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {saveSuccess && (
-            <span className="flex items-center gap-1 text-xs text-emerald-400 font-semibold bg-emerald-950/40 border border-emerald-800/40 px-3 py-1.5 rounded-lg">
-              <CheckCircle2 className="w-4 h-4" /> PDF Design Saved!
+            <span className="flex items-center gap-1 text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> PDF Design Saved!
             </span>
           )}
+
+          <Button
+            onClick={handleDownloadCardsPdf}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm rounded-xl"
+            title="Download printable grid of player auction cards"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Download Player Cards PDF
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={handleDownloadTeamsPdf}
+            className="border-slate-300 text-zinc-800 hover:bg-slate-100 text-xs font-bold flex items-center gap-1.5 rounded-xl"
+            title="Export full squads roster report PDF"
+          >
+            <Users className="w-3.5 h-3.5 text-slate-600" />
+            Export Squads PDF
+          </Button>
+
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm rounded-xl"
           >
             <Save className="w-3.5 h-3.5" />
-            {saving ? 'Saving...' : 'Save PDF Design'}
+            {saving ? 'Saving...' : 'Save Design'}
           </Button>
         </div>
       </div>
@@ -160,20 +222,20 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
           {/* Settings Panel (Left 4 cols) */}
           <div className="lg:col-span-4 space-y-4">
             {/* Format Selector */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-md space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-bold text-white uppercase tracking-wider">Format & Grid</span>
-                <span className="text-[10px] text-slate-400">A4 Standard</span>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Format & Grid</span>
+                <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-2 py-0.5 rounded">A4 Standard</span>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setActiveTab('category')}
-                  className={`py-1.5 px-3 rounded-lg text-xs font-semibold border transition ${
+                  className={`py-1.5 px-3 rounded-xl text-xs font-bold border transition ${
                     activeTab === 'category'
-                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
-                      : 'bg-slate-950 text-slate-400 border-slate-800'
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-xs'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
                   Category Wise
@@ -181,10 +243,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                 <button
                   type="button"
                   onClick={() => setActiveTab('auction')}
-                  className={`py-1.5 px-3 rounded-lg text-xs font-semibold border transition ${
+                  className={`py-1.5 px-3 rounded-xl text-xs font-bold border transition ${
                     activeTab === 'auction'
-                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
-                      : 'bg-slate-950 text-slate-400 border-slate-800'
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-xs'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
                   Auction Format
@@ -193,11 +255,11 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Columns</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Columns</label>
                   <select
                     value={cols}
                     onChange={(e) => setCols(Number(e.target.value))}
-                    className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-white"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-zinc-900 font-semibold focus:outline-none"
                   >
                     {[1, 2, 3, 4].map((n) => (
                       <option key={n} value={n}>
@@ -207,11 +269,11 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Rows per Page</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Rows per Page</label>
                   <select
                     value={rows}
                     onChange={(e) => setRows(Number(e.target.value))}
-                    className="w-full rounded-md border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-white"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-zinc-900 font-semibold focus:outline-none"
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                       <option key={n} value={n}>
@@ -224,37 +286,37 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Card Fill</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Card Background</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
                       value={cardFill}
                       onChange={(e) => setCardFill(e.target.value)}
-                      className="w-7 h-7 rounded border border-slate-700 bg-transparent cursor-pointer"
+                      className="w-7 h-7 rounded border border-slate-200 bg-transparent cursor-pointer"
                     />
-                    <span className="text-xs font-mono text-slate-300">{cardFill}</span>
+                    <span className="text-xs font-mono text-slate-600">{cardFill}</span>
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Accent Border</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Accent Border</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
                       value={accentColour}
                       onChange={(e) => setAccentColour(e.target.value)}
-                      className="w-7 h-7 rounded border border-slate-700 bg-transparent cursor-pointer"
+                      className="w-7 h-7 rounded border border-slate-200 bg-transparent cursor-pointer"
                     />
-                    <span className="text-xs font-mono text-slate-300">{accentColour}</span>
+                    <span className="text-xs font-mono text-slate-600">{accentColour}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Elements Checklist with Show Label Indicator */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-md space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-bold text-white uppercase tracking-wider">Card Information</span>
-                <span className="text-[10px] text-slate-400">Click to edit box</span>
+            {/* Elements Checklist */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Card Information</span>
+                <span className="text-[10px] text-slate-500 font-medium">Click to edit box</span>
               </div>
 
               <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
@@ -262,10 +324,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   <div
                     key={key}
                     onClick={() => setSelectedKey(key)}
-                    className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${
+                    className={`flex items-center justify-between p-2 rounded-xl cursor-pointer text-xs transition ${
                       selectedKey === key
-                        ? 'bg-indigo-950/60 border border-indigo-600/40 text-white'
-                        : 'bg-slate-950/50 hover:bg-slate-950 text-slate-300'
+                        ? 'bg-indigo-50 border border-indigo-300 text-indigo-950 font-bold'
+                        : 'bg-slate-50/70 hover:bg-slate-100 border border-transparent text-slate-700'
                     }`}
                   >
                     <label
@@ -276,19 +338,19 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                         type="checkbox"
                         checked={el.selected}
                         onChange={(e) => updateProp(key, 'selected', e.target.checked)}
-                        className="rounded border-slate-700 bg-slate-900 text-indigo-500 h-3.5 w-3.5"
+                        className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5"
                       />
-                      <span className="font-semibold">{FIELD_LABELS[key] || key}</span>
+                      <span>{FIELD_LABELS[key] || key}</span>
                     </label>
 
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                      className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold ${
                         el.show_label
-                          ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
-                          : 'bg-slate-800 text-slate-400'
+                          ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                          : 'bg-slate-200 text-slate-600'
                       }`}
                     >
-                      Name: {el.show_label ? 'Yes' : 'No'}
+                      Label: {el.show_label ? 'Yes' : 'No'}
                     </span>
                   </div>
                 ))}
@@ -297,36 +359,36 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
             {/* Element Properties Box */}
             {selectedEl && (
-              <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-md space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider">
                     {FIELD_LABELS[selectedKey] || selectedKey} Properties
                   </span>
                 </div>
 
-                {/* Show Field Name Radio (Critical Phase 2 V24 requirement) */}
-                <div className="space-y-1 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                  <span className="text-xs font-semibold text-slate-200 block">
-                    Show Field Name:
+                {/* Show Field Name Radio */}
+                <div className="space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                  <span className="text-xs font-bold text-zinc-900 block">
+                    Show Field Name Label:
                   </span>
                   <div className="flex items-center gap-4 text-xs pt-1">
-                    <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-slate-700 cursor-pointer font-medium">
                       <input
                         type="radio"
                         name="show_label_radio"
                         checked={selectedEl.show_label === true}
                         onChange={() => updateProp(selectedKey, 'show_label', true)}
-                        className="text-indigo-500"
+                        className="text-indigo-600"
                       />
                       <span>Yes (e.g. "Base Price: ₹50,000")</span>
                     </label>
-                    <label className="flex items-center gap-1.5 text-slate-300 cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-slate-700 cursor-pointer font-medium">
                       <input
                         type="radio"
                         name="show_label_radio"
                         checked={selectedEl.show_label === false}
                         onChange={() => updateProp(selectedKey, 'show_label', false)}
-                        className="text-indigo-500"
+                        className="text-indigo-600"
                       />
                       <span>No (Value Only)</span>
                     </label>
@@ -335,73 +397,73 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">Font Size (px)</label>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Font Size (px)</label>
                     <Input
                       type="number"
                       min={6}
                       max={40}
                       value={selectedEl.font_size}
                       onChange={(e) => updateProp(selectedKey, 'font_size', Number(e.target.value))}
-                      className="bg-slate-950 border-slate-800 text-xs text-white"
+                      className="bg-white border-slate-200 text-xs text-zinc-900 font-semibold"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">Text Colour</label>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Text Colour</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={selectedEl.colour}
                         onChange={(e) => updateProp(selectedKey, 'colour', e.target.value)}
-                        className="w-7 h-7 rounded border border-slate-700 bg-transparent cursor-pointer"
+                        className="w-7 h-7 rounded border border-slate-200 bg-transparent cursor-pointer"
                       />
-                      <span className="text-xs font-mono text-slate-300">{selectedEl.colour}</span>
+                      <span className="text-xs font-mono text-slate-600">{selectedEl.colour}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-2">
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-0.5">X %</label>
+                    <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">X %</label>
                     <Input
                       type="number"
                       min={0}
                       max={100}
                       value={selectedEl.x}
                       onChange={(e) => updateProp(selectedKey, 'x', Number(e.target.value))}
-                      className="bg-slate-950 border-slate-800 text-[11px] text-white p-1"
+                      className="bg-white border-slate-200 text-[11px] text-zinc-900 p-1"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-0.5">Y %</label>
+                    <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Y %</label>
                     <Input
                       type="number"
                       min={0}
                       max={100}
                       value={selectedEl.y}
                       onChange={(e) => updateProp(selectedKey, 'y', Number(e.target.value))}
-                      className="bg-slate-950 border-slate-800 text-[11px] text-white p-1"
+                      className="bg-white border-slate-200 text-[11px] text-zinc-900 p-1"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-0.5">Width %</label>
+                    <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Width %</label>
                     <Input
                       type="number"
                       min={4}
                       max={100}
                       value={selectedEl.w}
                       onChange={(e) => updateProp(selectedKey, 'w', Number(e.target.value))}
-                      className="bg-slate-950 border-slate-800 text-[11px] text-white p-1"
+                      className="bg-white border-slate-200 text-[11px] text-zinc-900 p-1"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-0.5">Height %</label>
+                    <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Height %</label>
                     <Input
                       type="number"
                       min={4}
                       max={100}
                       value={selectedEl.h}
                       onChange={(e) => updateProp(selectedKey, 'h', Number(e.target.value))}
-                      className="bg-slate-950 border-slate-800 text-[11px] text-white p-1"
+                      className="bg-white border-slate-200 text-[11px] text-zinc-900 p-1"
                     />
                   </div>
                 </div>
@@ -411,31 +473,28 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
           {/* Interactive Live Page Preview (Right 8 cols) */}
           <div className="lg:col-span-8 space-y-3">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="font-semibold text-white flex items-center gap-1.5">
-                <Grid className="w-4 h-4 text-indigo-400" />
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span className="font-bold text-zinc-900 flex items-center gap-1.5">
+                <Grid className="w-4 h-4 text-indigo-600" />
                 Live Page Grid Preview ({cols} Columns × {rows} Rows)
               </span>
-              <span className="text-[11px]">First card is active master template</span>
+              <span className="text-[11px] text-slate-500">First card is the active master template</span>
             </div>
 
             {/* A4 Paper Simulation Canvas */}
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 overflow-hidden flex justify-center shadow-2xl">
+            <div className="bg-slate-100 border border-slate-200 rounded-2xl p-6 overflow-hidden flex justify-center shadow-inner">
               <div
-                className="w-full max-w-[700px] aspect-[1/1.414] bg-white text-slate-900 rounded-lg shadow-xl p-4 flex flex-col relative select-none"
-                style={{
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-                }}
+                className="w-full max-w-[700px] aspect-[1/1.414] bg-white text-slate-900 rounded-xl shadow-xl p-5 flex flex-col relative select-none border border-slate-300"
               >
                 {/* Simulated Sheet Header */}
-                <div className="border-b border-slate-200 pb-2 mb-3 flex items-center justify-between text-[11px] font-bold text-slate-700">
+                <div className="border-b border-slate-200 pb-2 mb-3 flex items-center justify-between text-[11px] font-bold text-slate-800">
                   <span className="uppercase tracking-wider">Tournament Player Profile Sheet</span>
-                  <span className="text-slate-400 font-mono">Page 1 • {cols * rows} Players per Page</span>
+                  <span className="text-slate-500 font-mono">Page 1 • {cols * rows} Players per Page</span>
                 </div>
 
                 {/* Grid */}
                 <div
-                  className="grid gap-2 flex-1"
+                  className="grid gap-2.5 flex-1"
                   style={{
                     gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                     gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
@@ -444,7 +503,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   {Array.from({ length: sampleCount }).map((_, cIdx) => (
                     <div
                       key={cIdx}
-                      className="relative rounded border overflow-hidden p-1 transition"
+                      className="relative rounded-lg border overflow-hidden p-1 transition"
                       style={{
                         backgroundColor: cardFill,
                         borderColor: accentColour,
@@ -452,7 +511,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                       }}
                     >
                       {cIdx === 0 && (
-                        <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[8px] font-black uppercase px-1 rounded-bl z-10">
+                        <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-bl z-10">
                           Template
                         </div>
                       )}
@@ -477,7 +536,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                             onClick={() => setSelectedKey(key)}
                             className={`absolute flex items-center overflow-hidden cursor-pointer ${
                               cIdx === 0 && selectedKey === key ? 'ring-1 ring-indigo-500' : ''
-                            } ${isPhoto ? 'bg-slate-100 border border-slate-200 justify-center text-[8px] text-slate-400 font-bold' : ''}`}
+                            } ${isPhoto ? 'bg-slate-100 border border-slate-200 justify-center text-[8px] text-slate-500 font-bold' : ''}`}
                             style={{
                               left: `${el.x}%`,
                               top: `${el.y}%`,

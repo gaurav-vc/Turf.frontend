@@ -91,7 +91,7 @@ export default function AuctionPageDesigner({ auctionId }: AuctionPageDesignerPr
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Layout className="h-5 w-5 text-amber-400" />
-            Auction Page Broadcast Designer (Phase 2 V24)
+            Auction Page Broadcast Designer
           </h2>
           <p className="text-xs text-slate-400">
             Configure broadcast elements, show/hide field labels, font typography, and layout zones.
@@ -116,7 +116,10 @@ export default function AuctionPageDesigner({ auctionId }: AuctionPageDesignerPr
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Live Broadcast Card Preview (7 cols) */}
         <div className="lg:col-span-7">
-          <div className="sticky top-6 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/30 p-6 shadow-2xl">
+          <div
+            className="sticky top-6 rounded-2xl border border-slate-800 p-6"
+            style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+          >
             <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
               <span className="text-xs font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                 <Eye className="h-3.5 w-3.5" /> Broadcast Stage Live Preview

@@ -206,42 +206,42 @@ export default function PlayerEntryFormModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl my-6"
+        className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl my-6 overflow-hidden"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
               <UserPlus className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-black text-zinc-900 flex items-center gap-2">
                 <span>{playerToEdit ? 'Edit Player Profile' : 'Add Player to Auction Pool'}</span>
-                {loadingConfig && <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />}
+                {loadingConfig && <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-500" />}
               </h3>
-              <p className="text-[11px] text-slate-400">
-                Authoritative Player Master Form (Phase 2 V24 Specification)
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Authoritative Player Master Form
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-zinc-900 hover:bg-slate-200/60 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 text-zinc-900">
           {errorMsg && (
-            <div className="bg-rose-950/60 border border-rose-800/60 text-rose-300 text-xs p-3 rounded-xl flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3 rounded-2xl flex items-center gap-2 font-semibold">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -249,8 +249,8 @@ export default function PlayerEntryFormModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Player No. */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
-                Player No. <span className="text-slate-500 font-normal">(optional)</span>
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                Player No. <span className="text-slate-400 font-normal">(optional)</span>
               </label>
               <Input
                 type="number"
@@ -258,27 +258,27 @@ export default function PlayerEntryFormModal({
                 placeholder="Auto next number"
                 value={formData.player_no}
                 onChange={(e) => setFormData({ ...formData, player_no: e.target.value })}
-                className="bg-slate-950 border-slate-800 text-xs text-white"
+                className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
               />
             </div>
 
             {/* Name */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
-                Name <span className="text-emerald-400">*</span>
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                Name <span className="text-emerald-600">*</span>
               </label>
               <Input
                 required
                 placeholder="Player full name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="bg-slate-950 border-slate-800 text-xs text-white"
+                className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
               />
             </div>
 
             {/* Mobile */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Mobile Number
               </label>
               <Input
@@ -286,14 +286,14 @@ export default function PlayerEntryFormModal({
                 maxLength={10}
                 placeholder="10-digit mobile"
                 value={formData.mobile}
-                onChange={(e) => setFormData({ ...formData, mobile: e.target.value.replace(/\\D/g, '') })}
-                className="bg-slate-950 border-slate-800 text-xs text-white"
+                onChange={(e) => setFormData({ ...formData, mobile: e.target.value.replace(/\D/g, '') })}
+                className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
               />
             </div>
 
             {/* Age */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Age
               </label>
               <Input
@@ -303,32 +303,32 @@ export default function PlayerEntryFormModal({
                 placeholder="e.g. 25"
                 value={formData.age}
                 onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                className="bg-slate-950 border-slate-800 text-xs text-white"
+                className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
               />
             </div>
 
             {/* Location */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Location
               </label>
               <Input
                 placeholder="City / Region"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="bg-slate-950 border-slate-800 text-xs text-white"
+                className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
               />
             </div>
 
             {/* Role */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
-                Role <span className="text-emerald-400">*</span>
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                Role <span className="text-emerald-600">*</span>
               </label>
               <select
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-white rounded-md px-2.5 py-2 outline-none"
+                className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
               >
                 {DEFAULT_ROLES.map((r) => (
                   <option key={r} value={r}>{r}</option>
@@ -338,14 +338,14 @@ export default function PlayerEntryFormModal({
 
             {/* Category */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
-                Category <span className="text-emerald-400">*</span>
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                Category <span className="text-emerald-600">*</span>
               </label>
               {categories.length > 0 ? (
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 text-xs text-white rounded-md px-2.5 py-2 outline-none"
+                  className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
                 >
                   {categories.map((c) => (
                     <option key={c.name} value={c.name}>{c.name}</option>
@@ -357,15 +357,15 @@ export default function PlayerEntryFormModal({
                   placeholder="e.g. Icon, Tier 1"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="bg-slate-950 border-slate-800 text-xs text-white"
+                  className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
                 />
               )}
             </div>
 
             {/* Base Price */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
-                Base Price (₹) <span className="text-emerald-400">*</span>
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                Base Price (₹) <span className="text-emerald-600">*</span>
               </label>
               <Input
                 required
@@ -374,19 +374,19 @@ export default function PlayerEntryFormModal({
                 step={500}
                 value={formData.base_price}
                 onChange={(e) => setFormData({ ...formData, base_price: Number(e.target.value) })}
-                className="bg-slate-950 border-slate-800 text-xs text-white"
+                className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
               />
             </div>
 
             {/* Tagging */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Tagging
               </label>
               <select
                 value={formData.tagging}
                 onChange={(e) => setFormData({ ...formData, tagging: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-white rounded-md px-2.5 py-2 outline-none"
+                className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
               >
                 {DEFAULT_TAGS.map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -396,13 +396,13 @@ export default function PlayerEntryFormModal({
 
             {/* Batting Style */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Batting Style
               </label>
               <select
                 value={formData.batting_style}
                 onChange={(e) => setFormData({ ...formData, batting_style: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-white rounded-md px-2.5 py-2 outline-none"
+                className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
               >
                 <option value="Right Hand Bat">Right Hand Bat</option>
                 <option value="Left Hand Bat">Left Hand Bat</option>
@@ -411,13 +411,13 @@ export default function PlayerEntryFormModal({
 
             {/* Bowling Style */}
             <div>
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block mb-1">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Bowling Style
               </label>
               <select
                 value={formData.bowling_style}
                 onChange={(e) => setFormData({ ...formData, bowling_style: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-white rounded-md px-2.5 py-2 outline-none"
+                className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
               >
                 <option value="Right Arm Fast">Right Arm Fast</option>
                 <option value="Right Arm Medium">Right Arm Medium</option>
@@ -429,8 +429,8 @@ export default function PlayerEntryFormModal({
             </div>
 
             {/* Photo Section */}
-            <div className="sm:col-span-2 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-              <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+            <div className="sm:col-span-2 bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
                 Player Photo
               </label>
               <div className="flex items-center gap-4">
@@ -438,17 +438,17 @@ export default function PlayerEntryFormModal({
                   <img
                     src={photoPreview}
                     alt="Preview"
-                    className="w-14 h-14 rounded-xl object-cover border border-emerald-500/40"
+                    className="w-14 h-14 rounded-2xl object-cover border border-emerald-500 shadow-xs"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500">
+                  <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400">
                     <User className="w-6 h-6" />
                   </div>
                 )}
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg cursor-pointer border border-slate-700 transition">
-                      <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-zinc-800 text-xs font-bold rounded-xl cursor-pointer border border-slate-200 shadow-xs transition">
+                      <Upload className="w-3.5 h-3.5 text-emerald-600" />
                       Choose Image
                       <input
                         type="file"
@@ -457,7 +457,7 @@ export default function PlayerEntryFormModal({
                         className="hidden"
                       />
                     </label>
-                    <span className="text-[10px] text-slate-500">OR Enter URL</span>
+                    <span className="text-[10px] text-slate-500 font-semibold">OR Enter URL</span>
                   </div>
                   <Input
                     placeholder="https://example.com/photo.jpg"
@@ -466,7 +466,7 @@ export default function PlayerEntryFormModal({
                       setFormData({ ...formData, photo_url: e.target.value })
                       if (!photoFile) setPhotoPreview(e.target.value)
                     }}
-                    className="bg-slate-950 border-slate-800 text-xs text-white h-8"
+                    className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl h-8 font-medium"
                   />
                 </div>
               </div>
@@ -474,22 +474,22 @@ export default function PlayerEntryFormModal({
 
             {/* Custom Fields */}
             {customFields.length > 0 && (
-              <div className="sm:col-span-2 space-y-3 pt-2 border-t border-slate-800">
-                <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+              <div className="sm:col-span-2 space-y-3 pt-2 border-t border-slate-200">
+                <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">
                   Tournament Custom Information
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {customFields.map((cf) => (
                     <div key={cf.id || cf.field_key}>
-                      <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                        {cf.label} {cf.required && <span className="text-emerald-400">*</span>}
+                      <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                        {cf.label} {cf.required && <span className="text-emerald-600">*</span>}
                       </label>
                       <Input
                         required={cf.required}
                         placeholder={`Enter ${cf.label.toLowerCase()}`}
                         value={customValues[cf.field_key] || ''}
                         onChange={(e) => setCustomValues({ ...customValues, [cf.field_key]: e.target.value })}
-                        className="bg-slate-950 border-slate-800 text-xs text-white"
+                        className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
                       />
                     </div>
                   ))}
@@ -498,19 +498,19 @@ export default function PlayerEntryFormModal({
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="border-slate-800 text-slate-400 hover:text-white text-xs"
+              className="border-slate-200 text-slate-600 hover:text-zinc-900 text-xs font-semibold rounded-xl"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={saving}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 rounded-xl shadow-xs px-4"
             >
               {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               {saving ? 'Saving...' : playerToEdit ? 'Save Changes' : 'Save Player'}

@@ -59,8 +59,10 @@ export default function TeamLivePortalPage() {
           </span>
         </div>
 
-        {/* Live Block Snapshot */}
-        <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-slate-900 to-amber-950/20 p-6 shadow-xl">
+        <div
+          className="rounded-3xl border border-slate-800 p-6"
+          style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+        >
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Current Player on Block</span>

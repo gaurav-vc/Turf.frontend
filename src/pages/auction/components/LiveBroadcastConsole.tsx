@@ -280,7 +280,10 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left Column: Player on the Block (8 Cols) */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-slate-900 via-slate-950 to-amber-950/20 p-6 shadow-2xl backdrop-blur-xl">
+          <div
+            className="relative overflow-hidden rounded-2xl border border-slate-800 p-6"
+            style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+          >
             {/* Header info */}
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-3">
@@ -412,7 +415,10 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
                   </div>
 
                   {/* Current Bid Display */}
-                  <div className="mt-4 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-transparent p-4">
+                  <div
+                    className="mt-4 rounded-xl border border-amber-500/40 p-4"
+                    style={{ backgroundColor: 'rgba(245, 158, 11, 0.08)', backgroundImage: 'none', boxShadow: 'none' }}
+                  >
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="text-xs uppercase tracking-wider text-amber-300/80">Current Bid</span>
@@ -453,25 +459,23 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
                 <Button
                   onClick={handleHammerSold}
                   disabled={actionLoading || !player || !highestBid}
-                  className="bg-emerald-600 font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/40"
+                  className="bg-emerald-600 font-extrabold text-white hover:bg-emerald-500 text-xs px-4 py-2"
                 >
                   <Gavel className="h-4 w-4 mr-2" /> SOLD (Hammer Down)
                 </Button>
                 <Button
                   onClick={handleHammerUnsold}
                   disabled={actionLoading || !player}
-                  variant="outline"
-                  className="border-red-500/40 text-red-300 hover:bg-red-500/20"
+                  className="bg-rose-600 font-extrabold text-white hover:bg-rose-500 text-xs px-4 py-2"
                 >
                   <XCircle className="h-4 w-4 mr-2" /> UNSOLD
                 </Button>
                 <Button
                   onClick={openCustomBidModal}
                   disabled={actionLoading || !player}
-                  variant="outline"
-                  className="border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+                  className="bg-amber-500 font-black text-zinc-950 hover:bg-amber-400 text-xs px-4 py-2"
                 >
-                  <Flame className="h-4 w-4 mr-2" /> Custom Bid
+                  <Flame className="h-4 w-4 mr-2 text-zinc-950" /> Custom Bid
                 </Button>
               </div>
 
@@ -480,15 +484,15 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
                   onClick={handleUndoSale}
                   disabled={actionLoading}
                   variant="ghost"
-                  className="text-xs text-slate-400 hover:text-white"
+                  className="text-xs text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-lg font-semibold"
                 >
-                  <RotateCcw className="h-3 w-3 mr-1" /> Undo Sale
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Undo Sale
                 </Button>
                 <Button
                   onClick={undoBid}
                   disabled={actionLoading || !highestBid}
                   variant="ghost"
-                  className="text-xs text-slate-400 hover:text-white"
+                  className="text-xs text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-lg font-semibold"
                 >
                   Undo Bid
                 </Button>
@@ -496,7 +500,7 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
                   onClick={resetBid}
                   disabled={actionLoading || !highestBid}
                   variant="ghost"
-                  className="text-xs text-slate-400 hover:text-white"
+                  className="text-xs text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-lg font-semibold"
                 >
                   Reset Bid
                 </Button>
@@ -505,13 +509,16 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
           </div>
 
           {/* Franchise Quick Bid Grid */}
-          <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+          <div
+            className="rounded-2xl border border-slate-800 p-5"
+            style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+          >
+            <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
                 <Shield className="h-4 w-4 text-amber-400" />
                 Franchise Bidding Stations
               </h3>
-              <span className="text-xs text-slate-400">Click to place next slab increment</span>
+              <span className="text-xs text-slate-300 font-medium">Click station to place next slab bid</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -529,7 +536,7 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
                         ? 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500'
                         : isExceeded
                         ? 'border-red-900/30 bg-red-950/10 opacity-50 cursor-not-allowed'
-                        : 'border-white/10 bg-white/5 hover:border-amber-500/50 hover:bg-white/10'
+                        : 'border-white/15 bg-white/10 hover:border-amber-500/60 hover:bg-white/15'
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -538,16 +545,16 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
                         <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-ping" />
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400 truncate mt-0.5">{team.team_name}</span>
+                    <span className="text-[10px] text-slate-300 truncate mt-0.5">{team.team_name}</span>
 
-                    <div className="mt-3 border-t border-white/5 pt-2 flex items-center justify-between text-xs">
+                    <div className="mt-3 border-t border-white/10 pt-2 flex items-center justify-between text-xs">
                       <div>
-                        <span className="text-[10px] text-slate-500">Purse:</span>
-                        <p className="font-mono text-emerald-400 font-semibold">₹{team.balance.toLocaleString()}</p>
+                        <span className="text-[10px] text-slate-400">Purse:</span>
+                        <p className="font-mono text-emerald-400 font-bold">₹{team.balance.toLocaleString()}</p>
                       </div>
                       <div className="text-right">
-                        <span className="text-[10px] text-slate-500">Max Bid:</span>
-                        <p className="font-mono text-amber-300 font-semibold">₹{team.max_bid.toLocaleString()}</p>
+                        <span className="text-[10px] text-slate-400">Max Bid:</span>
+                        <p className="font-mono text-amber-300 font-bold">₹{team.max_bid.toLocaleString()}</p>
                       </div>
                     </div>
                   </button>
@@ -560,8 +567,11 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
         {/* Right Column: Live Feed & Lot History (4 Cols) */}
         <div className="lg:col-span-4 space-y-4">
           {/* Bid History Feed */}
-          <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-4">
+          <div
+            className="rounded-2xl border border-slate-800 p-5"
+            style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+          >
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
               <Clock className="h-4 w-4 text-blue-400" />
               Live Bid Stream
             </h3>
@@ -585,25 +595,30 @@ export default function LiveBroadcastConsole({ auctionId }: LiveBroadcastConsole
                   </div>
                 ))
               ) : (
-                <p className="text-xs text-slate-500 text-center py-8">No bids placed for this player yet.</p>
+                <div className="rounded-xl border border-white/10 bg-black/40 py-8 px-4 text-center">
+                  <p className="text-xs text-slate-300 font-medium">No bids placed for this player yet.</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Tap a franchise station or enter custom bid to begin.</p>
+                </div>
               )}
             </div>
           </div>
 
           {/* Quick Re-auction Trigger */}
-          <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-2">
+          <div
+            className="rounded-2xl border border-slate-800 p-5"
+            style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+          >
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2 mb-2">
               <Sparkles className="h-4 w-4 text-purple-400" />
               Re-Auction Pool
             </h3>
-            <p className="text-xs text-slate-400 mb-4">
+            <p className="text-xs text-slate-300 font-medium mb-4">
               Bring back unsold players to the bidding pool for a secondary round.
             </p>
             <Button
               onClick={() => startReauction()}
               disabled={actionLoading}
-              variant="outline"
-              className="w-full border-purple-500/40 text-purple-300 hover:bg-purple-500/20"
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-950/40 rounded-xl"
             >
               Start Re-Auction Round
             </Button>
