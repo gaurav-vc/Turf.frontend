@@ -428,6 +428,43 @@ export default function PlayerEntryFormModal({
               </select>
             </div>
 
+            {/* App Tracking & Experience */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                App Name
+              </label>
+              <Input
+                placeholder="e.g. TurfPass / CricClubs"
+                value={formData.app_name}
+                onChange={(e) => setFormData({ ...formData, app_name: e.target.value })}
+                className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                App ID
+              </label>
+              <Input
+                placeholder="e.g. TP-98421"
+                value={formData.app_id}
+                onChange={(e) => setFormData({ ...formData, app_id: e.target.value })}
+                className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                Experience
+              </label>
+              <Input
+                placeholder="e.g. 5 Years / District Level"
+                value={formData.experience}
+                onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+              />
+            </div>
+
             {/* Photo Section */}
             <div className="sm:col-span-2 bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
@@ -438,18 +475,18 @@ export default function PlayerEntryFormModal({
                   <img
                     src={photoPreview}
                     alt="Preview"
-                    className="w-14 h-14 rounded-2xl object-cover border border-emerald-500 shadow-xs"
+                    className="w-16 h-16 rounded-2xl object-cover border border-emerald-500 shadow-xs"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400">
-                    <User className="w-6 h-6" />
+                  <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400">
+                    <User className="w-7 h-7" />
                   </div>
                 )}
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2">
                     <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-zinc-800 text-xs font-bold rounded-xl cursor-pointer border border-slate-200 shadow-xs transition">
                       <Upload className="w-3.5 h-3.5 text-emerald-600" />
-                      Choose Image
+                      Upload Image
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp"
@@ -457,10 +494,10 @@ export default function PlayerEntryFormModal({
                         className="hidden"
                       />
                     </label>
-                    <span className="text-[10px] text-slate-500 font-semibold">OR Enter URL</span>
+                    <span className="text-[10px] text-slate-500 font-semibold">OR Photo URL</span>
                   </div>
                   <Input
-                    placeholder="https://example.com/photo.jpg"
+                    placeholder="https://example.com/player.jpg"
                     value={formData.photo_url}
                     onChange={(e) => {
                       setFormData({ ...formData, photo_url: e.target.value })
@@ -468,34 +505,90 @@ export default function PlayerEntryFormModal({
                     }}
                     className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl h-8 font-medium"
                   />
+                  <p className="text-[11px] text-slate-500 italic">
+                    Choose either an image file or a Photo URL. If editing, leave both blank to keep the existing photo. If both are supplied, the uploaded image is used.
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Custom Fields */}
-            {customFields.length > 0 && (
-              <div className="sm:col-span-2 space-y-3 pt-2 border-t border-slate-200">
+            {/* Additional Player Information (Player Field Studio) */}
+            <div className="sm:col-span-2 space-y-3 pt-3 border-t border-slate-200">
+              <div>
                 <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">
-                  Tournament Custom Information
+                  Additional Player Information
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {customFields.map((cf) => (
-                    <div key={cf.id || cf.field_key}>
-                      <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                        {cf.label} {cf.required && <span className="text-emerald-600">*</span>}
-                      </label>
-                      <Input
-                        required={cf.required}
-                        placeholder={`Enter ${cf.label.toLowerCase()}`}
-                        value={customValues[cf.field_key] || ''}
-                        onChange={(e) => setCustomValues({ ...customValues, [cf.field_key]: e.target.value })}
-                        className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
-                      />
-                    </div>
-                  ))}
-                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  These fields are configured in Player Field Studio. Select-type fields use the tournament's managed validation list.
+                </p>
               </div>
-            )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                    Nationality
+                  </label>
+                  <Input
+                    placeholder="e.g. Indian"
+                    value={customValues['nationality'] || 'Indian'}
+                    onChange={(e) => setCustomValues({ ...customValues, nationality: e.target.value })}
+                    className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                    Pin Code
+                  </label>
+                  <Input
+                    placeholder="e.g. 400001"
+                    value={customValues['pin_code'] || ''}
+                    onChange={(e) => setCustomValues({ ...customValues, pin_code: e.target.value })}
+                    className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                    Awards Won
+                  </label>
+                  <Input
+                    placeholder="e.g. Player of the Tournament"
+                    value={customValues['awards_won'] || ''}
+                    onChange={(e) => setCustomValues({ ...customValues, awards_won: e.target.value })}
+                    className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                    Bowling Type
+                  </label>
+                  <Input
+                    placeholder="e.g. Right Arm Off-Spin"
+                    value={customValues['bowling_type'] || ''}
+                    onChange={(e) => setCustomValues({ ...customValues, bowling_type: e.target.value })}
+                    className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+                  />
+                </div>
+
+                {/* Dynamic custom fields */}
+                {customFields.filter(cf => !['nationality', 'pin_code', 'awards_won', 'bowling_type', 'tagging'].includes(cf.field_key)).map((cf) => (
+                  <div key={cf.id || cf.field_key}>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                      {cf.label} {cf.required && <span className="text-emerald-600">*</span>}
+                    </label>
+                    <Input
+                      required={cf.required}
+                      placeholder={`Enter ${cf.label.toLowerCase()}`}
+                      value={customValues[cf.field_key] || ''}
+                      onChange={(e) => setCustomValues({ ...customValues, [cf.field_key]: e.target.value })}
+                      className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Gavel, Users, Layout, Sliders, Tag, Shuffle, Eye,
-  Trophy, Sparkles, MessageSquare, ListOrdered, FileText, Tv, BarChart3
+  Trophy, Sparkles, MessageSquare, FileText, Tv, BarChart3, Shield, ChevronDown
 } from 'lucide-react'
 import AuctionOverviewDashboard from './components/AuctionOverviewDashboard'
 import LiveBroadcastConsole from './components/LiveBroadcastConsole'
@@ -12,7 +12,7 @@ import PlayerRosterManager from './components/PlayerRosterManager'
 import CustomFieldsStudio from './components/CustomFieldsStudio'
 import GroupDrawStage from './components/GroupDrawStage'
 import PublicSpectatorPortal from './components/PublicSpectatorPortal'
-import AllTeamsRosterSheet from './components/AllTeamsRosterSheet'
+import TeamsAndPlayersHub from './components/TeamsAndPlayersHub'
 import SponsorMediaStudio from './components/SponsorMediaStudio'
 import CommunicationsStudio from './components/CommunicationsStudio'
 import PdfDesignStudio from './components/PdfDesignStudio'
@@ -59,12 +59,12 @@ export default function AuctionSuite({ auctionId, auctionName, onBack }: Auction
   const tabs = [
     { id: 'overview', label: 'Command Center', icon: BarChart3 },
     { id: 'live', label: 'Live Broadcast', icon: Gavel },
+    { id: 'all_teams', label: 'Teams & Players', icon: Shield },
     { id: 'roster', label: 'Roster & Intake', icon: Users },
     { id: 'designer', label: 'Page Designer', icon: Layout },
     { id: 'pdf_studio', label: 'PDF Cards', icon: FileText },
     { id: 'rules', label: 'Squad Rules & Slabs', icon: Sliders },
     { id: 'fields', label: 'Custom Fields', icon: Tag },
-    { id: 'all_teams', label: 'Teams Roster', icon: ListOrdered },
     { id: 'sponsors', label: 'Sponsors & Media', icon: Sparkles },
     { id: 'draw', label: 'Group Draw', icon: Shuffle },
     { id: 'overlays', label: 'OBS Overlays', icon: Tv },
@@ -80,33 +80,27 @@ export default function AuctionSuite({ auctionId, auctionName, onBack }: Auction
           {onBack && (
             <button
               onClick={onBack}
-              className="text-xs text-slate-500 hover:text-zinc-900 font-bold transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs text-slate-700 hover:text-zinc-950 font-bold shadow-2xs transition-all"
             >
-              ← Back
+              ← Back to {auctionName || 'Tournaments'}
             </button>
           )}
-          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2" style={{ color: '#09090b' }}>
-            <Trophy className="h-6 w-6 text-amber-500" />
-            <span style={{ color: '#09090b' }}>{auctionName || 'Cricket Auction Master Suite'}</span>
-          </h1>
-        </div>
-
-        {/* Tab Pills */}
-        <div className="flex flex-wrap items-center rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => handleTabChange(id)}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs transition-all ${
-                activeTab === id
-                  ? 'bg-amber-500 text-zinc-950 shadow-sm font-black'
-                  : 'text-slate-600 hover:text-zinc-900 hover:bg-slate-100 font-bold'
-              }`}
+          {/* Page Dropdown Selector */}
+          <div className="relative flex items-center">
+            <Trophy className="absolute left-3 w-4 h-4 text-amber-500 pointer-events-none" />
+            <select
+              value={activeTab}
+              onChange={(e) => handleTabChange(e.target.value as TabType)}
+              className="appearance-none pl-9 pr-9 py-2 rounded-2xl border-2 border-amber-500/40 hover:border-amber-500 bg-white text-sm font-black text-zinc-900 shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer transition-all"
             >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </button>
-          ))}
+              {tabs.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 w-4 h-4 text-slate-500 pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -115,21 +109,37 @@ export default function AuctionSuite({ auctionId, auctionName, onBack }: Auction
         {activeTab === 'overview' && (
           <AuctionOverviewDashboard
             auctionId={auctionId}
+            auctionName={auctionName}
             onNavigateTab={(tab: any) => handleTabChange(tab)}
           />
         )}
-        {activeTab === 'live' && <LiveBroadcastConsole auctionId={auctionId} />}
+        {activeTab === 'live' && (
+          <LiveBroadcastConsole
+            auctionId={auctionId}
+            auctionName={auctionName}
+          />
+        )}
         {activeTab === 'roster' && (
           <PlayerRosterManager
             auctionId={auctionId}
             onPlayerSelected={() => handleTabChange('live')}
           />
         )}
-        {activeTab === 'designer' && <AuctionPageDesigner auctionId={auctionId} />}
+        {activeTab === 'designer' && (
+          <AuctionPageDesigner
+            auctionId={auctionId}
+            onBack={() => handleTabChange('all_teams')}
+          />
+        )}
         {activeTab === 'pdf_studio' && <PdfDesignStudio auctionId={auctionId} />}
         {activeTab === 'rules' && <SetupRulesManager auctionId={auctionId} />}
         {activeTab === 'fields' && <CustomFieldsStudio auctionId={auctionId} />}
-        {activeTab === 'all_teams' && <AllTeamsRosterSheet auctionId={auctionId} />}
+        {activeTab === 'all_teams' && (
+          <TeamsAndPlayersHub
+            auctionId={auctionId}
+            onNavigateToLive={() => handleTabChange('live')}
+          />
+        )}
         {activeTab === 'sponsors' && <SponsorMediaStudio auctionId={auctionId} />}
         {activeTab === 'draw' && <GroupDrawStage auctionId={auctionId} />}
         {activeTab === 'overlays' && <OverlayStudio auctionId={auctionId} />}

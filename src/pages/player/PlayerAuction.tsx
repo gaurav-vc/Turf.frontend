@@ -1,48 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
-  Gavel, Plus, Trophy, Wallet, ChevronRight, Copy, RefreshCw,
-  Sparkles, Check, ArrowRight
+  Gavel, Trophy, Wallet, ChevronRight, Copy, RefreshCw
 } from 'lucide-react'
 import { apiClient } from '@/api/apiClient'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import AuctionSuite from '../auction/AuctionSuite'
-
-interface TeamConfig {
-  name: string
-  captain_name: string
-  captain_email: string
-  purse: number
-  color: string
-}
-
-interface PlayerConfig {
-  name: string
-  role: string
-  tier: string
-  base_price: number
-}
-
-const PRESET_TEAMS: TeamConfig[] = [
-  { name: 'Mumbai Titans', captain_name: 'Gaurav Kokane', captain_email: 'gaurav@turf.com', purse: 100000, color: '#2563eb' },
-  { name: 'Bangalore Blasters', captain_name: 'Rahul Sharma', captain_email: 'rahul@turf.com', purse: 100000, color: '#dc2626' },
-  { name: 'Chennai Superstars', captain_name: 'Aman Verma', captain_email: 'aman@turf.com', purse: 100000, color: '#eab308' },
-  { name: 'Delhi Smashers', captain_name: 'Sameer Khan', captain_email: 'sameer@turf.com', purse: 100000, color: '#7c3aed' },
-]
-
-const PRESET_PLAYERS: PlayerConfig[] = [
-  { name: 'Virat Kohli', role: 'Top-Order Batsman', tier: 'Icon', base_price: 5000 },
-  { name: 'Jasprit Bumrah', role: 'Fast Bowler', tier: 'Icon', base_price: 5000 },
-  { name: 'Hardik Pandya', role: 'All-Rounder', tier: 'Tier 1', base_price: 4000 },
-  { name: 'Rishabh Pant', role: 'Wicket-Keeper', tier: 'Tier 1', base_price: 3500 },
-  { name: 'Rashid Khan', role: 'Spin Bowler', tier: 'Tier 1', base_price: 3500 },
-  { name: 'Suryakumar Yadav', role: '360 Batsman', tier: 'Tier 1', base_price: 4000 },
-  { name: 'Mohammed Shami', role: 'Pace Bowler', tier: 'Tier 2', base_price: 2500 },
-  { name: 'Rinku Singh', role: 'Finisher Batsman', tier: 'Tier 2', base_price: 2000 },
-]
 
 export default function PlayerAuction() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -50,14 +14,6 @@ export default function PlayerAuction() {
   const [selectedAuction, setSelectedAuction] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
-
-  // Wizard Modal State
-  const [isWizardOpen, setIsWizardOpen] = useState(false)
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1)
-  const [wizardName, setWizardName] = useState('Turf Premier League Mega Auction')
-  const [wizardBasePurse, setWizardBasePurse] = useState<number>(100000)
-  const [wizardTeams, setWizardTeams] = useState<TeamConfig[]>(PRESET_TEAMS)
-  const [wizardPlayers, setWizardPlayers] = useState<PlayerConfig[]>(PRESET_PLAYERS)
 
   const fetchAuctions = async () => {
     try {
@@ -114,33 +70,6 @@ export default function PlayerAuction() {
     fetchAuctions()
   }, [searchParams])
 
-  // Setup Wizard Submission
-  const handleWizardSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setActionLoading(true)
-    try {
-      const payload: any = {
-        name: wizardName,
-        base_budget: wizardBasePurse,
-        status: 'PENDING',
-        teams: wizardTeams,
-        players: wizardPlayers,
-      }
-      const tournamentParam = searchParams.get('tournament')
-      if (tournamentParam) {
-        payload.tournament = tournamentParam
-      }
-      const res = await apiClient.post('/v1/auction/auctions/create_full/', payload)
-      setIsWizardOpen(false)
-      await fetchAuctions()
-      setSelectedAuction(res.data)
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to initialize tournament auction.')
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
   // Clone Auction Settings
   const handleCloneAuction = async (auctionId: string, auctionName: string) => {
     const newName = prompt(`Enter new tournament name to clone settings from "${auctionName}":`, `${auctionName} (Copy)`)
@@ -189,10 +118,7 @@ export default function PlayerAuction() {
               </h1>
               <p className="text-xs md:text-sm font-semibold mt-0.5" style={{ color: '#09090b' }}>
                 {selectedAuction ? (
-                  <>
-                    <span className="font-extrabold" style={{ color: '#09090b' }}>{selectedAuction.name}</span>
-                    <span className="text-emerald-600 font-bold ml-1.5">• Live Auction Workspace</span>
-                  </>
+                  <span className="text-emerald-600 font-bold">Live Auction Workspace</span>
                 ) : (
                   <span className="text-slate-600 font-medium">Real-time player bidding, franchise purse budgets & squad rosters.</span>
                 )}
@@ -263,17 +189,6 @@ export default function PlayerAuction() {
                 >
                   <Gavel className="w-3.5 h-3.5" /> Open Auction Suite
                 </Button>
-                <Button
-                  onClick={() => {
-                    setWizardTeams(PRESET_TEAMS)
-                    setWizardPlayers(PRESET_PLAYERS)
-                    setWizardStep(1)
-                    setIsWizardOpen(true)
-                  }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/25 flex items-center gap-2 text-xs"
-                >
-                  <Plus className="w-4 h-4" /> Setup & Configure Auction
-                </Button>
               </div>
             )}
           </div>
@@ -300,20 +215,6 @@ export default function PlayerAuction() {
                 <Trophy className="w-5 h-5 text-amber-500" />
                 Active & Upcoming Tournaments ({auctions.length})
               </h2>
-
-              <Button
-                onClick={() => {
-                  setWizardTeams(PRESET_TEAMS)
-                  setWizardPlayers(PRESET_PLAYERS)
-                  setWizardStep(1)
-                  setIsWizardOpen(true)
-                }}
-                variant="outline"
-                size="sm"
-                className="rounded-xl font-bold border-border text-xs flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" /> New Auction
-              </Button>
             </div>
 
             {auctions.length === 0 ? (
@@ -322,7 +223,7 @@ export default function PlayerAuction() {
                 <div>
                   <h3 className="text-lg font-bold">No Auctions Created Yet</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Launch the master workspace directly or set up a tournament auction with franchise teams and player catalogs.
+                    Launch the master workspace directly to manage franchise teams and players.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-3">
@@ -340,13 +241,6 @@ export default function PlayerAuction() {
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl"
                   >
                     <Gavel className="w-4 h-4 mr-2" /> Open Master Auction Suite
-                  </Button>
-                  <Button
-                    onClick={() => setIsWizardOpen(true)}
-                    variant="outline"
-                    className="rounded-xl font-bold border-border"
-                  >
-                    <Plus className="w-4 h-4 mr-2" /> Start Setup Wizard
                   </Button>
                 </div>
               </div>
@@ -409,114 +303,6 @@ export default function PlayerAuction() {
           </div>
         )}
       </div>
-
-      {/* SETUP WIZARD MODAL */}
-      <AnimatePresence>
-        {isWizardOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card w-full max-w-2xl rounded-3xl shadow-2xl border border-border overflow-hidden p-6 md:p-8"
-            >
-              <div className="flex items-center justify-between pb-4 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-amber-500" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">Auction Setup Wizard</h2>
-                    <p className="text-xs text-muted-foreground">Step {wizardStep} of 3</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsWizardOpen(false)} className="text-muted-foreground hover:text-foreground">
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handleWizardSubmit} className="mt-6 space-y-6">
-                {/* STEP 1: Basic Config */}
-                {wizardStep === 1 && (
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-xs font-bold">Tournament Name</Label>
-                      <Input
-                        value={wizardName}
-                        onChange={(e) => setWizardName(e.target.value)}
-                        required
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-bold">Team Base Purse (₹)</Label>
-                      <Input
-                        type="number"
-                        value={wizardBasePurse}
-                        onChange={(e) => setWizardBasePurse(parseInt(e.target.value) || 0)}
-                        required
-                        className="mt-1 font-mono"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 2: Teams Preview */}
-                {wizardStep === 2 && (
-                  <div className="space-y-3">
-                    <Label className="text-xs font-bold block">Franchise Teams ({wizardTeams.length})</Label>
-                    <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
-                      {wizardTeams.map((t, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border border-border bg-muted/40 text-xs">
-                          <span className="font-bold">{t.name}</span>
-                          <span className="text-muted-foreground">Purse: ₹{t.purse.toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 3: Players Preview */}
-                {wizardStep === 3 && (
-                  <div className="space-y-3">
-                    <Label className="text-xs font-bold block">Player Pool ({wizardPlayers.length})</Label>
-                    <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
-                      {wizardPlayers.map((p, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border border-border bg-muted/40 text-xs">
-                          <div>
-                            <span className="font-bold">{p.name}</span>
-                            <span className="text-muted-foreground ml-2">({p.role})</span>
-                          </div>
-                          <span className="font-mono text-emerald-500 font-bold">Base: ₹{p.base_price.toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Footer Controls */}
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  {wizardStep > 1 ? (
-                    <Button type="button" variant="outline" onClick={() => setWizardStep((prev) => (prev - 1) as any)}>
-                      Back
-                    </Button>
-                  ) : <div />}
-
-                  {wizardStep < 3 ? (
-                    <Button type="button" onClick={() => setWizardStep((prev) => (prev + 1) as any)} className="bg-emerald-600 text-white font-bold">
-                      Next Step <ArrowRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  ) : (
-                    <Button type="submit" disabled={actionLoading} className="bg-emerald-600 text-white font-bold">
-                      <Check className="w-4 h-4 mr-1" /> {actionLoading ? 'Initializing...' : 'Complete & Launch Auction'}
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
