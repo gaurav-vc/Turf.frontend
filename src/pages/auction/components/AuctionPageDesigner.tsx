@@ -57,21 +57,34 @@ export interface ElementConfig {
   panel_theme?: 'cyber' | 'glass' | 'solid'
 }
 
+export interface BrandingConfig {
+  logo_count: number
+  logo_size: number
+  logo_position: 'left' | 'center' | 'right'
+  title_text: string
+  title_size: number
+  title_colour: string
+  title_image_url?: string
+  remove_title_bg?: boolean
+}
+
+export const DEFAULT_BRANDING_CONFIG: BrandingConfig = {
+  logo_count: 1,
+  logo_size: 38,
+  logo_position: 'center',
+  title_text: 'Test Tournament',
+  title_size: 26,
+  title_colour: '#FFD54A',
+  title_image_url: '',
+  remove_title_bg: false,
+}
+
 export interface ZonesConfig {
   team_columns: number
   action_zone_width: number
   bid_history_width: number
   action_buttons?: ActionButtonConfig[]
-  branding?: {
-    logo_count: number
-    logo_size: number
-    logo_position: 'left' | 'center' | 'right'
-    title_text: string
-    title_size: number
-    title_colour: string
-    title_image_url?: string
-    remove_title_bg?: boolean
-  }
+  branding?: Partial<BrandingConfig>
 }
 
 export interface PageDesignState {
@@ -97,16 +110,7 @@ export const DEFAULT_PAGE_DESIGN: PageDesignState = {
     action_zone_width: 455,
     bid_history_width: 300,
     action_buttons: DEFAULT_ACTION_BUTTONS,
-    branding: {
-      logo_count: 1,
-      logo_size: 38,
-      logo_position: 'center',
-      title_text: 'Test Tournament',
-      title_size: 26,
-      title_colour: '#FFD54A',
-      title_image_url: '',
-      remove_title_bg: false,
-    },
+    branding: DEFAULT_BRANDING_CONFIG,
   },
   elements: {
     tournament_title: { x: 20, y: 2, w: 60, h: 7, font_size: 26, colour: '#FFD54A', bold: true, align: 'center', selected: true, show_label: false },
@@ -570,14 +574,19 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
   }
 
   const handleApplyTemplate = (tpl: ScreenTemplate) => {
+    const existingTitle = design.zones?.branding?.title_text
+    const tplBranding = tpl.design.zones?.branding
+    const mergedBranding: BrandingConfig = {
+      ...DEFAULT_BRANDING_CONFIG,
+      ...(tplBranding || {}),
+      title_text: existingTitle || tplBranding?.title_text || 'Test Tournament',
+    }
+
     setDesign({
       ...tpl.design,
       zones: {
         ...tpl.design.zones,
-        branding: {
-          ...tpl.design.zones.branding,
-          title_text: design.zones?.branding?.title_text || tpl.design.zones?.branding?.title_text || 'Test Tournament',
-        },
+        branding: mergedBranding,
       },
     })
     setTemplateFeedback(`Applied template: "${tpl.name}"`)

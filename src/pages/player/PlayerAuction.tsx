@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Gavel, Trophy, Wallet, ChevronRight, Copy, RefreshCw
+  Gavel, Trophy, Wallet, ChevronRight, Copy, RefreshCw, ChevronDown
 } from 'lucide-react'
 import { apiClient } from '@/api/apiClient'
 import { Button } from '@/components/ui/button'
-import AuctionSuite from '../auction/AuctionSuite'
+import AuctionSuite, { AUCTION_TABS, type TabType } from '../auction/AuctionSuite'
 
 export default function PlayerAuction() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -14,6 +14,21 @@ export default function PlayerAuction() {
   const [selectedAuction, setSelectedAuction] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
+
+  const tabFromUrl = (searchParams.get('tab') as TabType) || 'overview'
+  const [activeTab, setActiveTab] = useState<TabType>(tabFromUrl)
+
+  useEffect(() => {
+    const currentTab = searchParams.get('tab') as TabType | null
+    if (currentTab && currentTab !== activeTab) {
+      setActiveTab(currentTab)
+    }
+  }, [searchParams])
+
+  const handleTabChange = (tabId: TabType) => {
+    setActiveTab(tabId)
+    setSearchParams({ tab: tabId })
+  }
 
   const fetchAuctions = async () => {
     try {
@@ -104,18 +119,39 @@ export default function PlayerAuction() {
       <div className="border-b border-border/40 bg-card/60 backdrop-blur-xl px-6 py-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold shrink-0">
               <Gavel className="w-6 h-6 text-amber-500" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-black flex items-center gap-2" style={{ color: '#09090b' }}>
-                <span style={{ color: '#09090b' }}>TurfArena Live Auction</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl md:text-3xl font-black flex items-center gap-2" style={{ color: '#09090b' }}>
+                  <span style={{ color: '#09090b' }}>TurfArena Live Auction</span>
+                  {selectedAuction && (
+                    <span className="text-xs px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                      {selectedAuction.status}
+                    </span>
+                  )}
+                </h1>
+
+                {/* Dropdown List right to main heading text */}
                 {selectedAuction && (
-                  <span className="text-xs px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                    {selectedAuction.status}
-                  </span>
+                  <div className="relative flex items-center">
+                    <Trophy className="absolute left-3 w-4 h-4 text-amber-500 pointer-events-none" />
+                    <select
+                      value={activeTab}
+                      onChange={(e) => handleTabChange(e.target.value as TabType)}
+                      className="appearance-none pl-9 pr-9 py-1.5 rounded-xl border-2 border-amber-500/50 hover:border-amber-500 bg-white dark:bg-card text-xs md:text-sm font-black text-zinc-900 dark:text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer transition-all"
+                    >
+                      {AUCTION_TABS.map(({ id, label }) => (
+                        <option key={id} value={id}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 w-4 h-4 text-slate-500 pointer-events-none" />
+                  </div>
                 )}
-              </h1>
+              </div>
               <p className="text-xs md:text-sm font-semibold mt-0.5" style={{ color: '#09090b' }}>
                 {selectedAuction ? (
                   <span className="text-emerald-600 font-bold">Live Auction Workspace</span>
@@ -155,9 +191,10 @@ export default function PlayerAuction() {
                     setSelectedAuction(null)
                     setSearchParams({})
                   }}
-                  className="rounded-xl font-bold border-border text-xs"
+                  className="rounded-xl font-bold border-border text-xs flex items-center gap-1.5"
+                  title="Back to tournaments"
                 >
-                  All Tournaments
+                  ← Back
                 </Button>
 
                 <Button
@@ -202,6 +239,8 @@ export default function PlayerAuction() {
           <AuctionSuite
             auctionId={selectedAuction.id}
             auctionName={selectedAuction.name}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
             onBack={() => {
               setSelectedAuction(null)
               setSearchParams({})

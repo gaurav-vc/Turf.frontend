@@ -1630,9 +1630,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
                                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">
                                     Action:
                                   </span>
-                                  {(pageDesign?.zones?.action_buttons || actionButtons)
-                                    .filter((btn) => btn.visible !== false)
-                                    .map((btn) => {
+                                  {actionButtons
+                                    .filter((btn: ActionButtonConfig) => btn.visible !== false)
+                                    .map((btn: ActionButtonConfig) => {
                                       switch (btn.id) {
                                         case 'sold':
                                           return (

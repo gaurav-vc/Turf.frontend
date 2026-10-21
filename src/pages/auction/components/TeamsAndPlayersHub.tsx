@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { apiClient } from '@/api/apiClient'
+import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import TeamEntryModal from './TeamEntryModal'
 import PlayerEntryFormModal from './PlayerEntryFormModal'
 import AllTeamsRosterSheet from './AllTeamsRosterSheet'
@@ -14,6 +14,37 @@ import AllTeamsRosterSheet from './AllTeamsRosterSheet'
 interface TeamsAndPlayersHubProps {
   auctionId: string
   onNavigateToLive?: () => void
+}
+
+function TeamLogoBadge({ team }: { team: any }) {
+  const [hasError, setHasError] = useState(false)
+  const resolved = resolveMediaUrl(team.logo || team.logo_url)
+
+  if (resolved && !hasError) {
+    return (
+      <div
+        className={`w-12 h-12 rounded-2xl p-1 flex items-center justify-center border border-border shadow-xs overflow-hidden ${
+          team.remove_logo_background ? 'bg-transparent' : 'bg-muted/40'
+        }`}
+      >
+        <img
+          src={resolved}
+          alt={team.name}
+          className="w-full h-full object-contain"
+          onError={() => setHasError(true)}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-md"
+      style={{ backgroundColor: team.color || '#2563EB' }}
+    >
+      {team.short_name || team.name?.slice(0, 3).toUpperCase() || 'TM'}
+    </div>
+  )
 }
 
 export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: TeamsAndPlayersHubProps) {
@@ -77,8 +108,23 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
     }
   }
 
-  const handleDownloadTeamTemplate = () => {
-    window.open(`${apiClient.defaults.baseURL || ''}/v1/auction/console/${auctionId}/teams_template/`, '_blank')
+  const handleDownloadTeamTemplate = async () => {
+    try {
+      const res = await apiClient.get(`/v1/auction/console/${auctionId}/teams_template/`, {
+        responseType: 'blob'
+      })
+      const blob = new Blob([res.data], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'teams_import_template.csv'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch {
+      window.open(`${apiClient.defaults.baseURL || ''}/v1/auction/console/${auctionId}/teams_template/`, '_blank')
+    }
   }
 
   const handleTeamFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,11 +151,28 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
   const loadPlayers = async () => {
     setLoadingPlayers(true)
     try {
-      const res = await apiClient.get(`/v1/auction/players/?auction=${auctionId}`)
-      const data = res.data.results || res.data || []
+      const [playerRes, catRes] = await Promise.all([
+        apiClient.get(`/v1/auction/players/?auction=${auctionId}`),
+        apiClient.get(`/v1/auction/categories/?auction=${auctionId}`),
+      ])
+      const data = playerRes.data.results || playerRes.data || []
       setPlayers(data)
 
-      const cats = Array.from(new Set(data.map((p: any) => p.category).filter(Boolean))) as string[]
+      let dbCats: string[] = []
+      const rawCats = catRes.data.results || catRes.data || []
+      if (Array.isArray(rawCats) && rawCats.length > 0) {
+        dbCats = rawCats.map((c: any) => c.name).filter(Boolean)
+      } else {
+        try {
+          const rulesRes = await apiClient.get(`/v1/auction/console/${auctionId}/setup_rules/`)
+          if (rulesRes.data.categories && Array.isArray(rulesRes.data.categories)) {
+            dbCats = rulesRes.data.categories.map((c: any) => c.name).filter(Boolean)
+          }
+        } catch (_) {}
+      }
+
+      const playerCats = data.map((p: any) => p.category).filter(Boolean) as string[]
+      const cats = Array.from(new Set([...dbCats, ...playerCats])) as string[]
       setCategories(cats)
     } catch (err) {
       console.error('Failed to load players', err)
@@ -128,8 +191,23 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
     }
   }
 
-  const handleDownloadPlayerTemplate = () => {
-    window.open(`${apiClient.defaults.baseURL || ''}/v1/auction/console/${auctionId}/players_template/`, '_blank')
+  const handleDownloadPlayerTemplate = async () => {
+    try {
+      const res = await apiClient.get(`/v1/auction/console/${auctionId}/players_template/`, {
+        responseType: 'blob'
+      })
+      const blob = new Blob([res.data], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'players_import_template.csv'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch {
+      window.open(`${apiClient.defaults.baseURL || ''}/v1/auction/console/${auctionId}/players_template/`, '_blank')
+    }
   }
 
   const handlePlayerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -382,26 +460,7 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
                       {/* Brand Header */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          {t.logo ? (
-                            <div
-                              className={`w-12 h-12 rounded-2xl p-1 flex items-center justify-center border border-border shadow-xs ${
-                                t.remove_logo_background ? 'bg-transparent' : 'bg-muted/40'
-                              }`}
-                            >
-                              <img
-                                src={t.logo}
-                                alt={t.name}
-                                className="w-full h-full object-contain"
-                              />
-                            </div>
-                          ) : (
-                            <div
-                              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-md"
-                              style={{ backgroundColor: t.color || '#2563EB' }}
-                            >
-                              {t.short_name || t.name.slice(0, 3).toUpperCase()}
-                            </div>
-                          )}
+                          <TeamLogoBadge team={t} />
 
                           <div>
                             <div className="flex items-center gap-1.5">

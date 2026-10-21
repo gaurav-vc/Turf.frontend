@@ -1,259 +1,1342 @@
 import { useState, useEffect } from 'react'
-import { Shield, Plus, Trash2, RefreshCw, Sliders, Layers } from 'lucide-react'
+import {
+  Layers, Sliders, Shield, Plus, Trash2, RefreshCw, Eye,
+  Trophy, Sparkles, Clock, Palette, CheckCircle2,
+  AlertCircle, Play, ExternalLink, Save
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { apiClient } from '@/api/apiClient'
+import { Label } from '@/components/ui/label'
+import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 
 interface SetupRulesManagerProps {
   auctionId: string
+  onNavigateTab?: (tab: string) => void
 }
 
-export default function SetupRulesManager({ auctionId }: SetupRulesManagerProps) {
-  const [categories, setCategories] = useState<any[]>([])
-  const [slabs, setSlabs] = useState<any[]>([])
-  const [squadRules, setSquadRules] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+interface CategoryItem {
+  id?: string
+  name: string
+  base_price: number
+  target_count: number
+  display_order?: number
+}
 
-  // New Rule Form
+interface SlabItem {
+  id?: string
+  up_to_bid: number
+  increment: number
+  display_order?: number
+}
+
+interface GroupItem {
+  name: string
+  team_count: number
+}
+
+export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRulesManagerProps) {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  // 1. Auction Completion
+  const [completionMessage, setCompletionMessage] = useState('Auction Completed - All team are now completed')
+
+  // 2. Auction Type & Player Selection
+  const [auctionMode, setAuctionMode] = useState<'Centralized' | 'Online'>('Centralized')
+  const [playerSelectionMode, setPlayerSelectionMode] = useState<'Open' | 'Category Wise'>('Open')
+
+  // 3. Squad Rules & Budget
+  const [maxSquad, setMaxSquad] = useState<number>(11)
+  const [teamPurse, setTeamPurse] = useState<number>(50000)
+  const [retentionAllowed, setRetentionAllowed] = useState(false)
+  const [bringBackUnsold, setBringBackUnsold] = useState(true)
+  const [confirmSale, setConfirmSale] = useState(false)
+  const [reserveAmount, setReserveAmount] = useState<number>(0)
+  const [additionalKitty, setAdditionalKitty] = useState<number>(0)
+  const [penaltyAmount, setPenaltyAmount] = useState<number>(0)
+
+  // 4. SOLD Celebration Animations
+  const [soldAnimation, setSoldAnimation] = useState(true)
+  const [highestBidAnimation, setHighestBidAnimation] = useState(true)
+  const [soldAnimationStyle, setSoldAnimationStyle] = useState('Confetti Burst')
+  const [soldAnimationDuration, setSoldAnimationDuration] = useState<number>(3)
+  const [highestBidAnimationStyle, setHighestBidAnimationStyle] = useState('Fireworks')
+  const [highestBidAnimationDuration, setHighestBidAnimationDuration] = useState<number>(5)
+  const [soldAnimationCustom, setSoldAnimationCustom] = useState('')
+  const [highestBidAnimationCustom, setHighestBidAnimationCustom] = useState('')
+  const [soldAnimationFile, setSoldAnimationFile] = useState<File | null>(null)
+  const [highestBidAnimationFile, setHighestBidAnimationFile] = useState<File | null>(null)
+
+  // Animation Preview Overlay State
+  const [previewAnimation, setPreviewAnimation] = useState<{
+    type: 'sold' | 'highest'
+    style: string
+    duration: number
+    label: string
+  } | null>(null)
+
+  // 5. Player Categories
+  const [categorySource, setCategorySource] = useState<'Setup' | 'Player Master'>('Setup')
+  const [categoryNamesInput, setCategoryNamesInput] = useState('')
+  const [categories, setCategories] = useState<CategoryItem[]>([])
+  const [categorySequenceInput, setCategorySequenceInput] = useState('')
+  const [masterCategories, setMasterCategories] = useState<string[]>([])
+
+  // 6. Custom Bid Slabs
+  const [slabs, setSlabs] = useState<SlabItem[]>([
+    { up_to_bid: 1000000, increment: 50000 },
+    { up_to_bid: 2000000, increment: 100000 },
+    { up_to_bid: 999999999, increment: 200000 },
+  ])
+
+  // 7. Group Setup
+  const [groupCount, setGroupCount] = useState<number>(2)
+  const [groups, setGroups] = useState<GroupItem[]>([
+    { name: 'Group 1', team_count: 2 },
+    { name: 'Group 2', team_count: 2 },
+  ])
+  const [activeTeamsCount, setActiveTeamsCount] = useState<number>(4)
+
+  // 8. Tournament Branding
+  const [groupCardColour, setGroupCardColour] = useState('#FFFFFF')
+  const [tournamentLogo, setTournamentLogo] = useState('')
+  const [removeTournamentLogoBg, setRemoveTournamentLogoBg] = useState(false)
+  const [tournamentLogoFile, setTournamentLogoFile] = useState<File | null>(null)
+  const [auctionBackground, setAuctionBackground] = useState('stadium')
+  const [auctionBgFile, setAuctionBgFile] = useState<File | null>(null)
+  const [overallBackground, setOverallBackground] = useState('default')
+  const [overallBgFile, setOverallBgFile] = useState<File | null>(null)
+
+  // 9. Online Timer & Sound
+  const [onlineTimerEnabled, setOnlineTimerEnabled] = useState(false)
+  const [timerSeconds, setTimerSeconds] = useState<number>(30)
+  const [closingWaitSeconds, setClosingWaitSeconds] = useState<number>(5)
+  const [soundEffects, setSoundEffects] = useState(true)
+
+  // 10. Squad Composition Rules (Purse Protected)
+  const [squadRules, setSquadRules] = useState<any[]>([])
   const [newRuleKey, setNewRuleKey] = useState('category')
   const [newRuleValue, setNewRuleValue] = useState('')
   const [newRuleMin, setNewRuleMin] = useState<number>(1)
   const [newRuleMax, setNewRuleMax] = useState<number | undefined>(undefined)
 
-  // New Category Form
-  const [newCatName, setNewCatName] = useState('')
-  const [newCatTarget, setNewCatTarget] = useState<number>(3)
-  const [newCatBasePrice, setNewCatBasePrice] = useState<number>(2000)
-
-  // New Slab Form
-  const [newSlabUpTo, setNewSlabUpTo] = useState<number>(1000000)
-  const [newSlabInc, setNewSlabInc] = useState<number>(50000)
-
   useEffect(() => {
-    loadAllRules()
+    loadSetupRules()
   }, [auctionId])
 
-  const loadAllRules = async () => {
+  // Sync category names input to categories list
+  useEffect(() => {
+    const parsedNames = categoryNamesInput
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+
+    if (parsedNames.length === 0) {
+      if (categoryNamesInput.trim() === '') {
+        setCategories([])
+      }
+      return
+    }
+
+    setCategories((prevCats) => {
+      const currentNames = prevCats.map(c => c.name.toLowerCase()).join(',')
+      const newNames = parsedNames.map(n => n.toLowerCase()).join(',')
+      if (currentNames === newNames) return prevCats
+
+      return parsedNames.map((name, idx) => {
+        const existing = prevCats.find((c) => c.name.toLowerCase() === name.toLowerCase())
+        if (existing) {
+          return { ...existing, name, display_order: idx + 1 }
+        }
+        return {
+          name,
+          base_price: 2000,
+          target_count: 1,
+          display_order: idx + 1,
+        }
+      })
+    })
+  }, [categoryNamesInput])
+
+  // Sync groups array to groupCount
+  useEffect(() => {
+    const count = Math.max(0, groupCount)
+    setGroups((prev) => {
+      const next: GroupItem[] = []
+      for (let i = 0; i < count; i++) {
+        if (prev[i]) {
+          next.push(prev[i])
+        } else {
+          next.push({
+            name: `Group ${String.fromCharCode(65 + i)}`,
+            team_count: Math.max(1, Math.floor(activeTeamsCount / Math.max(1, count))),
+          })
+        }
+      }
+      return next
+    })
+  }, [groupCount, activeTeamsCount])
+
+  const loadSetupRules = async () => {
     setLoading(true)
     try {
-      const [catRes, slabRes, ruleRes] = await Promise.all([
-        apiClient.get(`/v1/auction/categories/?auction=${auctionId}`),
-        apiClient.get(`/v1/auction/slabs/?auction=${auctionId}`),
-        apiClient.get(`/v1/auction/squad-rules/?auction=${auctionId}`),
-      ])
-      setCategories(catRes.data.results || catRes.data || [])
-      setSlabs(slabRes.data.results || slabRes.data || [])
-      setSquadRules(ruleRes.data.results || ruleRes.data || [])
-    } catch (err) {
-      console.error('Failed to load rules', err)
+      const res = await apiClient.get(`/v1/auction/console/${auctionId}/setup_rules/`)
+      const d = res.data
+      const cfg = d.config || {}
+
+      if (cfg.auction_completion_message) setCompletionMessage(cfg.auction_completion_message)
+      if (cfg.auction_mode) setAuctionMode(cfg.auction_mode)
+      if (cfg.player_selection_mode) setPlayerSelectionMode(cfg.player_selection_mode)
+      if (cfg.max_squad) setMaxSquad(cfg.max_squad)
+      if (cfg.team_purse !== undefined) setTeamPurse(cfg.team_purse)
+      if (cfg.retention_allowed !== undefined) setRetentionAllowed(Boolean(cfg.retention_allowed))
+      if (cfg.bring_back_unsold !== undefined) setBringBackUnsold(Boolean(cfg.bring_back_unsold))
+      if (cfg.confirm_sale !== undefined) setConfirmSale(Boolean(cfg.confirm_sale))
+      if (cfg.reserve_amount !== undefined) setReserveAmount(cfg.reserve_amount)
+      if (cfg.additional_kitty !== undefined) setAdditionalKitty(cfg.additional_kitty)
+      if (cfg.penalty_amount !== undefined) setPenaltyAmount(cfg.penalty_amount)
+
+      if (cfg.sold_animation !== undefined) setSoldAnimation(Boolean(cfg.sold_animation))
+      if (cfg.highest_bid_animation !== undefined) setHighestBidAnimation(Boolean(cfg.highest_bid_animation))
+      if (cfg.sold_animation_style) setSoldAnimationStyle(cfg.sold_animation_style)
+      if (cfg.sold_animation_duration) setSoldAnimationDuration(cfg.sold_animation_duration)
+      if (cfg.highest_bid_animation_style) setHighestBidAnimationStyle(cfg.highest_bid_animation_style)
+      if (cfg.highest_bid_animation_duration) setHighestBidAnimationDuration(cfg.highest_bid_animation_duration)
+      if (cfg.sold_animation_custom) setSoldAnimationCustom(cfg.sold_animation_custom)
+      if (cfg.highest_bid_animation_custom) setHighestBidAnimationCustom(cfg.highest_bid_animation_custom)
+
+      if (cfg.category_source) setCategorySource(cfg.category_source)
+      if (cfg.group_card_colour) setGroupCardColour(cfg.group_card_colour)
+      if (cfg.tournament_logo) setTournamentLogo(cfg.tournament_logo)
+      if (cfg.auction_background) setAuctionBackground(cfg.auction_background)
+      if (cfg.overall_background) setOverallBackground(cfg.overall_background)
+
+      if (cfg.online_timer_enabled !== undefined) setOnlineTimerEnabled(Boolean(cfg.online_timer_enabled))
+      if (cfg.timer_seconds) setTimerSeconds(cfg.timer_seconds)
+      if (cfg.closing_wait_seconds) setClosingWaitSeconds(cfg.closing_wait_seconds)
+      if (cfg.sound_effects !== undefined) setSoundEffects(Boolean(cfg.sound_effects))
+
+      if (d.auction) {
+        if (d.auction.active_teams_count) setActiveTeamsCount(d.auction.active_teams_count)
+      }
+
+      if (d.categories && d.categories.length > 0) {
+        setCategories(d.categories)
+        setCategoryNamesInput(d.categories.map((c: any) => c.name).join(', '))
+      }
+
+      if (cfg.category_sequence && Array.isArray(cfg.category_sequence)) {
+        setCategorySequenceInput(cfg.category_sequence.join(', '))
+      } else if (d.categories && d.categories.length > 0) {
+        setCategorySequenceInput(d.categories.map((c: any) => c.name).join(', '))
+      }
+
+      if (d.slabs && d.slabs.length > 0) {
+        setSlabs(d.slabs)
+      }
+
+      if (cfg.groups && Array.isArray(cfg.groups) && cfg.groups.length > 0) {
+        setGroups(cfg.groups)
+        setGroupCount(cfg.groups.length)
+      }
+
+      if (d.squad_rules) {
+        setSquadRules(d.squad_rules)
+      }
+
+      if (d.player_master_categories) {
+        setMasterCategories(d.player_master_categories)
+      }
+    } catch (err: any) {
+      console.error('Failed to load setup rules', err)
+      setErrorMessage(err.response?.data?.error || 'Failed to load configuration.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAddCategory = async () => {
-    if (!newCatName) return
+  const handlePullFromPlayerMaster = () => {
+    if (masterCategories.length === 0) {
+      alert('No distinct player categories found in the Player pool yet. Import players or add categories first.')
+      return
+    }
+    setCategoryNamesInput(masterCategories.join(', '))
+    setCategorySequenceInput(masterCategories.join(', '))
+  }
+
+  const handleUpdateCategory = (index: number, field: 'base_price' | 'target_count', value: number) => {
+    setCategories((prev) => {
+      const copy = [...prev]
+      if (copy[index]) {
+        copy[index] = { ...copy[index], [field]: Math.max(0, value) }
+      }
+      return copy
+    })
+  }
+
+  const handleUpdateCategoryName = (index: number, newName: string) => {
+    setCategories((prev) => {
+      const copy = [...prev]
+      if (copy[index]) {
+        copy[index] = { ...copy[index], name: newName }
+      }
+      setCategoryNamesInput(copy.map((c) => c.name).join(', '))
+      return copy
+    })
+  }
+
+  const handleAddCategory = () => {
+    const newIdx = categories.length + 1
+    const newCatName = `Category ${newIdx}`
+    const updated = [
+      ...categories,
+      { name: newCatName, base_price: 2000, target_count: 1, display_order: newIdx },
+    ]
+    setCategories(updated)
+    setCategoryNamesInput(updated.map((c) => c.name).join(', '))
+  }
+
+  const handleRemoveCategory = (index: number) => {
+    const updated = categories.filter((_, i) => i !== index)
+    setCategories(updated)
+    setCategoryNamesInput(updated.map((c) => c.name).join(', '))
+  }
+
+  const handleSyncCategorySequence = () => {
+    const seq = categories.map((c) => c.name).join(', ')
+    setCategorySequenceInput(seq)
+  }
+
+  const handleAddSlab = () => {
+    setSlabs((prev) => {
+      const last = prev[prev.length - 1]
+      const nextUpTo = last ? last.up_to_bid + 1000000 : 1000000
+      const nextInc = last ? last.increment : 50000
+      return [...prev, { up_to_bid: nextUpTo, increment: nextInc }]
+    })
+  }
+
+  const handleRemoveSlab = (index: number) => {
+    setSlabs((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleUpdateSlab = (index: number, field: 'up_to_bid' | 'increment', value: number) => {
+    setSlabs((prev) => {
+      const copy = [...prev]
+      if (copy[index]) {
+        copy[index] = { ...copy[index], [field]: Math.max(1, value) }
+      }
+      return copy
+    })
+  }
+
+  const handleUpdateGroup = (index: number, field: 'name' | 'team_count', value: any) => {
+    setGroups((prev) => {
+      const copy = [...prev]
+      if (copy[index]) {
+        copy[index] = {
+          ...copy[index],
+          [field]: field === 'team_count' ? Math.max(1, parseInt(value) || 1) : value,
+        }
+      }
+      return copy
+    })
+  }
+
+  // Preview celebration trigger
+  const triggerAnimationPreview = (type: 'sold' | 'highest') => {
+    const style = type === 'highest' ? highestBidAnimationStyle : soldAnimationStyle
+    const duration = type === 'highest' ? highestBidAnimationDuration : soldAnimationDuration
+    const label = type === 'highest' ? 'HIGHEST BID!' : 'SOLD!'
+
+    setPreviewAnimation({ type, style, duration, label })
+
+    setTimeout(() => {
+      setPreviewAnimation(null)
+    }, duration * 1000)
+  }
+
+  // Save all settings to the unified setup_rules endpoint
+  const handleSaveAll = async () => {
+    setSaving(true)
+    setSaveSuccess(false)
+    setErrorMessage('')
+
+    const totalTarget = categories.reduce((sum, c) => sum + (c.target_count || 0), 0)
+    if (totalTarget !== maxSquad && categories.length > 0) {
+      if (
+        !confirm(
+          `Notice: Sum of category targets (${totalTarget}) does not equal Max Squad (${maxSquad}). Would you like to auto-adjust Max Squad to ${totalTarget} before saving?`
+        )
+      ) {
+        setSaving(false)
+        return
+      }
+      setMaxSquad(totalTarget)
+    }
+
     try {
-      await apiClient.post('/v1/auction/categories/', {
-        auction: auctionId,
-        name: newCatName,
-        target_count: newCatTarget,
-        base_price: newCatBasePrice,
+      const formData = new FormData()
+
+      // 1. Completion & Auction Mode
+      formData.append('auction_completion_message', completionMessage)
+      formData.append('auction_mode', auctionMode)
+      formData.append('player_selection_mode', playerSelectionMode)
+      formData.append('category_wise_bidding', playerSelectionMode === 'Category Wise' ? 'true' : 'false')
+
+      // 2. Budget & Squad
+      formData.append('max_squad', (totalTarget > 0 ? totalTarget : maxSquad).toString())
+      formData.append('team_purse', teamPurse.toString())
+      formData.append('retention_allowed', retentionAllowed ? 'true' : 'false')
+      formData.append('bring_back_unsold', bringBackUnsold ? 'true' : 'false')
+      formData.append('confirm_sale', confirmSale ? 'true' : 'false')
+      formData.append('reserve_amount', reserveAmount.toString())
+      formData.append('additional_kitty', additionalKitty.toString())
+      formData.append('penalty_amount', penaltyAmount.toString())
+
+      // 3. Celebrations
+      formData.append('sold_animation', soldAnimation ? 'true' : 'false')
+      formData.append('highest_bid_animation', highestBidAnimation ? 'true' : 'false')
+      formData.append('sold_animation_style', soldAnimationStyle)
+      formData.append('sold_animation_duration', soldAnimationDuration.toString())
+      formData.append('highest_bid_animation_style', highestBidAnimationStyle)
+      formData.append('highest_bid_animation_duration', highestBidAnimationDuration.toString())
+
+      if (soldAnimationFile) {
+        formData.append('sold_animation_custom', soldAnimationFile)
+      } else if (soldAnimationCustom) {
+        formData.append('sold_animation_custom_url', soldAnimationCustom)
+      }
+
+      if (highestBidAnimationFile) {
+        formData.append('highest_bid_animation_custom', highestBidAnimationFile)
+      } else if (highestBidAnimationCustom) {
+        formData.append('highest_bid_animation_custom_url', highestBidAnimationCustom)
+      }
+
+      // 4. Categories & Slabs
+      formData.append('category_source', categorySource)
+      formData.append('category_names', categoryNamesInput)
+      formData.append('categories', JSON.stringify(categories))
+      formData.append('category_sequence', categorySequenceInput)
+      formData.append('slabs', JSON.stringify(slabs))
+
+      // 5. Groups
+      formData.append('groups', JSON.stringify(groups))
+      formData.append('group_card_colour', groupCardColour)
+
+      // 6. Branding
+      if (tournamentLogoFile) {
+        formData.append('tournament_logo', tournamentLogoFile)
+        formData.append('remove_tournament_logo_bg', removeTournamentLogoBg ? 'true' : 'false')
+      }
+      if (auctionBgFile) {
+        formData.append('auction_background_file', auctionBgFile)
+      } else if (auctionBackground) {
+        formData.append('auction_background', auctionBackground)
+      }
+      if (overallBgFile) {
+        formData.append('overall_background_file', overallBgFile)
+      } else if (overallBackground) {
+        formData.append('overall_background', overallBackground)
+      }
+
+      // 7. Timer & Sound
+      formData.append('online_timer_enabled', onlineTimerEnabled ? 'true' : 'false')
+      formData.append('timer_seconds', timerSeconds.toString())
+      formData.append('closing_wait_seconds', closingWaitSeconds.toString())
+      formData.append('sound_effects', soundEffects ? 'true' : 'false')
+
+      await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       })
-      setNewCatName('')
-      loadAllRules()
-    } catch (err) {
-      console.error('Add category failed', err)
+
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 4000)
+      await loadSetupRules()
+    } catch (err: any) {
+      console.error('Save setup & rules error:', err)
+      setErrorMessage(err.response?.data?.error || err.message || 'Failed to save configuration.')
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      await apiClient.delete(`/v1/auction/categories/${id}/`)
-      loadAllRules()
-    } catch (err) {
-      console.error('Delete category failed', err)
-    }
-  }
-
+  // Squad Rules CRUD
   const handleAddSquadRule = async () => {
-    if (!newRuleValue) return
+    if (!newRuleValue.trim()) return
     try {
       await apiClient.post('/v1/auction/squad-rules/', {
         auction: auctionId,
         field_key: newRuleKey,
-        field_value: newRuleValue,
+        field_value: newRuleValue.trim(),
         min_count: newRuleMin,
         max_count: newRuleMax,
         operator: 'minimum',
         active: true,
       })
       setNewRuleValue('')
-      loadAllRules()
-    } catch (err) {
+      const res = await apiClient.get(`/v1/auction/squad-rules/?auction=${auctionId}`)
+      setSquadRules(res.data.results || res.data || [])
+    } catch (err: any) {
       console.error('Add squad rule failed', err)
+      alert(err.response?.data?.error || 'Failed to add squad constraint.')
     }
   }
 
   const handleDeleteSquadRule = async (id: string) => {
     try {
       await apiClient.delete(`/v1/auction/squad-rules/${id}/`)
-      loadAllRules()
-    } catch (err) {
+      setSquadRules((prev) => prev.filter((r) => r.id !== id))
+    } catch (err: any) {
       console.error('Delete squad rule failed', err)
     }
   }
 
-  const handleAddSlab = async () => {
-    if (!newSlabUpTo || !newSlabInc) return
-    try {
-      await apiClient.post('/v1/auction/slabs/', {
-        auction: auctionId,
-        up_to_bid: newSlabUpTo,
-        increment: newSlabInc,
-      })
-      setNewSlabUpTo(1000000)
-      setNewSlabInc(50000)
-      loadAllRules()
-    } catch (err) {
-      console.error('Add slab failed', err)
-    }
-  }
-
-  const handleDeleteSlab = async (id: string) => {
-    try {
-      await apiClient.delete(`/v1/auction/slabs/${id}/`)
-      loadAllRules()
-    } catch (err) {
-      console.error('Delete slab failed', err)
-    }
-  }
+  const sumTargets = categories.reduce((sum, c) => sum + (c.target_count || 0), 0)
+  const sumGroupTeams = groups.reduce((sum, g) => sum + (g.team_count || 0), 0)
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-72 items-center justify-center">
         <RefreshCw className="h-8 w-8 animate-spin text-amber-500" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Categories Quota Management */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-base font-black text-zinc-900 flex items-center gap-2 mb-1">
-          <Layers className="h-5 w-5 text-amber-500" />
-          Category Target Quotas & Base Prices
-        </h3>
-        <p className="text-xs text-slate-500 mb-4">
-          Defines the mandatory number of players each franchise must acquire per category.
+    <div className="space-y-6 pb-20 relative">
+      {/* Top Banner & Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
+            <Sliders className="h-6 w-6 text-amber-500" /> Setup & Rules
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            All tournament rules, budget parameters, celebration animations, categories and bid slabs.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {saveSuccess && (
+            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 animate-in fade-in">
+              <CheckCircle2 className="h-4 w-4" /> Rules saved successfully!
+            </span>
+          )}
+          {errorMessage && (
+            <span className="flex items-center gap-1.5 text-xs font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200">
+              <AlertCircle className="h-4 w-4" /> {errorMessage}
+            </span>
+          )}
+          <Button
+            onClick={handleSaveAll}
+            disabled={saving}
+            className="bg-amber-500 hover:bg-amber-600 text-zinc-950 font-black rounded-xl text-xs px-5 shadow-sm"
+          >
+            {saving ? (
+              <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-1.5" />
+            )}
+            Save Setup & Rules
+          </Button>
+        </div>
+      </div>
+
+      {/* 1. Auction Completion */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Trophy className="h-5 w-5 text-amber-500" />
+          Auction Completion
+        </h2>
+        <div className="space-y-2 mt-4 max-w-2xl">
+          <Label className="text-xs font-bold text-muted-foreground">All Teams Completed Message</Label>
+          <Input
+            value={completionMessage}
+            onChange={(e) => setCompletionMessage(e.target.value)}
+            placeholder="Auction Completed - All team are now completed"
+            className="text-xs font-medium rounded-xl border-border bg-background"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Shown automatically when every active team has fulfilled all category requirements.
+          </p>
+        </div>
+      </section>
+
+      {/* 2. Auction Type & Player Selection */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Eye className="h-5 w-5 text-blue-500" />
+          Auction Type & Player Selection
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Auction Type *</Label>
+            <select
+              value={auctionMode}
+              onChange={(e) => setAuctionMode(e.target.value as any)}
+              className="w-full rounded-xl border border-border bg-background p-2.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+            >
+              <option value="Centralized">Centralized Auction</option>
+              <option value="Online">Online Auction</option>
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              Centralized: one auctioneer controls bidding. Online: authorised teams/bidders can bid.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Player Auction Sequence *</Label>
+            <select
+              value={playerSelectionMode}
+              onChange={(e) => setPlayerSelectionMode(e.target.value as any)}
+              className="w-full rounded-xl border border-border bg-background p-2.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+            >
+              <option value="Open">Open Auction</option>
+              <option value="Category Wise">Category Wise Auction</option>
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              Open = random player from any eligible category. Category Wise = random player from the selected category.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Squad Rules & Budget */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Shield className="h-5 w-5 text-emerald-500" />
+          Squad Rules & Budget
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Squad Size / Max Squad *</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                value={maxSquad}
+                onChange={(e) => setMaxSquad(parseInt(e.target.value) || 1)}
+                className="text-xs font-bold rounded-xl border-border bg-background"
+              />
+              <span
+                className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border whitespace-nowrap ${
+                  sumTargets === maxSquad
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                }`}
+              >
+                Target Sum: {sumTargets}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Must equal the sum of category target counts ({sumTargets}).
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Team Kitty (₹) *</Label>
+            <Input
+              type="number"
+              min={0}
+              value={teamPurse}
+              onChange={(e) => setTeamPurse(parseFloat(e.target.value) || 0)}
+              className="text-xs font-bold rounded-xl border-border bg-background font-mono"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Base purse budget credited to each franchise at tournament start.
+            </p>
+          </div>
+        </div>
+
+        {/* Financial Adjustments Notice */}
+        <div className="rounded-2xl border-2 border-amber-400 bg-amber-100/90 dark:bg-amber-950/70 p-4 mt-4 text-xs shadow-xs">
+          <span className="font-black text-amber-950 dark:text-amber-100 block mb-1 text-sm">
+            Team-specific financial adjustments
+          </span>
+          <p className="text-xs text-amber-950 dark:text-amber-200 font-semibold leading-relaxed">
+            Reserve, Additional Kitty and Penalty are now maintained separately for each team in Team Setup. The legacy tournament defaults are retained only for backward compatibility.
+          </p>
+        </div>
+
+        {/* Checkbox Options */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-border">
+          <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={retentionAllowed}
+              onChange={(e) => setRetentionAllowed(e.target.checked)}
+              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400"
+            />
+            Retention allowed
+          </label>
+          <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={bringBackUnsold}
+              onChange={(e) => setBringBackUnsold(e.target.checked)}
+              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400"
+            />
+            Allow re-auction of unsold players
+          </label>
+          <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={confirmSale}
+              onChange={(e) => setConfirmSale(e.target.checked)}
+              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400"
+            />
+            Confirm sale before marking sold
+          </label>
+        </div>
+      </section>
+
+      {/* 4. SOLD Celebration Animations */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Sparkles className="h-5 w-5 text-amber-500" />
+          SOLD Celebration Animations
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          The regular SOLD animation plays after every SOLD player. If the sale matches or exceeds the highest sale achieved earlier in this tournament auction (including re-auction), the Highest Bid animation is used instead.
         </p>
 
-        {/* Existing Categories */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          {categories.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-border">
+          <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={soldAnimation}
+              onChange={(e) => setSoldAnimation(e.target.checked)}
+              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400"
+            />
+            Enable Regular SOLD Animation
+          </label>
+          <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={highestBidAnimation}
+              onChange={(e) => setHighestBidAnimation(e.target.checked)}
+              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400"
+            />
+            Enable Highest Bid Animation
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Regular SOLD Animation</Label>
+            <select
+              value={soldAnimationStyle}
+              onChange={(e) => setSoldAnimationStyle(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background p-2.5 text-xs font-semibold text-foreground focus:outline-none"
             >
-              <div>
-                <span className="font-bold text-zinc-900 text-sm block">{c.name}</span>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Target: <span className="text-amber-700 font-bold">{c.target_count} players</span> | Base: ₹{parseFloat(c.base_price).toLocaleString()}
-                </p>
+              {['Confetti Burst', 'Fireworks', 'Gold Celebration', 'Spotlight', 'Trophy Celebration'].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Regular Animation Duration</Label>
+            <select
+              value={soldAnimationDuration}
+              onChange={(e) => setSoldAnimationDuration(parseInt(e.target.value) || 3)}
+              className="w-full rounded-xl border border-border bg-background p-2.5 text-xs font-semibold text-foreground focus:outline-none"
+            >
+              <option value={2}>2 seconds</option>
+              <option value={3}>3 seconds</option>
+              <option value={4}>4 seconds</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Highest Bid Animation</Label>
+            <select
+              value={highestBidAnimationStyle}
+              onChange={(e) => setHighestBidAnimationStyle(e.target.value)}
+              className="w-full rounded-xl border border-border bg-background p-2.5 text-xs font-semibold text-foreground focus:outline-none"
+            >
+              {['Confetti Burst', 'Fireworks', 'Gold Celebration', 'Spotlight', 'Trophy Celebration'].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Highest Bid Animation Duration</Label>
+            <select
+              value={highestBidAnimationDuration}
+              onChange={(e) => setHighestBidAnimationDuration(parseInt(e.target.value) || 5)}
+              className="w-full rounded-xl border border-border bg-background p-2.5 text-xs font-semibold text-foreground focus:outline-none"
+            >
+              <option value={4}>4 seconds</option>
+              <option value={5}>5 seconds</option>
+              <option value={6}>6 seconds</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Live Preview Buttons */}
+        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => triggerAnimationPreview('sold')}
+            className="rounded-xl text-xs font-bold"
+          >
+            <Play className="h-3.5 w-3.5 mr-1 text-emerald-600" /> ▶ Preview SOLD
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => triggerAnimationPreview('highest')}
+            className="rounded-xl text-xs font-bold"
+          >
+            <Play className="h-3.5 w-3.5 mr-1 text-amber-500" /> ▶ Preview Highest Bid
+          </Button>
+        </div>
+
+        {/* Custom Video / WebM / GIF Animations */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Custom SOLD animation (GIF/WEBM/MP4/PNG)</Label>
+            <Input
+              type="file"
+              accept="image/gif,image/png,image/webp,video/webm,video/mp4"
+              onChange={(e) => setSoldAnimationFile(e.target.files?.[0] || null)}
+              className="text-xs rounded-xl border-border bg-background"
+            />
+            {soldAnimationCustom && (
+              <p className="text-[11px] text-emerald-600 truncate font-mono">
+                Current custom: {soldAnimationCustom.split('/').pop()}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Custom Highest Bid animation (GIF/WEBM/MP4/PNG)</Label>
+            <Input
+              type="file"
+              accept="image/gif,image/png,image/webp,video/webm,video/mp4"
+              onChange={(e) => setHighestBidAnimationFile(e.target.files?.[0] || null)}
+              className="text-xs rounded-xl border-border bg-background"
+            />
+            {highestBidAnimationCustom && (
+              <p className="text-[11px] text-emerald-600 truncate font-mono">
+                Current custom: {highestBidAnimationCustom.split('/').pop()}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <p className="text-[11px] text-muted-foreground mt-3 italic">
+          Built-in styles: Confetti Burst, Fireworks, Gold Celebration, Spotlight and Trophy Celebration. For transparent broadcast-style custom animations, WebM with alpha is the preferred format; MP4 is supported but normally has an opaque background.
+        </p>
+      </section>
+
+      {/* 5. Player Categories */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Layers className="h-5 w-5 text-indigo-500" />
+          Player Categories
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          Categories can be maintained manually or pulled from the Player Master. When using Player Master, category names are synchronized from the players already loaded in this tournament; you still define the base price and required number per team here.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Category source</Label>
+            <select
+              value={categorySource}
+              onChange={(e) => setCategorySource(e.target.value as any)}
+              className="w-full rounded-xl border border-border bg-background p-2.5 text-xs font-semibold text-foreground focus:outline-none"
+            >
+              <option value="Setup">Enter in Setup</option>
+              <option value="Player Master">Pull from Player Master</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5 flex flex-col justify-end">
+            <Label className="text-xs font-bold text-foreground">Player Field Studio</Label>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onNavigateTab ? onNavigateTab('fields') : window.open('/tournaments/2/field-studio', '_blank')}
+                className="rounded-xl text-xs font-bold"
+              >
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Manage Fields & Validation
+              </Button>
+              {categorySource === 'Player Master' && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handlePullFromPlayerMaster}
+                  className="rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> Pull Master Categories ({masterCategories.length})
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2 mt-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-bold text-foreground">Category names (comma separated)</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddCategory}
+              className="h-7 text-xs font-bold rounded-lg border-dashed border-indigo-400 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Category
+            </Button>
+          </div>
+          <Input
+            value={categoryNamesInput}
+            onChange={(e) => setCategoryNamesInput(e.target.value)}
+            placeholder="e.g. Diamond, Gold, Silver or Icon, Tier 1, Tier 2"
+            className="text-xs font-semibold rounded-xl border-border bg-background font-mono"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Type comma-separated category names above or use the Add Category button below to configure categories dynamically.
+          </p>
+        </div>
+
+        {/* Dynamic Category Cards */}
+        {categories.length === 0 ? (
+          <div className="mt-4 p-6 rounded-2xl border border-dashed border-border text-center bg-muted/20">
+            <Layers className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+            <p className="text-xs font-bold text-foreground">No Categories Defined</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+              Add your tournament categories above or click Add Category to get started.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleAddCategory}
+              className="text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add First Category
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
+            {categories.map((cat, idx) => (
+              <div
+                key={idx}
+                className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3 relative group"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">
+                      Category Name
+                    </label>
+                    <Input
+                      value={cat.name}
+                      onChange={(e) => handleUpdateCategoryName(idx, e.target.value)}
+                      placeholder="Category name"
+                      className="text-xs font-black rounded-lg bg-background h-8"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 self-end">
+                    <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600">
+                      #{idx + 1}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveCategory(idx)}
+                      title="Remove this category"
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-muted-foreground">
+                      Base Price (₹)
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={500}
+                      value={cat.base_price}
+                      onChange={(e) => handleUpdateCategory(idx, 'base_price', parseFloat(e.target.value) || 0)}
+                      className="text-xs font-bold font-mono rounded-xl bg-background"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-muted-foreground">
+                      Target Count (Req./Team)
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={cat.target_count}
+                      onChange={(e) => handleUpdateCategory(idx, 'target_count', parseInt(e.target.value) || 0)}
+                      className="text-xs font-bold font-mono rounded-xl bg-background"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Category Sequence */}
+        <div className="space-y-2 mt-4 pt-4 border-t border-border">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-bold text-foreground">Category-wise Auction Sequence</Label>
+            {categories.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleSyncCategorySequence}
+                className="h-6 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 p-0"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" /> Sync with Categories
+              </Button>
+            )}
+          </div>
+          <Input
+            value={categorySequenceInput}
+            onChange={(e) => setCategorySequenceInput(e.target.value)}
+            placeholder="e.g. Diamond, Gold, Silver"
+            className="text-xs font-semibold rounded-xl border-border bg-background font-mono"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Controls the order used by Category Wise Auction and the pre-auction Maximum Bid assumption.
+          </p>
+        </div>
+      </section>
+
+      {/* 6. Custom Bid Slabs */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Sliders className="h-5 w-5 text-blue-600" />
+          Custom Bid Slabs
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          A bid must land on the valid increment grid. Example: through ₹10 lakh → ₹50,000; through ₹20 lakh → ₹1 lakh; above ₹20 lakh → ₹2 lakh. Thus ₹20 lakh → ₹22 lakh → ₹24 lakh, never ₹21 lakh.
+        </p>
+
+        <div className="space-y-3 mb-4">
+          {slabs.map((slab, idx) => (
+            <div
+              key={idx}
+              className="flex items-center gap-3 bg-muted/30 p-3 rounded-2xl border border-border"
+            >
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Up to Bid (₹)</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={slab.up_to_bid}
+                  onChange={(e) => handleUpdateSlab(idx, 'up_to_bid', parseFloat(e.target.value) || 0)}
+                  placeholder="Up to bid"
+                  className="text-xs font-bold font-mono rounded-xl bg-background"
+                />
+              </div>
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Increment (₹)</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={slab.increment}
+                  onChange={(e) => handleUpdateSlab(idx, 'increment', parseFloat(e.target.value) || 0)}
+                  placeholder="Increment"
+                  className="text-xs font-bold font-mono rounded-xl bg-background"
+                />
               </div>
               <button
-                onClick={() => handleDeleteCategory(c.id)}
-                className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-white transition"
+                type="button"
+                onClick={() => handleRemoveSlab(idx)}
+                className="mt-5 p-2 rounded-xl text-muted-foreground hover:text-rose-600 hover:bg-rose-50 transition"
+                title="Remove Slab"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
           ))}
-          {categories.length === 0 && (
-            <p className="text-xs text-slate-400 italic col-span-3">No categories added yet.</p>
-          )}
         </div>
 
-        {/* Add Category Form */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-          <Input
-            placeholder="Category Name (e.g. Icon, Batsman)"
-            value={newCatName}
-            onChange={(e) => setNewCatName(e.target.value)}
-            className="w-48 bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
-          />
-          <Input
-            type="number"
-            placeholder="Target Count"
-            value={newCatTarget}
-            onChange={(e) => setNewCatTarget(parseInt(e.target.value) || 0)}
-            className="w-32 bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
-          />
-          <Input
-            type="number"
-            placeholder="Base Price (₹)"
-            value={newCatBasePrice}
-            onChange={(e) => setNewCatBasePrice(parseFloat(e.target.value) || 0)}
-            className="w-36 bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
-          />
-          <Button
-            size="sm"
-            onClick={handleAddCategory}
-            className="bg-amber-500 hover:bg-amber-600 text-zinc-950 font-black rounded-xl text-xs"
-          >
-            <Plus className="h-4 w-4 mr-1" /> Add Category
-          </Button>
-        </div>
-      </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAddSlab}
+          className="rounded-xl text-xs font-bold"
+        >
+          <Plus className="h-4 w-4 mr-1 text-blue-600" /> ＋ Add slab
+        </Button>
+      </section>
 
-      {/* Dynamic Squad Rules Engine */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-base font-black text-zinc-900 flex items-center gap-2 mb-1">
-          <Shield className="h-5 w-5 text-emerald-600" />
-          Squad Composition Rules (Purse-Protected Enforcement)
-        </h3>
-        <p className="text-xs text-slate-500 mb-4">
-          Server-side authoritative squad constraints (e.g., Male 8 + Female 4 or Bowler quotas). Max Bid calculation guarantees purse reserves for these rules.
+      {/* 7. Group Setup */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Trophy className="h-5 w-5 text-amber-500" />
+          Group Setup
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          Groups are independent of auction. The system will randomly place group identities behind numbered cards. Nobody sees the hidden mapping before reveal. Group team counts must add up to the number of active teams before a draw can be generated.
         </p>
 
-        {/* Active Rules List */}
+        <div className="max-w-xs space-y-1.5 mb-4">
+          <Label className="text-xs font-bold text-foreground">Number of Groups</Label>
+          <Input
+            type="number"
+            min={0}
+            value={groupCount}
+            onChange={(e) => setGroupCount(Math.max(0, parseInt(e.target.value) || 0))}
+            className="text-xs font-bold rounded-xl border-border bg-background"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {groups.map((group, idx) => (
+            <div
+              key={idx}
+              className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3"
+            >
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-foreground">Group {idx + 1} Name</Label>
+                <Input
+                  value={group.name}
+                  onChange={(e) => handleUpdateGroup(idx, 'name', e.target.value)}
+                  placeholder={`Group ${idx + 1}`}
+                  className="text-xs font-bold rounded-xl bg-background"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-foreground">Group {idx + 1} Number of Teams</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={group.team_count}
+                  onChange={(e) => handleUpdateGroup(idx, 'team_count', e.target.value)}
+                  className="text-xs font-bold rounded-xl bg-background"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">
+            Total Allocated Teams in Groups: <strong className="text-foreground">{sumGroupTeams}</strong>
+          </span>
+          <span className="text-muted-foreground">
+            Active Franchise Teams in Tournament: <strong className="text-foreground">{activeTeamsCount}</strong>
+          </span>
+        </div>
+      </section>
+
+      {/* 8. Tournament Branding */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Palette className="h-5 w-5 text-purple-500" />
+          Tournament Branding
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+          {/* Card Colour */}
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Group Draw Card Non-Logo Colour</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={groupCardColour}
+                onChange={(e) => setGroupCardColour(e.target.value)}
+                className="w-10 h-10 rounded-xl cursor-pointer border border-border p-0.5 bg-background"
+              />
+              <Input
+                value={groupCardColour}
+                onChange={(e) => setGroupCardColour(e.target.value)}
+                className="w-32 text-xs font-mono font-bold rounded-xl border-border bg-background"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              This is the colour of the card area outside the fixed tournament logo area.
+            </p>
+          </div>
+
+          {/* Tournament Logo */}
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Tournament Logo</Label>
+            <Input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={(e) => setTournamentLogoFile(e.target.files?.[0] || null)}
+              className="text-xs rounded-xl border-border bg-background"
+            />
+            <label className="flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={removeTournamentLogoBg}
+                onChange={(e) => setRemoveTournamentLogoBg(e.target.checked)}
+                className="w-4 h-4 rounded text-amber-500"
+              />
+              Remove background and use transparent version
+            </label>
+            {tournamentLogo && (
+              <div className="flex items-center gap-2 pt-1">
+                <img
+                  src={resolveMediaUrl(tournamentLogo)}
+                  alt="Tournament Logo"
+                  className="h-10 w-10 object-contain rounded-lg border bg-muted/40 p-1"
+                />
+                <span className="text-[11px] text-muted-foreground">Current logo loaded</span>
+              </div>
+            )}
+          </div>
+
+          {/* Auction Background */}
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Auction Background</Label>
+            <Input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={(e) => setAuctionBgFile(e.target.files?.[0] || null)}
+              className="text-xs rounded-xl border-border bg-background"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Used behind the live auction page. PDF backgrounds are configured separately in PDF Design Setup.
+            </p>
+          </div>
+
+          {/* Overall Background */}
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Overall Tournament Background</Label>
+            <Input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={(e) => setOverallBgFile(e.target.files?.[0] || null)}
+              className="text-xs rounded-xl border-border bg-background"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Used on tournament management pages where applicable.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 9. Online Timer & Sound */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Clock className="h-5 w-5 text-amber-500" />
+          Online Timer & Sound
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+          <div className="space-y-2 flex items-center">
+            <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={onlineTimerEnabled}
+                onChange={(e) => setOnlineTimerEnabled(e.target.checked)}
+                className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400"
+              />
+              Enable automatic bidding timer
+            </label>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Timer seconds</Label>
+            <Input
+              type="number"
+              min={1}
+              value={timerSeconds}
+              onChange={(e) => setTimerSeconds(parseInt(e.target.value) || 30)}
+              className="text-xs font-bold rounded-xl border-border bg-background"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-foreground">Closing wait seconds</Label>
+            <Input
+              type="number"
+              min={0}
+              value={closingWaitSeconds}
+              onChange={(e) => setClosingWaitSeconds(parseInt(e.target.value) || 5)}
+              className="text-xs font-bold rounded-xl border-border bg-background"
+            />
+          </div>
+
+          <div className="space-y-2 flex items-center">
+            <label className="flex items-center gap-2.5 text-xs font-bold text-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={soundEffects}
+                onChange={(e) => setSoundEffects(e.target.checked)}
+                className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400"
+              />
+              Sound effects enabled
+            </label>
+          </div>
+        </div>
+      </section>
+
+      {/* 10. Dynamic Squad Composition Rules (Purse Protected Engine) */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
+        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+          <Shield className="h-5 w-5 text-emerald-600" />
+          Squad Composition Rules (Purse-Protected Enforcement)
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          Server-side authoritative squad constraints (e.g. Gender → Female → Min 4, or Role → Bowler quotas). Max Bid calculation guarantees purse reserves for these rules.
+        </p>
+
+        {/* Existing Squad Rules */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           {squadRules.map((r) => (
             <div
               key={r.id}
-              className="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4"
+              className="flex items-center justify-between rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-4"
             >
               <div>
-                <span className="font-bold text-emerald-900 text-sm block">
+                <span className="font-extrabold text-emerald-900 dark:text-emerald-300 text-sm block">
                   {r.field_key.toUpperCase()}: &apos;{r.field_value}&apos;
                 </span>
-                <p className="text-xs text-emerald-700 mt-0.5">
-                  Min: <span className="font-bold text-zinc-900">{r.min_count}</span>
+                <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
+                  Min: <span className="font-bold text-foreground">{r.min_count}</span>
                   {r.max_count !== null && (
-                    <> | Max: <span className="font-bold text-zinc-900">{r.max_count}</span></>
+                    <> | Max: <span className="font-bold text-foreground">{r.max_count}</span></>
                   )}
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => handleDeleteSquadRule(r.id)}
-                className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-white transition"
+                className="text-muted-foreground hover:text-rose-600 p-1 rounded-lg hover:bg-background transition"
+                title="Remove squad rule"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
           ))}
           {squadRules.length === 0 && (
-            <p className="text-xs text-slate-400 italic col-span-2">No custom squad rules added yet.</p>
+            <p className="text-xs text-muted-foreground italic col-span-2">No custom squad rules added yet.</p>
           )}
         </div>
 
-        {/* Add Squad Rule Form */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+        {/* Add Squad Rule Inline Form */}
+        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
           <select
             value={newRuleKey}
             onChange={(e) => setNewRuleKey(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white p-2 text-xs font-semibold text-zinc-900 focus:outline-none"
+            className="rounded-xl border border-border bg-background p-2 text-xs font-semibold text-foreground focus:outline-none"
           >
             <option value="category">Category</option>
             <option value="role">Role</option>
@@ -266,91 +1349,101 @@ export default function SetupRulesManager({ auctionId }: SetupRulesManagerProps)
             placeholder="Value (e.g. Male, Female, Bowler)"
             value={newRuleValue}
             onChange={(e) => setNewRuleValue(e.target.value)}
-            className="w-48 bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+            className="w-48 bg-background border-border text-xs rounded-xl font-medium"
           />
           <Input
             type="number"
             placeholder="Min Count"
             value={newRuleMin}
             onChange={(e) => setNewRuleMin(parseInt(e.target.value) || 0)}
-            className="w-28 bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+            className="w-28 bg-background border-border text-xs rounded-xl font-medium"
           />
           <Input
             type="number"
             placeholder="Max Count (opt)"
             value={newRuleMax || ''}
             onChange={(e) => setNewRuleMax(e.target.value ? parseInt(e.target.value) : undefined)}
-            className="w-28 bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
+            className="w-28 bg-background border-border text-xs rounded-xl font-medium"
           />
           <Button
             size="sm"
+            type="button"
             onClick={handleAddSquadRule}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs"
           >
             <Plus className="h-4 w-4 mr-1" /> Add Squad Constraint
           </Button>
         </div>
-      </div>
+      </section>
 
-      {/* Bid Slabs Ladder */}
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-base font-black text-zinc-900 flex items-center gap-2 mb-1">
-          <Sliders className="h-5 w-5 text-blue-600" />
-          Bid Increment Slabs Ladder
-        </h3>
-        <p className="text-xs text-slate-500 mb-4">
-          Configures minimum increment step based on current bid threshold.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          {slabs.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4"
-            >
-              <div>
-                <span className="font-bold text-zinc-900 text-sm block">Up to ₹{parseFloat(s.up_to_bid).toLocaleString()}</span>
-                <p className="text-xs text-blue-700 font-bold mt-0.5">
-                  Increment: +₹{parseFloat(s.increment).toLocaleString()}
-                </p>
-              </div>
-              <button
-                onClick={() => handleDeleteSlab(s.id)}
-                className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-white transition"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-          {slabs.length === 0 && (
-            <p className="text-xs text-slate-400 italic col-span-3">No custom increment slabs configured.</p>
-          )}
+      {/* Floating Bottom Action Bar */}
+      <div className="sticky bottom-4 z-40 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card/95 backdrop-blur-md p-4 shadow-xl">
+        <div className="text-xs text-muted-foreground">
+          Make changes and click <strong className="text-foreground">Save Setup & Rules</strong> to sync to backend in real time.
         </div>
-
-        <div className="flex items-center gap-2 border-t border-slate-100 pt-4">
-          <Input
-            type="number"
-            placeholder="Up to Bid Amount (₹)"
-            value={newSlabUpTo}
-            onChange={(e) => setNewSlabUpTo(parseFloat(e.target.value) || 0)}
-            className="w-48 bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
-          />
-          <Input
-            type="number"
-            placeholder="Increment Step (₹)"
-            value={newSlabInc}
-            onChange={(e) => setNewSlabInc(parseFloat(e.target.value) || 0)}
-            className="w-40 bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-medium"
-          />
+        <div className="flex items-center gap-3">
           <Button
+            type="button"
+            variant="outline"
             size="sm"
-            onClick={handleAddSlab}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs"
+            onClick={loadSetupRules}
+            disabled={saving}
+            className="rounded-xl text-xs font-bold"
           >
-            <Plus className="h-4 w-4 mr-1" /> Add Slab
+            Reset / Reload
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSaveAll}
+            disabled={saving}
+            className="bg-amber-500 hover:bg-amber-600 text-zinc-950 font-black rounded-xl text-xs px-6 shadow-sm"
+          >
+            {saving ? <RefreshCw className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+            Save Setup & Rules
           </Button>
         </div>
       </div>
+
+      {/* Interactive Celebration Preview Overlay */}
+      {previewAnimation && (
+        <div
+          onClick={() => setPreviewAnimation(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md cursor-pointer animate-in fade-in"
+        >
+          <div className="text-center space-y-4 p-8 relative max-w-lg">
+            {/* Visual Effect Render according to previewAnimation.style */}
+            <div className="relative flex flex-col items-center justify-center">
+              {previewAnimation.style === 'Spotlight' && (
+                <div className="w-64 h-64 rounded-full bg-gradient-to-b from-yellow-300/40 via-amber-400/20 to-transparent blur-2xl animate-pulse" />
+              )}
+              {previewAnimation.style === 'Fireworks' && (
+                <div className="flex gap-2">
+                  <span className="text-6xl animate-bounce">🎆</span>
+                  <span className="text-7xl animate-pulse">✨</span>
+                  <span className="text-6xl animate-bounce">🎇</span>
+                </div>
+              )}
+              {previewAnimation.style === 'Confetti Burst' && (
+                <div className="text-7xl animate-bounce">🎉 🎊 ✨</div>
+              )}
+              {previewAnimation.style === 'Gold Celebration' && (
+                <div className="text-7xl animate-pulse">👑 🌟 🪙 🌟 👑</div>
+              )}
+              {previewAnimation.style === 'Trophy Celebration' && (
+                <div className="text-8xl animate-bounce">🏆</div>
+              )}
+
+              <h1 className="text-6xl font-black text-amber-400 tracking-wider uppercase mt-4 drop-shadow-[0_4px_16px_rgba(251,191,36,0.6)]">
+                {previewAnimation.label}
+              </h1>
+              <p className="text-sm font-bold text-white/90 mt-2">
+                Style: <span className="text-amber-300">{previewAnimation.style}</span> ({previewAnimation.duration}s)
+              </p>
+            </div>
+            <p className="text-xs text-white/50">Click anywhere to dismiss preview</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

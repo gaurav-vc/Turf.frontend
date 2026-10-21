@@ -32,6 +32,16 @@ export const getBaseUrl = (): string => {
 
 export const BASE_URL = getBaseUrl()
 
+export const resolveMediaUrl = (url: string | null | undefined): string => {
+  if (!url) return ''
+  const trimmed = String(url).trim()
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed
+  }
+  const base = BASE_URL.replace(/\/api\/?$/, '')
+  return `${base}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`
+}
+
 export const apiClient = axios.create({
   baseURL: BASE_URL,
 })

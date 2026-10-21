@@ -4,7 +4,7 @@ import { X, Shield, RefreshCw, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { apiClient } from '@/api/apiClient'
+import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 
 interface TeamEntryModalProps {
   auctionId: string
@@ -69,7 +69,7 @@ export default function TeamEntryModal({
         setPenalty(teamToEdit.penalty_amount || 0)
         setReserve(teamToEdit.reserve_amount || 0)
         setSponsorName(teamToEdit.sponsor_name || '')
-        setLogoPreview(teamToEdit.logo || teamToEdit.logo_url || null)
+        setLogoPreview(resolveMediaUrl(teamToEdit.logo || teamToEdit.logo_url) || null)
         setLogoFile(null)
       } else {
         // New Team: Auto distinct color

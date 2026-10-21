@@ -93,6 +93,8 @@ export default function PlayerEntryFormModal({
   }, [isOpen, playerToEdit])
 
   const resetForm = () => {
+    const defaultCat = categories[0]?.name || ''
+    const defaultBase = categories[0]?.base_price !== undefined ? categories[0].base_price : 1000
     setFormData({
       player_no: '',
       name: '',
@@ -100,8 +102,8 @@ export default function PlayerEntryFormModal({
       age: '',
       location: '',
       role: 'All-Rounder (Batting)',
-      category: categories[0]?.name || 'General',
-      base_price: 1000,
+      category: defaultCat,
+      base_price: defaultBase,
       tagging: 'Player',
       photo_url: '',
       batting_style: 'Right Hand Bat',
@@ -123,10 +125,23 @@ export default function PlayerEntryFormModal({
         apiClient.get(`/v1/auction/categories/?auction=${auctionId}`),
         apiClient.get(`/v1/auction/custom-fields/?auction=${auctionId}&entity_type=player`)
       ])
-      const cats = catRes.data.results || catRes.data || []
+      let cats = catRes.data.results || catRes.data || []
+      if (!Array.isArray(cats) || cats.length === 0) {
+        try {
+          const rulesRes = await apiClient.get(`/v1/auction/console/${auctionId}/setup_rules/`)
+          if (rulesRes.data.categories && Array.isArray(rulesRes.data.categories)) {
+            cats = rulesRes.data.categories
+          }
+        } catch (_) {}
+      }
+
       setCategories(cats)
       if (!playerToEdit && cats.length > 0) {
-        setFormData(prev => ({ ...prev, category: cats[0].name }))
+        setFormData(prev => ({
+          ...prev,
+          category: prev.category && cats.some((c: any) => c.name === prev.category) ? prev.category : cats[0].name,
+          base_price: (prev.base_price && prev.base_price !== 1000) ? prev.base_price : (cats[0].base_price || 1000)
+        }))
       }
       setCustomFields(cfRes.data.results || cfRes.data || [])
     } catch (err) {
@@ -187,8 +202,8 @@ export default function PlayerEntryFormModal({
           headers: { 'Content-Type': 'multipart/form-data' }
         })
       } else {
-        // Create player via single intake endpoint
-        await apiClient.post(`/v1/auction/console/${auctionId}/bulk_import_players/`, submitData, {
+        // Create player via dedicated players endpoint
+        await apiClient.post(`/v1/auction/console/${auctionId}/players/`, submitData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
       }
@@ -344,17 +359,27 @@ export default function PlayerEntryFormModal({
               {categories.length > 0 ? (
                 <select
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
+                  onChange={(e) => {
+                    const selCat = e.target.value
+                    const matched = categories.find((c) => c.name === selCat)
+                    setFormData((prev) => ({
+                      ...prev,
+                      category: selCat,
+                      base_price: matched?.base_price !== undefined ? matched.base_price : prev.base_price,
+                    }))
+                  }}
+                  className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 >
                   {categories.map((c) => (
-                    <option key={c.name} value={c.name}>{c.name}</option>
+                    <option key={c.name} value={c.name}>
+                      {c.name} {c.base_price ? `(Base: ₹${Number(c.base_price).toLocaleString('en-IN')})` : ''}
+                    </option>
                   ))}
                 </select>
               ) : (
                 <Input
                   required
-                  placeholder="e.g. Icon, Tier 1"
+                  placeholder="e.g. cyclone, storm, etc."
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
