@@ -111,7 +111,7 @@ export default function AuctionSuite({ auctionId, auctionName, activeTab: propAc
           />
         )}
         {activeTab === 'pdf_studio' && <PdfDesignStudio auctionId={auctionId} />}
-        {activeTab === 'rules' && <SetupRulesManager auctionId={auctionId} onNavigateTab={handleTabChange} />}
+        {activeTab === 'rules' && <SetupRulesManager auctionId={auctionId} onNavigateTab={(tab: any) => handleTabChange(tab)} />}
         {activeTab === 'fields' && <CustomFieldsStudio auctionId={auctionId} />}
         {activeTab === 'all_teams' && (
           <TeamsAndPlayersHub

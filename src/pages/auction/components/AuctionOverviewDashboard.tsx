@@ -81,7 +81,7 @@ export default function AuctionOverviewDashboard({
     setExportingPdf(format)
     try {
       const res = await apiClient.get(
-        `/v1/auction/console/${auctionId}/export_cards_pdf/?format=${format}`,
+        `/v1/auction/console/${auctionId}/export_cards_pdf/?pdf_format=${format}`,
         { responseType: 'blob' }
       )
       const blob = new Blob([res.data], { type: 'application/pdf' })
@@ -97,7 +97,7 @@ export default function AuctionOverviewDashboard({
       console.error('Failed to export PDF', err)
       const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000'
       window.open(
-        `${apiBase}/v1/auction/console/${auctionId}/export_cards_pdf/?format=${format}`,
+        `${apiBase}/v1/auction/console/${auctionId}/export_cards_pdf/?pdf_format=${format}`,
         '_blank'
       )
     } finally {
