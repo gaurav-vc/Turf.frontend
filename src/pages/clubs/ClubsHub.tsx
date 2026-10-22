@@ -151,16 +151,18 @@ export default function ClubsHub() {
   return (
     <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 border border-emerald-500/20 p-8 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand to-brand-hover text-white p-8 md:p-10 shadow-xl border border-white/20">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-bold uppercase tracking-wider mb-3">
               <Shield className="w-3.5 h-3.5" /> Club Network
             </div>
             <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight">
               Club
             </h1>
-            <p className="text-slate-300 max-w-xl mt-2 text-sm md:text-base font-medium">
+            <p className="text-white/90 max-w-xl mt-2 text-sm md:text-base font-medium">
               Create and manage your official club. Schedule recurring tournaments, run real-time matches with configurable wickets, and control live inning timers with break stoppage.
             </p>
           </div>
@@ -168,14 +170,13 @@ export default function ClubsHub() {
           <div className="flex flex-wrap items-center gap-3">
             <Button 
               onClick={() => setShowInviteModal(true)}
-              variant="outline"
-              className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 font-bold"
+              className="bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/30 text-white font-bold transition shadow-sm"
             >
               <Key className="w-4 h-4 mr-2" /> Enter Invite Code
             </Button>
             <Button 
               onClick={() => setShowCreateModal(true)}
-              className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black shadow-lg shadow-emerald-500/25"
+              className="bg-white hover:bg-slate-100 text-brand font-black shadow-lg transition"
             >
               <Plus className="w-4 h-4 mr-2 stroke-[3]" /> Create New Club
             </Button>
@@ -333,19 +334,19 @@ export default function ClubsHub() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
             >
-              <div className="bg-gradient-to-r from-emerald-950 to-slate-900 p-6 border-b border-border flex items-start justify-between">
+              <div className="bg-gradient-to-r from-brand to-brand-hover p-6 border-b border-border flex items-start justify-between text-white">
                 <div>
                   <h3 className="text-2xl font-black text-white flex items-center gap-2">
-                    <Shield className="w-6 h-6 text-emerald-400" /> Create Sports Club
+                    <Shield className="w-6 h-6 text-white" /> Create Sports Club
                   </h3>
-                  <p className="text-xs text-slate-300 mt-1">
+                  <p className="text-xs text-white/90 mt-1">
                     You will automatically become the Club Owner with full permission to appoint Co-Owners and Co-Admins.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors ml-4 shrink-0"
+                  className="text-white/80 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors ml-4 shrink-0"
                   aria-label="Close modal"
                 >
                   <X className="w-5 h-5" />

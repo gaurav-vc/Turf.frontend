@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { apiClient } from '@/api/apiClient'
+import EditProfileModal from '@/components/profile/EditProfileModal'
 
 const formatDistanceToNow = (dateString: string) => {
   const date = new Date(dateString)
@@ -34,6 +35,7 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -326,6 +328,15 @@ export default function AdminLayout() {
                   <button 
                     onClick={() => {
                       setShowProfileMenu(false)
+                      setShowEditProfileModal(true)
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-brand/10 flex items-center text-brand transition-colors"
+                  >
+                    <ShieldCheck className="w-4 h-4 mr-3 text-brand" /> Edit Profile & Avatar
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowProfileMenu(false)
                       setShowPasswordModal(true)
                     }}
                     className="w-full text-left px-4 py-2.5 text-sm font-medium hover:bg-muted flex items-center text-foreground transition-colors"
@@ -403,6 +414,12 @@ export default function AdminLayout() {
           </div>
         </div>
       )}
+
+      {/* Edit Profile & Avatar Modal */}
+      <EditProfileModal 
+        isOpen={showEditProfileModal} 
+        onClose={() => setShowEditProfileModal(false)} 
+      />
     </div>
   )
 }

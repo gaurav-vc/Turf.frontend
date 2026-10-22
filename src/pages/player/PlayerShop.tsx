@@ -242,19 +242,19 @@ export default function PlayerShop() {
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* HERO PROMOTIONAL BANNER */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-8 md:p-12 shadow-2xl border border-emerald-700/30">
-          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand via-emerald-500 to-teal-500 text-white p-8 md:p-12 shadow-xl border border-white/20">
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-80 h-80 rounded-full bg-white/15 blur-3xl pointer-events-none" />
           
           <div className="relative z-10 max-w-2xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-black uppercase tracking-widest">
-              <Flame className="w-3.5 h-3.5 fill-current" /> Turf League Mega Season Deals
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/30 text-xs font-black uppercase tracking-widest">
+              <Flame className="w-3.5 h-3.5 fill-current text-yellow-300" /> Turf League Mega Season Deals
             </div>
 
             <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
               Wear Your Colors.<br />Dominate The Turf.
             </h2>
 
-            <p className="text-sm md:text-base text-emerald-100/80 font-medium">
+            <p className="text-sm md:text-base text-white/90 font-medium">
               Custom player jerseys with your name & number, professional turf studs, and match balls. Delivered directly to your turf venue or doorstep.
             </p>
 
@@ -262,15 +262,15 @@ export default function PlayerShop() {
               <button
                 type="button"
                 onClick={() => handleCopyCode('TURFPRO10')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-xs font-bold transition-colors cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 text-xs font-bold transition-colors cursor-pointer text-white"
               >
-                <Tag className="w-4 h-4 text-emerald-400" />
+                <Tag className="w-4 h-4 text-yellow-300" />
                 <span>Code: <strong className="text-white">TURFPRO10</strong> (10% OFF)</span>
-                {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <span className="text-[10px] opacity-75">Click to copy</span>}
+                {copiedCode ? <Check className="w-3.5 h-3.5 text-yellow-300" /> : <span className="text-[10px] opacity-80">Click to copy</span>}
               </button>
 
-              <div className="flex items-center gap-2 text-xs font-bold text-emerald-200">
-                <Truck className="w-4 h-4 text-emerald-400" /> Free Venue Pickup Desk
+              <div className="flex items-center gap-2 text-xs font-bold text-white/95">
+                <Truck className="w-4 h-4 text-yellow-300" /> Free Venue Pickup Desk
               </div>
             </div>
           </div>
