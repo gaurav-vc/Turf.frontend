@@ -34,6 +34,15 @@ export default function OverlayStudio({ auctionId }: OverlayStudioProps) {
 
   const presets = [
     {
+      key: 'ipl_card',
+      name: 'IPL Broadcast Mega Card (Star Sports / JioCinema Style)',
+      description: 'Television broadcast-grade pop-up graphics with 3D player cutout, dynamic neon rim, gold live bid counter, leading team banner, and purse ceiling.',
+      url: publicToken ? `${baseUrl}/auction/overlay/${publicToken}?type=ipl_card` : '',
+      resolution: '1920 × 1080 (Transparent Full Canvas)',
+      position: 'Bottom Center / Lower Third',
+      highlight: true,
+    },
+    {
       key: 'lower_third',
       name: 'Lower Third Broadcast Ticker',
       description: 'Transparent lower-third banner displaying the active player lot, high bidder, current bid, and base price.',
@@ -93,17 +102,24 @@ export default function OverlayStudio({ auctionId }: OverlayStudioProps) {
           <div className="lg:col-span-2 space-y-4">
             <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">Built-in Overlay Presets</h3>
 
-            {presets.map((p) => (
+            {presets.map((p: any) => (
               <div
                 key={p.key}
-                className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3"
+                className={`bg-white border rounded-2xl p-5 shadow-sm space-y-3 transition-all ${
+                  p.highlight ? 'border-amber-400/80 bg-gradient-to-br from-white via-amber-50/20 to-white ring-2 ring-amber-400/20 shadow-md' : 'border-slate-200'
+                }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                   <div>
-                    <h4 className="text-sm font-black text-zinc-900 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
-                      {p.name}
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${p.highlight ? 'bg-amber-500' : 'bg-rose-500'}`}></span>
+                      <h4 className="text-sm font-black text-zinc-900">{p.name}</h4>
+                      {p.highlight && (
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-rose-600 text-white tracking-wider shadow-xs">
+                          ⭐ TV BROADCAST
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">{p.description}</p>
                   </div>
 
@@ -143,6 +159,17 @@ export default function OverlayStudio({ auctionId }: OverlayStudioProps) {
                   >
                     <ExternalLink className="w-4 h-4" />
                   </Button>
+                  {p.key === 'ipl_card' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(`${p.url}&demo=true`, '_blank')}
+                      className="border-amber-400 text-amber-700 hover:bg-amber-50 shrink-0 text-xs font-bold rounded-xl flex items-center gap-1"
+                      title="Preview card with sample player immediately"
+                    >
+                      👁️ Test Preview
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

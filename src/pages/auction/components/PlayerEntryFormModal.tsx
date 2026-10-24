@@ -27,6 +27,15 @@ const DEFAULT_ROLES = [
 ]
 
 const DEFAULT_TAGS = ['Icon', 'Marquee', 'Overseas', 'Domestic', 'Retained', 'Player']
+const DEFAULT_BATTING = ['Right Hand Bat', 'Left Hand Bat']
+const DEFAULT_BOWLING = [
+  'Right Arm Fast',
+  'Right Arm Medium',
+  'Right Arm Spin',
+  'Left Arm Fast',
+  'Left Arm Medium',
+  'Left Arm Spin'
+]
 
 export default function PlayerEntryFormModal({
   auctionId,
@@ -37,6 +46,11 @@ export default function PlayerEntryFormModal({
 }: PlayerEntryFormModalProps) {
   const [categories, setCategories] = useState<any[]>([])
   const [customFields, setCustomFields] = useState<any[]>([])
+  const [roleOptions, setRoleOptions] = useState<string[]>(DEFAULT_ROLES)
+  const [tagOptions, setTagOptions] = useState<string[]>(DEFAULT_TAGS)
+  const [battingOptions, setBattingOptions] = useState<string[]>(DEFAULT_BATTING)
+  const [bowlingOptions, setBowlingOptions] = useState<string[]>(DEFAULT_BOWLING)
+
   const [loadingConfig, setLoadingConfig] = useState(false)
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -67,19 +81,29 @@ export default function PlayerEntryFormModal({
     if (isOpen) {
       loadConfig()
       if (playerToEdit) {
+        const pRole = playerToEdit.role || playerToEdit.player_skills || 'All-Rounder'
+        const pTag = playerToEdit.custom_data?.tagging || 'Player'
+        const pBat = playerToEdit.batting_style || 'Right Hand Bat'
+        const pBowl = playerToEdit.bowling_style || 'Right Arm Medium'
+
+        if (pRole && !roleOptions.includes(pRole)) setRoleOptions((prev) => [pRole, ...prev])
+        if (pTag && !tagOptions.includes(pTag)) setTagOptions((prev) => [pTag, ...prev])
+        if (pBat && !battingOptions.includes(pBat)) setBattingOptions((prev) => [pBat, ...prev])
+        if (pBowl && !bowlingOptions.includes(pBowl)) setBowlingOptions((prev) => [pBowl, ...prev])
+
         setFormData({
           player_no: playerToEdit.serial_no?.toString() || '',
           name: playerToEdit.player_name || playerToEdit.name || '',
           mobile: playerToEdit.mobile || '',
           age: playerToEdit.age?.toString() || '',
           location: playerToEdit.location || '',
-          role: playerToEdit.role || playerToEdit.player_skills || 'All-Rounder',
+          role: pRole,
           category: playerToEdit.category || '',
           base_price: playerToEdit.base_price || 1000,
-          tagging: playerToEdit.custom_data?.tagging || 'Player',
+          tagging: pTag,
           photo_url: playerToEdit.photo_url || '',
-          batting_style: playerToEdit.batting_style || 'Right Hand Bat',
-          bowling_style: playerToEdit.bowling_style || 'Right Arm Medium',
+          batting_style: pBat,
+          bowling_style: pBowl,
           app_name: playerToEdit.custom_data?.app_name || '',
           app_id: playerToEdit.custom_data?.app_id || '',
           experience: playerToEdit.custom_data?.experience || '',
@@ -340,15 +364,20 @@ export default function PlayerEntryFormModal({
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Role <span className="text-emerald-600">*</span>
               </label>
-              <select
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
-              >
-                {DEFAULT_ROLES.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <input
+                  list="roles-datalist"
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  placeholder="Select or type custom role..."
+                  className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                />
+                <datalist id="roles-datalist">
+                  {roleOptions.map((r) => (
+                    <option key={r} value={r} />
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             {/* Category */}
@@ -356,35 +385,30 @@ export default function PlayerEntryFormModal({
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Category <span className="text-emerald-600">*</span>
               </label>
-              {categories.length > 0 ? (
-                <select
+              <div className="relative">
+                <input
+                  list="categories-datalist"
                   value={formData.category}
                   onChange={(e) => {
                     const selCat = e.target.value
-                    const matched = categories.find((c) => c.name === selCat)
+                    const matched = categories.find((c) => c.name.toLowerCase() === selCat.toLowerCase())
                     setFormData((prev) => ({
                       ...prev,
                       category: selCat,
                       base_price: matched?.base_price !== undefined ? matched.base_price : prev.base_price,
                     }))
                   }}
+                  placeholder="Select or type category..."
                   className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                >
+                />
+                <datalist id="categories-datalist">
                   {categories.map((c) => (
                     <option key={c.name} value={c.name}>
-                      {c.name} {c.base_price ? `(Base: ₹${Number(c.base_price).toLocaleString('en-IN')})` : ''}
+                      {c.base_price ? `Base: ₹${Number(c.base_price).toLocaleString('en-IN')}` : ''}
                     </option>
                   ))}
-                </select>
-              ) : (
-                <Input
-                  required
-                  placeholder="e.g. cyclone, storm, etc."
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
-                />
-              )}
+                </datalist>
+              </div>
             </div>
 
             {/* Base Price */}
@@ -408,15 +432,20 @@ export default function PlayerEntryFormModal({
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Tagging
               </label>
-              <select
-                value={formData.tagging}
-                onChange={(e) => setFormData({ ...formData, tagging: e.target.value })}
-                className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
-              >
-                {DEFAULT_TAGS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <input
+                  list="tagging-datalist"
+                  value={formData.tagging}
+                  onChange={(e) => setFormData({ ...formData, tagging: e.target.value })}
+                  placeholder="Select or type custom tag..."
+                  className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                />
+                <datalist id="tagging-datalist">
+                  {tagOptions.map((t) => (
+                    <option key={t} value={t} />
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             {/* Batting Style */}
@@ -424,14 +453,20 @@ export default function PlayerEntryFormModal({
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Batting Style
               </label>
-              <select
-                value={formData.batting_style}
-                onChange={(e) => setFormData({ ...formData, batting_style: e.target.value })}
-                className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
-              >
-                <option value="Right Hand Bat">Right Hand Bat</option>
-                <option value="Left Hand Bat">Left Hand Bat</option>
-              </select>
+              <div className="relative">
+                <input
+                  list="batting-datalist"
+                  value={formData.batting_style}
+                  onChange={(e) => setFormData({ ...formData, batting_style: e.target.value })}
+                  placeholder="Select or type batting style..."
+                  className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                />
+                <datalist id="batting-datalist">
+                  {battingOptions.map((b) => (
+                    <option key={b} value={b} />
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             {/* Bowling Style */}
@@ -439,18 +474,20 @@ export default function PlayerEntryFormModal({
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
                 Bowling Style
               </label>
-              <select
-                value={formData.bowling_style}
-                onChange={(e) => setFormData({ ...formData, bowling_style: e.target.value })}
-                className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none"
-              >
-                <option value="Right Arm Fast">Right Arm Fast</option>
-                <option value="Right Arm Medium">Right Arm Medium</option>
-                <option value="Right Arm Spin">Right Arm Spin</option>
-                <option value="Left Arm Fast">Left Arm Fast</option>
-                <option value="Left Arm Medium">Left Arm Medium</option>
-                <option value="Left Arm Spin">Left Arm Spin</option>
-              </select>
+              <div className="relative">
+                <input
+                  list="bowling-datalist"
+                  value={formData.bowling_style}
+                  onChange={(e) => setFormData({ ...formData, bowling_style: e.target.value })}
+                  placeholder="Select or type bowling style..."
+                  className="w-full bg-white border border-slate-200 text-xs text-zinc-900 font-semibold rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                />
+                <datalist id="bowling-datalist">
+                  {bowlingOptions.map((bw) => (
+                    <option key={bw} value={bw} />
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             {/* App Tracking & Experience */}

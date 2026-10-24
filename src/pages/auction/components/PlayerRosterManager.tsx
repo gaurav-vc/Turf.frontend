@@ -1042,16 +1042,14 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
                       <p className="text-[11px] text-muted-foreground">
                         Try clearing or adjusting your search keyword and filter criteria.
                       </p>
-                      {activeFiltersCount > 0 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={clearAllFilters}
-                          className="text-xs font-bold rounded-xl mt-2"
-                        >
-                          Reset Filters
-                        </Button>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearAllFilters}
+                        className="text-xs font-bold rounded-xl mt-2 border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset / Clear All Filters
+                      </Button>
                     </div>
                   </td>
                 </tr>

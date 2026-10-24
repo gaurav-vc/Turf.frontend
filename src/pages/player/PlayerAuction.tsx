@@ -27,7 +27,12 @@ export default function PlayerAuction() {
 
   const handleTabChange = (tabId: TabType) => {
     setActiveTab(tabId)
-    setSearchParams({ tab: tabId })
+    const currentTournament = searchParams.get('tournament')
+    if (currentTournament) {
+      setSearchParams({ tab: tabId, tournament: currentTournament })
+    } else {
+      setSearchParams({ tab: tabId })
+    }
   }
 
   const fetchAuctions = async () => {
@@ -135,20 +140,30 @@ export default function PlayerAuction() {
 
                 {/* Dropdown List right to main heading text */}
                 {selectedAuction && (
-                  <div className="relative flex items-center">
-                    <Trophy className="absolute left-3 w-4 h-4 text-amber-500 pointer-events-none" />
-                    <select
-                      value={activeTab}
-                      onChange={(e) => handleTabChange(e.target.value as TabType)}
-                      className="appearance-none pl-9 pr-9 py-1.5 rounded-xl border-2 border-amber-500/50 hover:border-amber-500 bg-white dark:bg-card text-xs md:text-sm font-black text-zinc-900 dark:text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer transition-all"
-                    >
-                      {AUCTION_TABS.map(({ id, label }) => (
-                        <option key={id} value={id}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 w-4 h-4 text-slate-500 pointer-events-none" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative flex items-center">
+                      <Trophy className="absolute left-3 w-4 h-4 text-amber-500 pointer-events-none" />
+                      <select
+                        value={activeTab}
+                        onChange={(e) => handleTabChange(e.target.value as TabType)}
+                        className="appearance-none pl-9 pr-9 py-1.5 rounded-xl border-2 border-amber-500/50 hover:border-amber-500 bg-white dark:bg-card text-xs md:text-sm font-black text-zinc-900 dark:text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer transition-all"
+                      >
+                        {AUCTION_TABS.map(({ id, label }) => (
+                          <option key={id} value={id}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 w-4 h-4 text-slate-500 pointer-events-none" />
+                    </div>
+
+                    {/* Tournament Name Badge right next to dropdown to emit any confusion */}
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-400 font-bold text-xs shadow-xs">
+                      <span className="text-[10px] uppercase font-black text-amber-600/80 tracking-wider">Tournament:</span>
+                      <span className="font-extrabold truncate max-w-[200px] md:max-w-[320px] text-zinc-900 dark:text-amber-300">
+                        {selectedAuction.name}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -163,9 +178,9 @@ export default function PlayerAuction() {
           </div>
 
           {/* Action Header Buttons */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center">
             {selectedAuction ? (
-              <>
+              <div className="flex items-center gap-2">
                 {/* Switch Tournament Dropdown if multiple exist */}
                 {auctions.length > 1 && (
                   <select
@@ -174,7 +189,7 @@ export default function PlayerAuction() {
                       const found = auctions.find((a) => a.id.toString() === e.target.value)
                       if (found) setSelectedAuction(found)
                     }}
-                    className="bg-muted border border-border text-xs rounded-xl px-3 py-2 font-semibold text-foreground focus:outline-none"
+                    className="bg-muted border border-border text-xs rounded-xl px-3 py-1.5 font-semibold text-foreground focus:outline-none h-8"
                   >
                     {auctions.map((a) => (
                       <option key={a.id} value={a.id}>
@@ -191,7 +206,7 @@ export default function PlayerAuction() {
                     setSelectedAuction(null)
                     setSearchParams({})
                   }}
-                  className="rounded-xl font-bold border-border text-xs flex items-center gap-1.5"
+                  className="rounded-xl font-bold border-border text-xs flex items-center gap-1.5 h-8 px-3 shadow-xs"
                   title="Back to tournaments"
                 >
                   ← Back
@@ -202,12 +217,12 @@ export default function PlayerAuction() {
                   size="sm"
                   onClick={() => handleCloneAuction(selectedAuction.id, selectedAuction.name)}
                   disabled={actionLoading}
-                  className="rounded-xl font-bold border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 text-xs flex items-center gap-1.5"
+                  className="rounded-xl font-bold border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 text-xs flex items-center gap-1.5 h-8 px-3 shadow-xs whitespace-nowrap"
                 >
                   <Copy className="w-3.5 h-3.5 text-indigo-400" />
                   Clone Settings
                 </Button>
-              </>
+              </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Button

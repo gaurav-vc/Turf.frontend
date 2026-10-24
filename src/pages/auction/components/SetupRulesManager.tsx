@@ -102,8 +102,13 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
   ])
   const [activeTeamsCount, setActiveTeamsCount] = useState<number>(4)
 
-  // 8. Tournament Branding
+  // 8. Tournament Branding & Group Draw
   const [groupCardColour, setGroupCardColour] = useState('#FFFFFF')
+  const [groupCardAnimation, setGroupCardAnimation] = useState('3D Flip Horizontal')
+  const [groupDrawAnimationEnabled, setGroupDrawAnimationEnabled] = useState(true)
+  const [groupCardBgImage, setGroupCardBgImage] = useState('')
+  const [groupCardBgFile, setGroupCardBgFile] = useState<File | null>(null)
+  const [previewFlipAnim, setPreviewFlipAnim] = useState(false)
   const [tournamentLogo, setTournamentLogo] = useState('')
   const [removeTournamentLogoBg, setRemoveTournamentLogoBg] = useState(false)
   const [tournamentLogoFile, setTournamentLogoFile] = useState<File | null>(null)
@@ -212,6 +217,9 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
 
       if (cfg.category_source) setCategorySource(cfg.category_source)
       if (cfg.group_card_colour) setGroupCardColour(cfg.group_card_colour)
+      if (cfg.group_card_animation) setGroupCardAnimation(cfg.group_card_animation)
+      if (cfg.group_draw_animation_enabled !== undefined) setGroupDrawAnimationEnabled(Boolean(cfg.group_draw_animation_enabled))
+      if (cfg.group_card_bg_image) setGroupCardBgImage(cfg.group_card_bg_image)
       if (cfg.tournament_logo) setTournamentLogo(cfg.tournament_logo)
       if (cfg.auction_background) setAuctionBackground(cfg.auction_background)
       if (cfg.overall_background) setOverallBackground(cfg.overall_background)
@@ -430,9 +438,17 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       formData.append('category_sequence', categorySequenceInput)
       formData.append('slabs', JSON.stringify(slabs))
 
-      // 5. Groups
+      // 5. Groups & Group Draw Card Customization
       formData.append('groups', JSON.stringify(groups))
       formData.append('group_card_colour', groupCardColour)
+      formData.append('group_card_animation', groupCardAnimation)
+      formData.append('group_draw_animation_enabled', groupDrawAnimationEnabled ? 'true' : 'false')
+
+      if (groupCardBgFile) {
+        formData.append('group_card_bg_image', groupCardBgFile)
+      } else if (groupCardBgImage) {
+        formData.append('group_card_bg_image_url', groupCardBgImage)
+      }
 
       // 6. Branding
       if (tournamentLogoFile) {
@@ -1186,6 +1202,177 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
           <span className="text-muted-foreground">
             Active Franchise Teams in Tournament: <strong className="text-foreground">{activeTeamsCount}</strong>
           </span>
+        </div>
+
+        {/* Group Draw Card Flip Animation & Revealed Card Customization */}
+        <div className="mt-5 pt-5 border-t border-border space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-purple-600" />
+                Blind Group Card Animation & Reveal Styling
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Configure the flip animation effect and card background image shown when blind group cards are revealed.
+              </p>
+            </div>
+            <label className="flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 px-3 py-1.5 rounded-xl">
+              <input
+                type="checkbox"
+                checked={groupDrawAnimationEnabled}
+                onChange={(e) => setGroupDrawAnimationEnabled(e.target.checked)}
+                className="w-4 h-4 rounded text-purple-600 cursor-pointer"
+              />
+              <span>Animation: {groupDrawAnimationEnabled ? 'ON' : 'OFF'}</span>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Flip Animation Style Selector */}
+            <div className="space-y-2 bg-muted/20 p-4 rounded-2xl border border-border">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-foreground">Card Flip Animation Style</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPreviewFlipAnim(true)
+                    setTimeout(() => setPreviewFlipAnim(false), 2000)
+                  }}
+                  className="h-6 text-[10px] font-bold text-purple-600 hover:text-purple-700 rounded-lg px-2"
+                >
+                  <Play className="h-2.5 w-2.5 mr-1" /> Test Flip Effect
+                </Button>
+              </div>
+
+              <select
+                value={groupCardAnimation}
+                onChange={(e) => setGroupCardAnimation(e.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none"
+              >
+                <option value="3D Flip Horizontal">3D Flip Horizontal (Y-Axis 180°)</option>
+                <option value="3D Flip Vertical">3D Flip Vertical (X-Axis 180°)</option>
+                <option value="Zoom Reveal">Zoom Reveal (Burst & Golden Glow)</option>
+                <option value="Shimmer Slide">Shimmer Slide (Diagonal Sweep)</option>
+                <option value="Slot Machine Roll">Slot Machine Roll (Spinning Roll)</option>
+              </select>
+
+              {/* Mini Flip Preview Box */}
+              <div className="h-24 rounded-xl border border-purple-200 dark:border-purple-800/50 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 flex items-center justify-center overflow-hidden relative">
+                <div
+                  className={`w-28 h-16 rounded-xl border flex flex-col items-center justify-center p-2 shadow-sm transition-all duration-700 ${
+                    previewFlipAnim
+                      ? groupCardAnimation === '3D Flip Vertical'
+                        ? 'rotate-x-180 scale-105 bg-amber-400 text-zinc-950 border-amber-500'
+                        : groupCardAnimation === 'Zoom Reveal'
+                        ? 'scale-115 shadow-xl bg-amber-400 text-zinc-950 border-amber-300 ring-4 ring-amber-300/40'
+                        : groupCardAnimation === 'Shimmer Slide'
+                        ? 'translate-x-1 scale-105 bg-amber-400 text-zinc-950 border-amber-300'
+                        : groupCardAnimation === 'Slot Machine Roll'
+                        ? 'rotate-12 scale-105 bg-amber-400 text-zinc-950 border-amber-300'
+                        : 'rotate-y-180 scale-105 bg-amber-400 text-zinc-950 border-amber-500'
+                      : 'bg-white dark:bg-zinc-900 border-purple-300 text-purple-900 dark:text-purple-100'
+                  }`}
+                  style={{
+                    backgroundImage: (previewFlipAnim && groupCardBgImage) ? `url(${groupCardBgImage})` : undefined,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  <span className="text-[10px] font-black uppercase">
+                    {previewFlipAnim ? 'GROUP A' : '#1 CARD'}
+                  </span>
+                  <span className="text-[8px] opacity-80 font-bold">
+                    {previewFlipAnim ? 'Team Assigned' : 'Unassigned'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Revealed Card Background Image */}
+            <div className="space-y-2 bg-muted/20 p-4 rounded-2xl border border-border">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-foreground">Revealed Card Background Image</Label>
+                {groupCardBgImage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGroupCardBgImage('')
+                      setGroupCardBgFile(null)
+                    }}
+                    className="text-[10px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-0.5"
+                  >
+                    <Trash2 className="h-3 w-3" /> Remove
+                  </button>
+                )}
+              </div>
+
+              <Input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    setGroupCardBgFile(file)
+                    const reader = new FileReader()
+                    reader.onload = (ev) => {
+                      setGroupCardBgImage(ev.target?.result as string)
+                    }
+                    reader.readAsDataURL(file)
+                  }
+                }}
+                className="text-xs rounded-xl border-border bg-background"
+              />
+
+              {/* Quick Preset Textures */}
+              <div className="pt-1">
+                <label className="text-[10px] font-bold text-muted-foreground block mb-1">
+                  Or select a premium texture preset:
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: 'Gold Luxury', url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&auto=format&fit=crop&q=80' },
+                    { label: 'Turf Stadium', url: 'https://images.unsplash.com/photo-1529900245534-47fbf822495d?w=600&auto=format&fit=crop&q=80' },
+                    { label: 'Midnight Blue', url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=600&auto=format&fit=crop&q=80' },
+                    { label: 'Dark Carbon', url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=600&auto=format&fit=crop&q=80' },
+                  ].map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => {
+                        setGroupCardBgImage(p.url)
+                        setGroupCardBgFile(null)
+                      }}
+                      className={`text-[9px] font-bold py-1 px-1.5 rounded-lg border truncate transition ${
+                        groupCardBgImage === p.url
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'bg-background hover:bg-muted border-border text-foreground'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {groupCardBgImage && (
+                <div className="flex items-center gap-2 pt-1">
+                  <div
+                    className="h-9 w-14 rounded-lg border border-purple-300 shadow-2xs"
+                    style={{
+                      backgroundImage: `url(${groupCardBgImage})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }}
+                  />
+                  <span className="text-[10px] text-emerald-600 font-bold">
+                    ✓ Background active (shows on card reveal)
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
