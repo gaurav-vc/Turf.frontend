@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { apiClient } from '@/api/apiClient'
 import {
   Gavel, Users, Layout, Sliders, Tag, Shuffle, Eye,
   Sparkles, MessageSquare, FileText, Tv, BarChart3, Shield
@@ -36,14 +37,16 @@ export type TabType =
 export const AUCTION_TABS = [
   { id: 'overview', label: 'Command Center', icon: BarChart3 },
   { id: 'live', label: 'Live Broadcast', icon: Gavel },
-  { id: 'all_teams', label: 'Teams & Players', icon: Shield },
-  { id: 'roster', label: 'Roster & Intake', icon: Users },
-  { id: 'designer', label: 'Page Designer', icon: Layout },
-  { id: 'pdf_studio', label: 'PDF Cards', icon: FileText },
-  { id: 'rules', label: 'Squad Rules & Slabs', icon: Sliders },
+  // Setup Pipeline (1 to 7)
+  { id: 'rules', label: 'Master Setup & Rules', icon: Sliders },
+  { id: 'all_teams', label: 'Team Setup', icon: Shield },
   { id: 'fields', label: 'Custom Fields', icon: Tag },
-  { id: 'sponsors', label: 'Sponsors & Media', icon: Sparkles },
+  { id: 'roster', label: 'Player Setup', icon: Users },
+  { id: 'pdf_studio', label: 'PDF Designer', icon: FileText },
+  { id: 'designer', label: 'Auction Page Designer', icon: Layout },
   { id: 'draw', label: 'Group Draw', icon: Shuffle },
+  // Media & Utilities
+  { id: 'sponsors', label: 'Sponsors & Media', icon: Sparkles },
   { id: 'overlays', label: 'OBS Overlays', icon: Tv },
   { id: 'spectator', label: 'Public Viewer', icon: Eye },
   { id: 'comms', label: 'WhatsApp Comms', icon: MessageSquare },
@@ -101,7 +104,18 @@ export default function AuctionSuite({ auctionId, auctionName, activeTab: propAc
         {activeTab === 'roster' && (
           <PlayerRosterManager
             auctionId={auctionId}
-            onPlayerSelected={() => handleTabChange('live')}
+            onPlayerSelected={async (serialNo) => {
+              if (serialNo) {
+                try {
+                  await apiClient.post(`/v1/auction/console/${auctionId}/select_player_no/`, {
+                    serial_no: serialNo,
+                  })
+                } catch (e) {
+                  console.warn('Failed to place player on block', e)
+                }
+              }
+              handleTabChange('live')
+            }}
           />
         )}
         {activeTab === 'designer' && (

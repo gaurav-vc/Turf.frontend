@@ -19,6 +19,9 @@ interface CategoryItem {
   name: string
   base_price: number
   target_count: number
+  min_players?: number
+  max_players?: number
+  priority?: number
   display_order?: number
 }
 
@@ -266,7 +269,11 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
     setCategorySequenceInput(masterCategories.join(', '))
   }
 
-  const handleUpdateCategory = (index: number, field: 'base_price' | 'target_count', value: number) => {
+  const handleUpdateCategory = (
+    index: number,
+    field: 'base_price' | 'target_count' | 'min_players' | 'max_players' | 'priority',
+    value: number
+  ) => {
     setCategories((prev) => {
       const copy = [...prev]
       if (copy[index]) {
@@ -512,7 +519,7 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
-            <Sliders className="h-6 w-6 text-amber-500" /> Setup & Rules
+            <Sliders className="h-6 w-6 text-amber-500" /> Master Setup & Rules
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             All tournament rules, budget parameters, celebration animations, categories and bid slabs.
@@ -540,7 +547,7 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
             ) : (
               <Save className="h-4 w-4 mr-1.5" />
             )}
-            Save Setup & Rules
+            Save Master Setup & Rules
           </Button>
         </div>
       </div>
@@ -948,25 +955,36 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
                       className="text-xs font-black rounded-lg bg-background h-8"
                     />
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0 self-end">
-                    <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600">
-                      #{idx + 1}
-                    </span>
+                  <div className="flex items-center gap-2 shrink-0 self-end">
+                    {/* Priority Option (Ascending Order in Auction) */}
+                    <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-700 px-2 py-0.5 rounded-lg shadow-2xs">
+                      <span className="text-[10px] font-black uppercase text-amber-800 dark:text-amber-300">Priority:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={cat.priority !== undefined ? cat.priority : (idx + 1)}
+                        onChange={(e) => handleUpdateCategory(idx, 'priority', parseInt(e.target.value) || 1)}
+                        className="w-10 text-xs font-black font-mono bg-transparent text-amber-950 dark:text-amber-100 focus:outline-none text-center"
+                        title="Category auction priority (1 = auctioned first)"
+                      />
+                    </div>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveCategory(idx)}
                       title="Remove this category"
-                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg"
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg cursor-pointer"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+
+                {/* 4-Column Grid: Base Price, Target Count, Min Player, Max Player */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-muted-foreground">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">
                       Base Price (₹)
                     </label>
                     <Input
@@ -975,19 +993,45 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
                       step={500}
                       value={cat.base_price}
                       onChange={(e) => handleUpdateCategory(idx, 'base_price', parseFloat(e.target.value) || 0)}
-                      className="text-xs font-bold font-mono rounded-xl bg-background"
+                      className="text-xs font-bold font-mono rounded-xl bg-background h-8"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-muted-foreground">
-                      Target Count (Req./Team)
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase">
+                      Target (Req./Team)
                     </label>
                     <Input
                       type="number"
                       min={0}
                       value={cat.target_count}
                       onChange={(e) => handleUpdateCategory(idx, 'target_count', parseInt(e.target.value) || 0)}
-                      className="text-xs font-bold font-mono rounded-xl bg-background"
+                      className="text-xs font-bold font-mono rounded-xl bg-background h-8"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+                      Min Player
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={cat.min_players || 0}
+                      onChange={(e) => handleUpdateCategory(idx, 'min_players', parseInt(e.target.value) || 0)}
+                      className="text-xs font-bold font-mono rounded-xl bg-background h-8 border-emerald-500/30"
+                      placeholder="Min"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">
+                      Max Player
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={cat.max_players !== undefined && cat.max_players !== null ? cat.max_players : ''}
+                      onChange={(e) => handleUpdateCategory(idx, 'max_players', parseInt(e.target.value) || 0)}
+                      className="text-xs font-bold font-mono rounded-xl bg-background h-8 border-blue-500/30"
+                      placeholder="Max Cap"
                     />
                   </div>
                 </div>

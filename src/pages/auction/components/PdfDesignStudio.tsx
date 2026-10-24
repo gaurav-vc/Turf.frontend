@@ -17,6 +17,14 @@ import {
   Sparkles,
   UploadCloud,
   Plus,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Bold,
+  Type,
+  PanelTop,
+  PanelBottom,
+  RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,12 +43,12 @@ export interface PlacedLogo {
   width: number // %
 }
 
-interface CardElement {
+export interface CardElement {
   selected: boolean
-  x: number
-  y: number
-  w: number
-  h: number
+  x: number // %
+  y: number // %
+  w: number // %
+  h: number // %
   font_size: number
   font_family: string
   colour: string
@@ -48,23 +56,70 @@ interface CardElement {
   bold: boolean
   italic: boolean
   show_label: boolean
+  label?: string
+  custom_text?: string
+  is_custom?: boolean
+  bg_colour?: string
+  bg_opacity?: number // % (0-100)
   z: number
 }
 
+export interface PdfHeaderConfig {
+  show: boolean
+  title: string
+  right_text: string
+  height: number // points / px
+  font_size: number
+  bg_colour: string
+  text_colour: string
+}
+
+export interface PdfFooterConfig {
+  show: boolean
+  left_text: string
+  center_text: string
+  right_text: string
+  height: number
+  font_size: number
+  bg_colour: string
+  text_colour: string
+}
+
+const DEFAULT_HEADER_CONFIG: PdfHeaderConfig = {
+  show: true,
+  title: 'Category: Icon Players',
+  right_text: 'Every category on new page',
+  height: 28,
+  font_size: 11,
+  bg_colour: '#f8fafc',
+  text_colour: '#0f172a',
+}
+
+const DEFAULT_FOOTER_CONFIG: PdfFooterConfig = {
+  show: true,
+  left_text: 'Official Auction Sheet • Confidential',
+  center_text: 'Page {page} of {totalPages}',
+  right_text: 'Turf Tournament Auction',
+  height: 22,
+  font_size: 8.5,
+  bg_colour: '#f8fafc',
+  text_colour: '#64748b',
+}
+
 const DEFAULT_CARD_ELEMENTS: Record<string, CardElement> = {
-  player_number: { selected: true, x: 38, y: 6, w: 24, h: 12, font_size: 13, font_family: 'Helvetica-Bold', colour: '#0284c7', align: 'left', bold: true, italic: false, show_label: false, z: 2 },
-  player_photo: { selected: true, x: 4, y: 6, w: 30, h: 86, font_size: 10, font_family: 'Helvetica', colour: '#000000', align: 'center', bold: false, italic: false, show_label: true, z: 2 },
-  name: { selected: true, x: 38, y: 19, w: 58, h: 14, font_size: 14, font_family: 'Helvetica-Bold', colour: '#0f172a', align: 'left', bold: true, italic: false, show_label: false, z: 2 },
-  category: { selected: true, x: 62, y: 6, w: 34, h: 12, font_size: 10, font_family: 'Helvetica-Bold', colour: '#7c3aed', align: 'right', bold: true, italic: false, show_label: false, z: 2 },
-  base_price: { selected: true, x: 38, y: 44, w: 58, h: 14, font_size: 11, font_family: 'Helvetica-Bold', colour: '#16a34a', align: 'left', bold: true, italic: false, show_label: true, z: 2 },
-  role: { selected: true, x: 38, y: 32, w: 58, h: 12, font_size: 10, font_family: 'Helvetica', colour: '#334155', align: 'left', bold: false, italic: false, show_label: false, z: 2 },
-  location: { selected: true, x: 38, y: 58, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, z: 2 },
-  batting: { selected: true, x: 68, y: 58, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, z: 2 },
-  bowling: { selected: true, x: 38, y: 70, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, z: 2 },
-  mobile: { selected: true, x: 68, y: 70, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, z: 2 },
-  age: { selected: true, x: 38, y: 82, w: 18, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, z: 2 },
-  experience: { selected: true, x: 57, y: 82, w: 20, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, z: 2 },
-  application_id: { selected: true, x: 78, y: 82, w: 18, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, z: 2 },
+  player_number: { selected: true, x: 38, y: 6, w: 24, h: 12, font_size: 13, font_family: 'Helvetica-Bold', colour: '#0284c7', align: 'left', bold: true, italic: false, show_label: false, label: 'No:', custom_text: '#1', z: 2 },
+  player_photo: { selected: true, x: 4, y: 6, w: 30, h: 86, font_size: 10, font_family: 'Helvetica', colour: '#000000', align: 'center', bold: false, italic: false, show_label: true, label: '', custom_text: 'PHOTO', z: 2 },
+  name: { selected: true, x: 38, y: 19, w: 58, h: 14, font_size: 14, font_family: 'Helvetica-Bold', colour: '#0f172a', align: 'left', bold: true, italic: false, show_label: false, label: 'Name:', custom_text: 'Virat Kohli', z: 2 },
+  category: { selected: true, x: 62, y: 6, w: 34, h: 12, font_size: 10, font_family: 'Helvetica-Bold', colour: '#7c3aed', align: 'right', bold: true, italic: false, show_label: false, label: 'Cat:', custom_text: 'Icon', z: 2 },
+  base_price: { selected: true, x: 38, y: 44, w: 58, h: 14, font_size: 11, font_family: 'Helvetica-Bold', colour: '#16a34a', align: 'left', bold: true, italic: false, show_label: true, label: 'Base Price:', custom_text: '₹50,000', z: 2 },
+  role: { selected: true, x: 38, y: 32, w: 58, h: 12, font_size: 10, font_family: 'Helvetica', colour: '#334155', align: 'left', bold: false, italic: false, show_label: false, label: 'Role:', custom_text: 'Batsman', z: 2 },
+  location: { selected: true, x: 38, y: 58, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Loc:', custom_text: 'Mumbai', z: 2 },
+  batting: { selected: true, x: 68, y: 58, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Bat:', custom_text: 'RHB', z: 2 },
+  bowling: { selected: true, x: 38, y: 70, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Bowl:', custom_text: 'RAF', z: 2 },
+  mobile: { selected: true, x: 68, y: 70, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Mob:', custom_text: '9876543210', z: 2 },
+  age: { selected: true, x: 38, y: 82, w: 18, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Age:', custom_text: '28', z: 2 },
+  experience: { selected: true, x: 57, y: 82, w: 20, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Exp:', custom_text: '5 Yrs', z: 2 },
+  application_id: { selected: true, x: 78, y: 82, w: 18, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'App ID:', custom_text: '104', z: 2 },
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -97,12 +152,19 @@ function hexToRgba(hex: string, alpha: number) {
 export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const [activeTab, setActiveTab] = useState<'category' | 'auction'>('category')
   const [cols, setCols] = useState<number>(3)
-  const [rows, setRows] = useState<number>(5)
+  const [rows, setRows] = useState<number>(3)
   const [cardFill, setCardFill] = useState<string>('#ffffff')
   const [cardFillOpacity, setCardFillOpacity] = useState<number>(95)
+  const [elementBoxOpacity, setElementBoxOpacity] = useState<number>(0)
+  const [elementBoxBgColor, setElementBoxBgColor] = useState<string>('#ffffff')
+  const [syncAllBoxesOpacity, setSyncAllBoxesOpacity] = useState<boolean>(true)
   const [accentColour, setAccentColour] = useState<string>('#2563eb')
   const [elements, setElements] = useState<Record<string, CardElement>>(DEFAULT_CARD_ELEMENTS)
   const [selectedKey, setSelectedKey] = useState<string>('name')
+
+  // Adjustable Header & Footer state
+  const [headerConfig, setHeaderConfig] = useState<PdfHeaderConfig>(DEFAULT_HEADER_CONFIG)
+  const [footerConfig, setFooterConfig] = useState<PdfFooterConfig>(DEFAULT_FOOTER_CONFIG)
 
   // Header & Branding states
   const [showTournamentName, setShowTournamentName] = useState(true)
@@ -128,11 +190,24 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const [selectedLogoId, setSelectedLogoId] = useState<string | null>(null)
   const [draggingLogoId, setDraggingLogoId] = useState<string | null>(null)
 
+  // Element Drag & Resize Engine inside Template Card
+  const [draggingElementKey, setDraggingElementKey] = useState<string | null>(null)
+  const [resizingElementKey, setResizingElementKey] = useState<string | null>(null)
+  const elemDragStartRef = useRef<{
+    startMouseX: number
+    startMouseY: number
+    startX: number
+    startY: number
+    startW: number
+    startH: number
+  } | null>(null)
+
+  const templateCardRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
-  const dragStartRef = useRef<{ startMouseX: number; startMouseY: number; startLogoX: number; startLogoY: number } | null>(null)
+  const logoDragStartRef = useRef<{ startMouseX: number; startMouseY: number; startLogoX: number; startLogoY: number } | null>(null)
 
   // UI state
-  const [showHowItWorks, setShowHowItWorks] = useState(true)
+  const [showHowItWorks, setShowHowItWorks] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -145,7 +220,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     e.stopPropagation()
     setSelectedLogoId(logo.id)
     setDraggingLogoId(logo.id)
-    dragStartRef.current = {
+    logoDragStartRef.current = {
       startMouseX: e.clientX,
       startMouseY: e.clientY,
       startLogoX: logo.x,
@@ -153,49 +228,150 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     }
   }
 
+  // Handle Element Dragging inside Template Card
+  const handleElementMouseDown = (e: React.MouseEvent, key: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedKey(key)
+    setDraggingElementKey(key)
+
+    const el = elements[key]
+    elemDragStartRef.current = {
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startX: el.x,
+      startY: el.y,
+      startW: el.w,
+      startH: el.h,
+    }
+  }
+
+  // Handle Element Resizing inside Template Card
+  const handleElementResizeMouseDown = (e: React.MouseEvent, key: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedKey(key)
+    setResizingElementKey(key)
+
+    const el = elements[key]
+    elemDragStartRef.current = {
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startX: el.x,
+      startY: el.y,
+      startW: el.w,
+      startH: el.h,
+    }
+  }
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!draggingLogoId || !dragStartRef.current || !canvasRef.current) return
-      const rect = canvasRef.current.getBoundingClientRect()
-      if (rect.width <= 0 || rect.height <= 0) return
+      // 1. Handle Logo Drag
+      if (draggingLogoId && logoDragStartRef.current && canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect()
+        if (rect.width > 0 && rect.height > 0) {
+          const deltaX = e.clientX - logoDragStartRef.current.startMouseX
+          const deltaY = e.clientY - logoDragStartRef.current.startMouseY
+          const deltaXPct = (deltaX / rect.width) * 100
+          const deltaYPct = (deltaY / rect.height) * 100
 
-      const deltaX = e.clientX - dragStartRef.current.startMouseX
-      const deltaY = e.clientY - dragStartRef.current.startMouseY
+          setPlacedLogos((prev) =>
+            prev.map((l) => {
+              if (l.id !== draggingLogoId) return l
+              const newX = Math.max(0, Math.min(100 - l.width, logoDragStartRef.current!.startLogoX + deltaXPct))
+              const newY = Math.max(0, Math.min(95, logoDragStartRef.current!.startLogoY + deltaYPct))
+              return {
+                ...l,
+                x: Math.round(newX * 10) / 10,
+                y: Math.round(newY * 10) / 10,
+              }
+            })
+          )
+        }
+      }
 
-      const deltaXPct = (deltaX / rect.width) * 100
-      const deltaYPct = (deltaY / rect.height) * 100
+      // 2. Handle Box Element Drag inside Template Card
+      if (draggingElementKey && elemDragStartRef.current && templateCardRef.current) {
+        const cardRect = templateCardRef.current.getBoundingClientRect()
+        if (cardRect.width > 0 && cardRect.height > 0) {
+          const deltaX = e.clientX - elemDragStartRef.current.startMouseX
+          const deltaY = e.clientY - elemDragStartRef.current.startMouseY
+          const deltaXPct = (deltaX / cardRect.width) * 100
+          const deltaYPct = (deltaY / cardRect.height) * 100
 
-      setPlacedLogos((prev) =>
-        prev.map((l) => {
-          if (l.id !== draggingLogoId) return l
-          const newX = Math.max(0, Math.min(100 - l.width, dragStartRef.current!.startLogoX + deltaXPct))
-          const newY = Math.max(0, Math.min(95, dragStartRef.current!.startLogoY + deltaYPct))
-          return {
-            ...l,
-            x: Math.round(newX * 10) / 10,
-            y: Math.round(newY * 10) / 10,
-          }
-        })
-      )
+          const curW = elemDragStartRef.current.startW
+          const curH = elemDragStartRef.current.startH
+          const newX = Math.max(0, Math.min(100 - curW, elemDragStartRef.current.startX + deltaXPct))
+          const newY = Math.max(0, Math.min(100 - curH, elemDragStartRef.current.startY + deltaYPct))
+
+          setElements((prev) => {
+            const current = prev[draggingElementKey]
+            if (!current) return prev
+            return {
+              ...prev,
+              [draggingElementKey]: {
+                ...current,
+                x: Math.round(newX * 2) / 2, // 0.5% snap
+                y: Math.round(newY * 2) / 2,
+              },
+            }
+          })
+        }
+      }
+
+      // 3. Handle Box Element Resize inside Template Card
+      if (resizingElementKey && elemDragStartRef.current && templateCardRef.current) {
+        const cardRect = templateCardRef.current.getBoundingClientRect()
+        if (cardRect.width > 0 && cardRect.height > 0) {
+          const deltaX = e.clientX - elemDragStartRef.current.startMouseX
+          const deltaY = e.clientY - elemDragStartRef.current.startMouseY
+          const deltaXPct = (deltaX / cardRect.width) * 100
+          const deltaYPct = (deltaY / cardRect.height) * 100
+
+          const curX = elemDragStartRef.current.startX
+          const curY = elemDragStartRef.current.startY
+          const newW = Math.max(4, Math.min(100 - curX, elemDragStartRef.current.startW + deltaXPct))
+          const newH = Math.max(3, Math.min(100 - curY, elemDragStartRef.current.startH + deltaYPct))
+
+          setElements((prev) => {
+            const current = prev[resizingElementKey]
+            if (!current) return prev
+            return {
+              ...prev,
+              [resizingElementKey]: {
+                ...current,
+                w: Math.round(newW * 2) / 2,
+                h: Math.round(newH * 2) / 2,
+              },
+            }
+          })
+        }
+      }
     }
 
     const handleMouseUp = () => {
       if (draggingLogoId) {
         setDraggingLogoId(null)
-        dragStartRef.current = null
+        logoDragStartRef.current = null
+      }
+      if (draggingElementKey) {
+        setDraggingElementKey(null)
+        elemDragStartRef.current = null
+      }
+      if (resizingElementKey) {
+        setResizingElementKey(null)
+        elemDragStartRef.current = null
       }
     }
 
-    if (draggingLogoId) {
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
-    }
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [draggingLogoId])
+  }, [draggingLogoId, draggingElementKey, resizingElementKey])
 
   useEffect(() => {
     loadDesign()
@@ -210,10 +386,20 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
         if (d.activeTab) setActiveTab(d.activeTab)
         if (d.cols) setCols(d.cols)
         if (d.rows) setRows(d.rows)
-        if (d.card_fill) setCardFill(d.card_fill)
+        if (d.element_box_opacity !== undefined) setElementBoxOpacity(Number(d.element_box_opacity))
+        if (d.element_box_bg_color) setElementBoxBgColor(d.element_box_bg_color)
         if (d.card_fill_opacity !== undefined) setCardFillOpacity(d.card_fill_opacity)
         if (d.accent_colour) setAccentColour(d.accent_colour)
-        if (d.elements) setElements({ ...DEFAULT_CARD_ELEMENTS, ...d.elements })
+        if (d.elements) {
+          // Merge defaults with saved elements including any custom added elements
+          setElements({ ...DEFAULT_CARD_ELEMENTS, ...d.elements })
+        }
+        if (d.header) {
+          setHeaderConfig({ ...DEFAULT_HEADER_CONFIG, ...d.header })
+        }
+        if (d.footer) {
+          setFooterConfig({ ...DEFAULT_FOOTER_CONFIG, ...d.footer })
+        }
 
         const b = d.branding || {}
         if (typeof b.showTournamentName === 'boolean') setShowTournamentName(b.showTournamentName)
@@ -266,8 +452,12 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     rows,
     card_fill: cardFill,
     card_fill_opacity: cardFillOpacity,
+    element_box_opacity: elementBoxOpacity,
+    element_box_bg_color: elementBoxBgColor,
     accent_colour: accentColour,
     elements,
+    header: headerConfig,
+    footer: footerConfig,
     branding: {
       showTournamentName,
       showTournamentLogo,
@@ -430,6 +620,75 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     }))
   }
 
+  const handleApplyBoxOpacityToAll = (opacityVal: number, bgCol?: string) => {
+    const bounded = Math.max(0, Math.min(100, Math.round(opacityVal)))
+    setElementBoxOpacity(bounded)
+    if (bgCol) setElementBoxBgColor(bgCol)
+    setElements((prev) => {
+      const updated: Record<string, CardElement> = {}
+      for (const [k, el] of Object.entries(prev)) {
+        updated[k] = {
+          ...el,
+          bg_opacity: bounded,
+          ...(bgCol ? { bg_colour: bgCol } : {}),
+        }
+      }
+      return updated
+    })
+  }
+
+  const updateBoxOpacity = (key: string, newOpacity: number, newBg?: string) => {
+    const bounded = Math.max(0, Math.min(100, Math.round(newOpacity)))
+    if (syncAllBoxesOpacity) {
+      handleApplyBoxOpacityToAll(bounded, newBg)
+    } else {
+      updateProp(key, 'bg_opacity', bounded)
+      if (newBg) updateProp(key, 'bg_colour', newBg)
+    }
+  }
+
+  const handleAddCustomBox = () => {
+    const newKey = `custom_${Date.now()}`
+    const newBox: CardElement = {
+      selected: true,
+      x: 38,
+      y: 76,
+      w: 48,
+      h: 12,
+      font_size: 9.5,
+      font_family: 'Helvetica',
+      colour: '#0f172a',
+      align: 'left',
+      bold: false,
+      italic: false,
+      show_label: true,
+      label: 'Badge:',
+      custom_text: 'Custom Text',
+      is_custom: true,
+      z: 3,
+    }
+    setElements((prev) => ({
+      ...prev,
+      [newKey]: newBox,
+    }))
+    setSelectedKey(newKey)
+  }
+
+  const handleDeleteBox = (key: string) => {
+    setElements((prev) => {
+      const copy = { ...prev }
+      delete copy[key]
+      return copy
+    })
+    const remainingKeys = Object.keys(elements).filter((k) => k !== key)
+    setSelectedKey(remainingKeys[0] || 'name')
+  }
+
+  const handleResetElements = () => {
+    setElements(DEFAULT_CARD_ELEMENTS)
+    setSelectedKey('name')
+  }
+
   const selectedEl = elements[selectedKey] || elements.name
   const sampleCount = Math.min(cols * rows, 12)
 
@@ -450,9 +709,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
             PDF Design Studio & Sheet Engine
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            {activeTab === 'category'
-              ? 'Every category starts on a new page. Maximum 4 columns × 8 rows.'
-              : 'All auction lots printed in sequential order. Maximum 4 columns × 8 rows.'}
+            Drag & drop boxes directly on the master template card. Customize text, labels, coordinates, header, and footer.
           </p>
         </div>
 
@@ -536,18 +793,6 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                 </button>
               </div>
 
-              <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                {activeTab === 'category' ? (
-                  <p className="font-medium text-slate-700">
-                    <span className="font-bold text-indigo-600">Category Wise:</span> Every category starts on a new page. Maximum 4 columns × 8 rows.
-                  </p>
-                ) : (
-                  <p className="font-medium text-slate-700">
-                    <span className="font-bold text-indigo-600">Auction Format:</span> Continuous lots order across pages. Maximum 4 columns × 8 rows.
-                  </p>
-                )}
-              </div>
-
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Columns</label>
@@ -580,367 +825,638 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
               </div>
             </div>
 
-            {/* 2. Page Sheet Background & Watermark */}
+            {/* 2. Adjustable Header Controls */}
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <ImageIcon className="w-4 h-4 text-indigo-600" />
-                  Sheet Background & Watermark
+                  <PanelTop className="w-4 h-4 text-indigo-600" />
+                  Adjustable Header
                 </span>
-                {pageBackgroundImage && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPageBackgroundImage('')
-                      setPageBackgroundName('')
-                    }}
-                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
-                    title="Remove background image"
-                  >
-                    <Trash2 className="w-3 h-3" /> Remove
-                  </button>
-                )}
-              </div>
-
-              {/* Upload Box */}
-              <div>
-                <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                  Upload Background Image
-                </label>
-                <div className="flex items-center gap-2">
-                  <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl cursor-pointer bg-slate-50/70 hover:bg-indigo-50/30 transition group">
-                    <UploadCloud className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition" />
-                    <span className="text-xs font-semibold text-slate-600 group-hover:text-indigo-700">
-                      {pageBackgroundName || 'Choose or Drag Image...'}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) handleBackgroundUpload(file)
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* Opacity Slider */}
-              <div className="pt-1 border-t border-slate-100 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <label className="font-semibold text-slate-700 flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-indigo-600" />
-                    Background Opacity
-                  </label>
-                  <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 text-xs">
-                    {pageBackgroundOpacity}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={5}
-                  max={100}
-                  step={5}
-                  value={pageBackgroundOpacity}
-                  onChange={(e) => setPageBackgroundOpacity(Number(e.target.value))}
-                  className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
-                />
-                {/* Opacity Quick Presets */}
-                <div className="grid grid-cols-4 gap-1 pt-0.5">
-                  {[
-                    { label: '15% Subtle', val: 15 },
-                    { label: '30% Light', val: 30 },
-                    { label: '60% Med', val: 60 },
-                    { label: '100% Solid', val: 100 },
-                  ].map((p) => (
-                    <button
-                      key={p.val}
-                      type="button"
-                      onClick={() => setPageBackgroundOpacity(p.val)}
-                      className={`text-[10px] py-1 rounded-lg font-bold border transition ${
-                        pageBackgroundOpacity === p.val
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* 3. Header & Draggable Logos (Multiple) */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-indigo-600" />
-                  Header & Logos ({placedLogos.length})
-                </span>
-                {placedLogos.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlacedLogos([])
-                      setSelectedLogoId(null)
-                    }}
-                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
-                    title="Remove all logos"
-                  >
-                    <Trash2 className="w-3 h-3" /> Clear All
-                  </button>
-                )}
-              </div>
-
-              {/* Multi-upload Button */}
-              <div>
-                <label className="text-[11px] font-semibold text-slate-700 block mb-1">
-                  Upload Logos & Sponsor Images
-                </label>
-                <label className="flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-indigo-200 hover:border-indigo-500 rounded-xl cursor-pointer bg-indigo-50/40 hover:bg-indigo-50/70 transition group">
-                  <Plus className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs font-bold text-indigo-700">
-                    + Add Logo / Images (Select Multiple)
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        handleMultipleLogosUpload(e.target.files)
-                      }
-                    }}
-                    className="hidden"
-                  />
-                </label>
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Supports multiple files at once (.png, .jpg, .webp). Each image can be placed individually!
-                </span>
-              </div>
-
-              {/* Placed Logos List */}
-              {placedLogos.length > 0 && (
-                <div className="space-y-2 pt-1 border-t border-slate-100">
-                  <div className="flex items-center justify-between text-xs text-slate-600 font-semibold">
-                    <span>Placed Logos ({placedLogos.length})</span>
-                    <span className="text-[10px] text-slate-400 font-normal">Click to configure</span>
-                  </div>
-
-                  <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
-                    {placedLogos.map((l, idx) => {
-                      const isSel = (selectedLogoId === l.id) || (!selectedLogoId && idx === 0)
-                      return (
-                        <div
-                          key={l.id}
-                          onClick={() => setSelectedLogoId(l.id)}
-                          className={`flex items-center justify-between p-2 rounded-xl cursor-pointer border transition text-xs ${
-                            isSel
-                              ? 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold shadow-xs ring-1 ring-indigo-200'
-                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <img
-                              src={l.url}
-                              alt=""
-                              className="w-6 h-6 object-contain rounded bg-white border border-slate-200 p-0.5 shrink-0"
-                            />
-                            <span className="truncate max-w-[130px] text-[11px] font-semibold">{l.name}</span>
-                            <span className="text-[9px] font-mono text-slate-400 bg-white px-1 py-0.5 rounded border border-slate-200 shrink-0">
-                              {Math.round(l.x)}%, {Math.round(l.y)}%
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              removeLogo(l.id)
-                            }}
-                            className="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition shrink-0"
-                            title="Delete this logo"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* Fine-tune Controls for Currently Selected Logo */}
-                  {selectedLogo && (
-                    <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2 mt-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-zinc-900 border-b border-slate-200 pb-1.5">
-                        <span className="truncate max-w-[170px] text-indigo-950 flex items-center gap-1.5">
-                          <Move className="w-3.5 h-3.5 text-indigo-600" />
-                          {selectedLogo.name}
-                        </span>
-                        <span className="text-[10px] text-indigo-600 font-mono">
-                          {selectedLogo.width}% width
-                        </span>
-                      </div>
-
-                      {/* Size slider */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <label className="font-semibold text-slate-700">Size / Width</label>
-                          <span className="font-mono font-bold text-slate-700">{selectedLogo.width}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={4}
-                          max={40}
-                          value={selectedLogo.width}
-                          onChange={(e) => updateSelectedLogo('width', Number(e.target.value))}
-                          className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
-                        />
-                      </div>
-
-                      {/* Coordinates */}
-                      <div className="grid grid-cols-3 gap-2 pt-1">
-                        <div>
-                          <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">X %</label>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={selectedLogo.x}
-                            onChange={(e) => updateSelectedLogo('x', Number(e.target.value))}
-                            className="bg-white border-slate-200 text-xs text-zinc-900 font-semibold p-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Y %</label>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={selectedLogo.y}
-                            onChange={(e) => updateSelectedLogo('y', Number(e.target.value))}
-                            className="bg-white border-slate-200 text-xs text-zinc-900 font-semibold p-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Width %</label>
-                          <Input
-                            type="number"
-                            min={4}
-                            max={40}
-                            value={selectedLogo.width}
-                            onChange={(e) => updateSelectedLogo('width', Number(e.target.value))}
-                            className="bg-white border-slate-200 text-xs text-zinc-900 font-semibold p-1"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Quick Position Presets */}
-                      <div className="pt-1">
-                        <label className="text-[10px] font-semibold text-slate-500 block mb-1">Quick Positions</label>
-                        <div className="grid grid-cols-3 gap-1">
-                          {[
-                            { label: 'Top-Left', x: 4, y: 1.5 },
-                            { label: 'Top-Center', x: 45, y: 1.5 },
-                            { label: 'Top-Right', x: 86, y: 1.5 },
-                            { label: 'Center Page', x: 38, y: 40 },
-                            { label: 'Bottom-Left', x: 4, y: 92 },
-                            { label: 'Bottom-Right', x: 86, y: 92 },
-                          ].map((pos) => (
-                            <button
-                              key={pos.label}
-                              type="button"
-                              onClick={() => {
-                                updateSelectedLogo('x', pos.x)
-                                updateSelectedLogo('y', pos.y)
-                              }}
-                              className="text-[10px] py-1 px-1 rounded-lg font-bold border border-slate-200 bg-white hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition text-slate-700 text-center"
-                            >
-                              {pos.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tournament Name Toggle */}
-              <div className="pt-2 border-t border-slate-100">
-                <label className="flex items-center justify-between text-xs text-slate-700 font-medium cursor-pointer p-1.5 rounded-lg hover:bg-slate-50">
-                  <span>Show Tournament Header Title</span>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={showTournamentName}
-                    onChange={(e) => setShowTournamentName(e.target.checked)}
+                    checked={headerConfig.show}
+                    onChange={(e) => setHeaderConfig((prev) => ({ ...prev, show: e.target.checked }))}
                     className="rounded border-slate-300 text-indigo-600 h-4 w-4"
                   />
+                  <span>Show Header</span>
                 </label>
+              </div>
+
+              {headerConfig.show && (
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Header Title</label>
+                    <Input
+                      value={headerConfig.title}
+                      onChange={(e) => setHeaderConfig((prev) => ({ ...prev, title: e.target.value }))}
+                      placeholder="e.g. Category: Icon Players"
+                      className="text-xs bg-white border-slate-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Right Subtitle / Notes</label>
+                    <Input
+                      value={headerConfig.right_text}
+                      onChange={(e) => setHeaderConfig((prev) => ({ ...prev, right_text: e.target.value }))}
+                      placeholder="e.g. Every category on new page"
+                      className="text-xs bg-white border-slate-200"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Height</span>
+                        <span className="font-mono text-indigo-600">{headerConfig.height}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={18}
+                        max={60}
+                        step={2}
+                        value={headerConfig.height}
+                        onChange={(e) => setHeaderConfig((prev) => ({ ...prev, height: Number(e.target.value) }))}
+                        className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Font Size</span>
+                        <span className="font-mono text-indigo-600">{headerConfig.font_size}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={8}
+                        max={16}
+                        step={0.5}
+                        value={headerConfig.font_size}
+                        onChange={(e) => setHeaderConfig((prev) => ({ ...prev, font_size: Number(e.target.value) }))}
+                        className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-700 block mb-1">Background</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={headerConfig.bg_colour}
+                          onChange={(e) => setHeaderConfig((prev) => ({ ...prev, bg_colour: e.target.value }))}
+                          className="w-6 h-6 rounded border border-slate-200 bg-transparent cursor-pointer"
+                        />
+                        <span className="text-xs font-mono text-slate-600">{headerConfig.bg_colour}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-700 block mb-1">Text Colour</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={headerConfig.text_colour}
+                          onChange={(e) => setHeaderConfig((prev) => ({ ...prev, text_colour: e.target.value }))}
+                          className="w-6 h-6 rounded border border-slate-200 bg-transparent cursor-pointer"
+                        />
+                        <span className="text-xs font-mono text-slate-600">{headerConfig.text_colour}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Adjustable Footer Controls */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <PanelBottom className="w-4 h-4 text-indigo-600" />
+                  Adjustable Footer
+                </span>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={footerConfig.show}
+                    onChange={(e) => setFooterConfig((prev) => ({ ...prev, show: e.target.checked }))}
+                    className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                  />
+                  <span>Show Footer</span>
+                </label>
+              </div>
+
+              {footerConfig.show && (
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Left Text</label>
+                    <Input
+                      value={footerConfig.left_text}
+                      onChange={(e) => setFooterConfig((prev) => ({ ...prev, left_text: e.target.value }))}
+                      placeholder="e.g. Official Auction Sheet"
+                      className="text-xs bg-white border-slate-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                      Center Text <span className="text-slate-400 font-normal">({'{page}'} & {'{totalPages}'} supported)</span>
+                    </label>
+                    <Input
+                      value={footerConfig.center_text}
+                      onChange={(e) => setFooterConfig((prev) => ({ ...prev, center_text: e.target.value }))}
+                      placeholder="e.g. Page {page} of {totalPages}"
+                      className="text-xs bg-white border-slate-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Right Text</label>
+                    <Input
+                      value={footerConfig.right_text}
+                      onChange={(e) => setFooterConfig((prev) => ({ ...prev, right_text: e.target.value }))}
+                      placeholder="e.g. Turf Tournament Auction"
+                      className="text-xs bg-white border-slate-200"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Height</span>
+                        <span className="font-mono text-indigo-600">{footerConfig.height}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={14}
+                        max={45}
+                        step={1}
+                        value={footerConfig.height}
+                        onChange={(e) => setFooterConfig((prev) => ({ ...prev, height: Number(e.target.value) }))}
+                        className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Font Size</span>
+                        <span className="font-mono text-indigo-600">{footerConfig.font_size}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={7}
+                        max={13}
+                        step={0.5}
+                        value={footerConfig.font_size}
+                        onChange={(e) => setFooterConfig((prev) => ({ ...prev, font_size: Number(e.target.value) }))}
+                        className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-700 block mb-1">Background</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={footerConfig.bg_colour}
+                          onChange={(e) => setFooterConfig((prev) => ({ ...prev, bg_colour: e.target.value }))}
+                          className="w-6 h-6 rounded border border-slate-200 bg-transparent cursor-pointer"
+                        />
+                        <span className="text-xs font-mono text-slate-600">{footerConfig.bg_colour}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold text-slate-700 block mb-1">Text Colour</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={footerConfig.text_colour}
+                          onChange={(e) => setFooterConfig((prev) => ({ ...prev, text_colour: e.target.value }))}
+                          className="w-6 h-6 rounded border border-slate-200 bg-transparent cursor-pointer"
+                        />
+                        <span className="text-xs font-mono text-slate-600">{footerConfig.text_colour}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4. Information on Card & Custom Boxes */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Type className="w-4 h-4 text-indigo-600" />
+                  Card Boxes ({Object.keys(elements).length})
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddCustomBox}
+                    className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200"
+                    title="Add a custom text/stat box to cards"
+                  >
+                    <Plus className="w-3 h-3" /> Add Box
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetElements}
+                    className="text-[10px] text-slate-400 hover:text-slate-600"
+                    title="Reset to default card layout"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {Object.entries(elements).map(([key, el]) => {
+                  const isSel = selectedKey === key
+                  const displayName = el.is_custom
+                    ? (el.label || 'Custom Box')
+                    : (FIELD_LABELS[key] || key.replace('_', ' ').toUpperCase())
+
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => setSelectedKey(key)}
+                      className={`flex items-center justify-between p-2 rounded-xl cursor-pointer text-xs transition ${
+                        isSel
+                          ? 'bg-indigo-50 border border-indigo-300 text-indigo-950 font-bold shadow-xs'
+                          : 'bg-slate-50/70 hover:bg-slate-100 border border-transparent text-slate-700'
+                      }`}
+                    >
+                      <label
+                        className="flex items-center gap-2 cursor-pointer flex-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={el.selected}
+                          onChange={(e) => updateProp(key, 'selected', e.target.checked)}
+                          className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5"
+                        />
+                        <span className="truncate">{displayName}</span>
+                        {el.is_custom && (
+                          <span className="text-[9px] bg-purple-100 text-purple-700 font-bold px-1.5 py-0.2 rounded">
+                            Custom
+                          </span>
+                        )}
+                      </label>
+
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => updateProp(key, 'show_label', !el.show_label)}
+                          className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold transition ${
+                            el.show_label
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : 'bg-slate-200 text-slate-600'
+                          }`}
+                          title="Toggle prefix label"
+                        >
+                          Label: {el.show_label ? 'ON' : 'OFF'}
+                        </button>
+                        {el.is_custom && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBox(key)}
+                            className="text-rose-500 hover:text-rose-700 p-0.5"
+                            title="Delete this custom box"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
-            {/* 4. Information on card (All 13 fields) */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Information on card</span>
-                <span className="text-[10px] text-slate-500 font-medium">13 Fields Available</span>
-              </div>
+            {/* 5. Selected Box Properties (Position, Text & Style Customizer) */}
+            {selectedEl && (
+              <div className="bg-white border-2 border-indigo-200 rounded-2xl p-4 shadow-sm space-y-3.5">
+                <div className="flex items-center justify-between border-b border-indigo-100 pb-2">
+                  <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <Move className="w-4 h-4 text-indigo-600" />
+                    Configure Box: {selectedEl.is_custom ? (selectedEl.label || 'Custom') : (FIELD_LABELS[selectedKey] || selectedKey)}
+                  </span>
+                  <span className="text-[10px] text-indigo-600 bg-indigo-50 font-mono font-bold px-2 py-0.5 rounded">
+                    Drag box on card to move!
+                  </span>
+                </div>
 
-              <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-                {Object.entries(elements).map(([key, el]) => (
-                  <div
-                    key={key}
-                    onClick={() => setSelectedKey(key)}
-                    className={`flex items-center justify-between p-2 rounded-xl cursor-pointer text-xs transition ${
-                      selectedKey === key
-                        ? 'bg-indigo-50 border border-indigo-300 text-indigo-950 font-bold'
-                        : 'bg-slate-50/70 hover:bg-slate-100 border border-transparent text-slate-700'
-                    }`}
-                  >
-                    <label
-                      className="flex items-center gap-2 cursor-pointer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={el.selected}
-                        onChange={(e) => updateProp(key, 'selected', e.target.checked)}
-                        className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5"
-                      />
-                      <span>{FIELD_LABELS[key] || key}</span>
+                {/* Text customization: Label / Prefix and Custom / Sample Value */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                      Label / Prefix
                     </label>
+                    <Input
+                      value={selectedEl.label ?? ''}
+                      onChange={(e) => updateProp(selectedKey, 'label', e.target.value)}
+                      placeholder="e.g. Base Price:"
+                      className="bg-white border-slate-200 text-xs h-8"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                      Text / Sample Value
+                    </label>
+                    <Input
+                      value={selectedEl.custom_text ?? ''}
+                      onChange={(e) => updateProp(selectedKey, 'custom_text', e.target.value)}
+                      placeholder="e.g. Virat Kohli"
+                      className="bg-white border-slate-200 text-xs h-8"
+                    />
+                  </div>
+                </div>
 
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                {/* Typography & Alignment Controls */}
+                <div className="grid grid-cols-3 gap-2 items-center">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">Font Size</label>
+                    <Input
+                      type="number"
+                      min={6}
+                      max={36}
+                      value={selectedEl.font_size}
+                      onChange={(e) => updateProp(selectedKey, 'font_size', Number(e.target.value))}
+                      className="bg-white border-slate-200 text-xs h-8 font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">Color</label>
+                    <div className="flex items-center gap-1.5 border border-slate-200 rounded-lg p-1 bg-white h-8">
+                      <input
+                        type="color"
+                        value={selectedEl.colour}
+                        onChange={(e) => updateProp(selectedKey, 'colour', e.target.value)}
+                        className="w-5 h-5 rounded cursor-pointer border-0 bg-transparent p-0"
+                      />
+                      <span className="text-[10px] font-mono text-slate-600">{selectedEl.colour}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">Align & Weight</label>
+                    <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 h-8">
                       <button
                         type="button"
-                        onClick={() => updateProp(key, 'show_label', !el.show_label)}
-                        className={`text-[10px] px-2 py-0.5 rounded font-mono font-semibold transition ${
-                          el.show_label
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            : 'bg-slate-200 text-slate-600'
+                        onClick={() => updateProp(selectedKey, 'align', 'left')}
+                        className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${
+                          selectedEl.align === 'left' ? 'bg-white shadow-xs font-bold text-indigo-600' : 'hover:bg-slate-200'
                         }`}
-                        title="Toggle whether field label (e.g. 'Base Price:') is shown"
+                        title="Left align"
                       >
-                        Field name: {el.show_label ? 'Yes' : 'No'}
+                        <AlignLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateProp(selectedKey, 'align', 'center')}
+                        className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${
+                          selectedEl.align === 'center' ? 'bg-white shadow-xs font-bold text-indigo-600' : 'hover:bg-slate-200'
+                        }`}
+                        title="Center align"
+                      >
+                        <AlignCenter className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateProp(selectedKey, 'align', 'right')}
+                        className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${
+                          selectedEl.align === 'right' ? 'bg-white shadow-xs font-bold text-indigo-600' : 'hover:bg-slate-200'
+                        }`}
+                        title="Right align"
+                      >
+                        <AlignRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateProp(selectedKey, 'bold', !selectedEl.bold)}
+                        className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${
+                          selectedEl.bold ? 'bg-indigo-600 text-white font-black' : 'hover:bg-slate-200'
+                        }`}
+                        title="Bold toggle"
+                      >
+                        <Bold className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            {/* 5. Card Appearance */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                {/* Box Opacity & Background Fill Controls */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+                      Box Background & Opacity
+                    </span>
+                    <span className="font-mono text-xs font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                      {selectedEl.bg_opacity ?? elementBoxOpacity ?? 0}%
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 border border-slate-200 rounded-lg p-1 bg-white h-8 shrink-0" title="Box background fill color">
+                      <input
+                        type="color"
+                        value={selectedEl.bg_colour || elementBoxBgColor}
+                        onChange={(e) => updateBoxOpacity(selectedKey, selectedEl.bg_opacity ?? elementBoxOpacity ?? 0, e.target.value)}
+                        className="w-5 h-5 rounded cursor-pointer border-0 bg-transparent p-0"
+                        title="Box background color"
+                      />
+                      <span className="text-[10px] font-mono text-slate-600">{selectedEl.bg_colour || elementBoxBgColor}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = selectedEl.bg_opacity ?? elementBoxOpacity ?? 0
+                        updateBoxOpacity(selectedKey, cur - 5)
+                      }}
+                      className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-black text-sm flex items-center justify-center border border-slate-200 transition"
+                      title="Decrease box opacity by 5%"
+                    >
+                      -
+                    </button>
+
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={selectedEl.bg_opacity ?? elementBoxOpacity ?? 0}
+                      onChange={(e) => updateBoxOpacity(selectedKey, Number(e.target.value))}
+                      className="flex-1 accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = selectedEl.bg_opacity ?? elementBoxOpacity ?? 0
+                        updateBoxOpacity(selectedKey, cur + 5)
+                      }}
+                      className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-black text-sm flex items-center justify-center border border-slate-200 transition"
+                      title="Increase box opacity by 5%"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {/* Sync Toggle & Apply to All Button */}
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer" title="When enabled, any opacity adjustment instantly updates all boxes">
+                      <input
+                        type="checkbox"
+                        checked={syncAllBoxesOpacity}
+                        onChange={(e) => setSyncAllBoxesOpacity(e.target.checked)}
+                        className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5"
+                      />
+                      <span>Apply opacity to all boxes</span>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const curOpacity = selectedEl.bg_opacity ?? elementBoxOpacity ?? 0
+                        const curBg = selectedEl.bg_colour || elementBoxBgColor
+                        handleApplyBoxOpacityToAll(curOpacity, curBg)
+                      }}
+                      className="py-1 px-2.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] border border-indigo-200 flex items-center gap-1 transition shadow-2xs"
+                      title="Broadcast this box's opacity across all elements"
+                    >
+                      <Layers className="w-3 h-3 text-indigo-600" />
+                      <span>Apply to ALL Boxes</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Coordinates & Dimensions (Fine-Tuning) */}
+                <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span>Position & Size on Card (%)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Also draggable on template card</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 mb-0.5">
+                        <span>X %</span>
+                        <div className="flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => updateProp(selectedKey, 'x', Math.max(0, selectedEl.x - 1))}
+                            className="px-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px]"
+                          >-</button>
+                          <button
+                            type="button"
+                            onClick={() => updateProp(selectedKey, 'x', Math.min(100 - selectedEl.w, selectedEl.x + 1))}
+                            className="px-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px]"
+                          >+</button>
+                        </div>
+                      </div>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={selectedEl.x}
+                        onChange={(e) => updateProp(selectedKey, 'x', Number(e.target.value))}
+                        className="bg-white border-slate-200 text-xs h-7 p-1 text-center font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 mb-0.5">
+                        <span>Y %</span>
+                        <div className="flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => updateProp(selectedKey, 'y', Math.max(0, selectedEl.y - 1))}
+                            className="px-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px]"
+                          >-</button>
+                          <button
+                            type="button"
+                            onClick={() => updateProp(selectedKey, 'y', Math.min(100 - selectedEl.h, selectedEl.y + 1))}
+                            className="px-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px]"
+                          >+</button>
+                        </div>
+                      </div>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={selectedEl.y}
+                        onChange={(e) => updateProp(selectedKey, 'y', Number(e.target.value))}
+                        className="bg-white border-slate-200 text-xs h-7 p-1 text-center font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 mb-0.5">
+                        <span>Width %</span>
+                        <div className="flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => updateProp(selectedKey, 'w', Math.max(4, selectedEl.w - 1))}
+                            className="px-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px]"
+                          >-</button>
+                          <button
+                            type="button"
+                            onClick={() => updateProp(selectedKey, 'w', Math.min(100 - selectedEl.x, selectedEl.w + 1))}
+                            className="px-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px]"
+                          >+</button>
+                        </div>
+                      </div>
+                      <Input
+                        type="number"
+                        min={4}
+                        max={100}
+                        value={selectedEl.w}
+                        onChange={(e) => updateProp(selectedKey, 'w', Number(e.target.value))}
+                        className="bg-white border-slate-200 text-xs h-7 p-1 text-center font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 mb-0.5">
+                        <span>Height %</span>
+                        <div className="flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => updateProp(selectedKey, 'h', Math.max(3, selectedEl.h - 1))}
+                            className="px-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px]"
+                          >-</button>
+                          <button
+                            type="button"
+                            onClick={() => updateProp(selectedKey, 'h', Math.min(100 - selectedEl.y, selectedEl.h + 1))}
+                            className="px-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px]"
+                          >+</button>
+                        </div>
+                      </div>
+                      <Input
+                        type="number"
+                        min={3}
+                        max={100}
+                        value={selectedEl.h}
+                        onChange={(e) => updateProp(selectedKey, 'h', Number(e.target.value))}
+                        className="bg-white border-slate-200 text-xs h-7 p-1 text-center font-mono font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 6. Card & Boxes Opacity Appearance */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-indigo-600" />
-                  Card appearance
+                  Card & Box Opacity Appearance
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Card colour</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Card Box Colour</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
@@ -965,112 +1481,269 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                 </div>
               </div>
 
-              {/* Card Fill Opacity (allows watermark to show through) */}
-              <div className="pt-1 border-t border-slate-100 space-y-1.5">
+              {/* 1. Card Box Fill Opacity (Applies to all player card boxes) */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <label className="font-semibold text-slate-700">Card Fill Opacity</label>
-                  <span className="font-mono font-bold text-slate-700 text-xs">{cardFillOpacity}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={50}
-                  max={100}
-                  step={5}
-                  value={cardFillOpacity}
-                  onChange={(e) => setCardFillOpacity(Number(e.target.value))}
-                  className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
-                />
-                <span className="text-[10px] text-slate-400 block">
-                  Lower opacity allows background watermarks to show through card bodies.
-                </span>
-              </div>
-            </div>
-
-            {/* 5. Selected Field Properties */}
-            {selectedEl && (
-              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider">
-                    {FIELD_LABELS[selectedKey] || selectedKey} Properties
+                  <div>
+                    <label className="font-extrabold text-slate-800 block">Card Box Opacity</label>
+                    <span className="text-[10px] text-slate-400">Applies to all player card boxes on the page</span>
+                  </div>
+                  <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 text-xs">
+                    {cardFillOpacity}%
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Font Size (px)</label>
-                    <Input
-                      type="number"
-                      min={6}
-                      max={40}
-                      value={selectedEl.font_size}
-                      onChange={(e) => updateProp(selectedKey, 'font_size', Number(e.target.value))}
-                      className="bg-white border-slate-200 text-xs text-zinc-900 font-semibold"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Text Colour</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={selectedEl.colour}
-                        onChange={(e) => updateProp(selectedKey, 'colour', e.target.value)}
-                        className="w-7 h-7 rounded border border-slate-200 bg-transparent cursor-pointer"
-                      />
-                      <span className="text-xs font-mono text-slate-600">{selectedEl.colour}</span>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCardFillOpacity((prev) => Math.max(0, prev - 5))}
+                    className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm flex items-center justify-center border border-slate-200 transition"
+                    title="Decrease card box opacity"
+                  >-</button>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={cardFillOpacity}
+                    onChange={(e) => setCardFillOpacity(Number(e.target.value))}
+                    className="flex-1 accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCardFillOpacity((prev) => Math.min(100, prev + 5))}
+                    className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm flex items-center justify-center border border-slate-200 transition"
+                    title="Increase card box opacity"
+                  >+</button>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">X %</label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={selectedEl.x}
-                      onChange={(e) => updateProp(selectedKey, 'x', Number(e.target.value))}
-                      className="bg-white border-slate-200 text-[11px] text-zinc-900 p-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Y %</label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={selectedEl.y}
-                      onChange={(e) => updateProp(selectedKey, 'y', Number(e.target.value))}
-                      className="bg-white border-slate-200 text-[11px] text-zinc-900 p-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Width %</label>
-                    <Input
-                      type="number"
-                      min={4}
-                      max={100}
-                      value={selectedEl.w}
-                      onChange={(e) => updateProp(selectedKey, 'w', Number(e.target.value))}
-                      className="bg-white border-slate-200 text-[11px] text-zinc-900 p-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Height %</label>
-                    <Input
-                      type="number"
-                      min={4}
-                      max={100}
-                      value={selectedEl.h}
-                      onChange={(e) => updateProp(selectedKey, 'h', Number(e.target.value))}
-                      className="bg-white border-slate-200 text-[11px] text-zinc-900 p-1"
-                    />
-                  </div>
+                <div className="grid grid-cols-5 gap-1 pt-0.5">
+                  {[
+                    { label: '0% Clear', val: 0 },
+                    { label: '25% Light', val: 25 },
+                    { label: '50% Half', val: 50 },
+                    { label: '75% Soft', val: 75 },
+                    { label: '100% Solid', val: 100 },
+                  ].map((p) => (
+                    <button
+                      key={p.val}
+                      type="button"
+                      onClick={() => setCardFillOpacity(p.val)}
+                      className={`text-[9px] py-1 rounded font-bold border transition ${
+                        cardFillOpacity === p.val
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
 
-            {/* 6. How it works section */}
+              {/* 2. All Internal Element Boxes Background Opacity */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <div>
+                    <label className="font-extrabold text-slate-800 block">All Internal Boxes Opacity</label>
+                    <span className="text-[10px] text-slate-400">Applies background fill opacity to all field boxes</span>
+                  </div>
+                  <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 text-xs">
+                    {elementBoxOpacity}%
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = Math.max(0, elementBoxOpacity - 5)
+                      handleApplyBoxOpacityToAll(next, elementBoxBgColor)
+                    }}
+                    className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm flex items-center justify-center border border-slate-200 transition"
+                    title="Decrease box opacity for all boxes"
+                  >-</button>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={elementBoxOpacity}
+                    onChange={(e) => handleApplyBoxOpacityToAll(Number(e.target.value), elementBoxBgColor)}
+                    className="flex-1 accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = Math.min(100, elementBoxOpacity + 5)
+                      handleApplyBoxOpacityToAll(next, elementBoxBgColor)
+                    }}
+                    className="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm flex items-center justify-center border border-slate-200 transition"
+                    title="Increase box opacity for all boxes"
+                  >+</button>
+                </div>
+
+                <div className="grid grid-cols-5 gap-1 pt-0.5">
+                  {[
+                    { label: '0% None', val: 0 },
+                    { label: '20% Tint', val: 20 },
+                    { label: '45% Frosted', val: 45 },
+                    { label: '75% Soft', val: 75 },
+                    { label: '100% Solid', val: 100 },
+                  ].map((p) => (
+                    <button
+                      key={p.val}
+                      type="button"
+                      onClick={() => handleApplyBoxOpacityToAll(p.val, elementBoxBgColor)}
+                      className={`text-[9px] py-1 rounded font-bold border transition ${
+                        elementBoxOpacity === p.val
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 7. Sheet Background & Watermark */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-indigo-600" />
+                  Sheet Background Watermark
+                </span>
+                {pageBackgroundImage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPageBackgroundImage('')
+                      setPageBackgroundName('')
+                    }}
+                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
+                    title="Remove background image"
+                  >
+                    <Trash2 className="w-3 h-3" /> Remove
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <label className="flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl cursor-pointer bg-slate-50/70 hover:bg-indigo-50/30 transition group">
+                  <UploadCloud className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition" />
+                  <span className="text-xs font-semibold text-slate-600 group-hover:text-indigo-700">
+                    {pageBackgroundName || 'Upload Sheet Background...'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleBackgroundUpload(file)
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {pageBackgroundImage && (
+                <div className="pt-1 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <label className="font-semibold text-slate-700 flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+                      Background Opacity
+                    </label>
+                    <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 text-xs">
+                      {pageBackgroundOpacity}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={5}
+                    max={100}
+                    step={5}
+                    value={pageBackgroundOpacity}
+                    onChange={(e) => setPageBackgroundOpacity(Number(e.target.value))}
+                    className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* 8. Logos & Sponsor Marks */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-indigo-600" />
+                  Draggable Logos ({placedLogos.length})
+                </span>
+                {placedLogos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlacedLogos([])
+                      setSelectedLogoId(null)
+                    }}
+                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" /> Clear All
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <label className="flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-indigo-200 hover:border-indigo-500 rounded-xl cursor-pointer bg-indigo-50/40 hover:bg-indigo-50/70 transition group">
+                  <Plus className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-bold text-indigo-700">
+                    + Add Logo / Sponsor (Drag to move on sheet)
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleMultipleLogosUpload(e.target.files)
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {placedLogos.length > 0 && selectedLogo && (
+                <div className="space-y-2 pt-1 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs text-slate-700 font-semibold">
+                    <span>Selected: {selectedLogo.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeLogo(selectedLogo.id)}
+                      className="text-rose-600 hover:text-rose-700 font-bold text-[10px]"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 mb-0.5">
+                      <span>Width %</span>
+                      <span className="font-mono">{selectedLogo.width}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={4}
+                      max={40}
+                      value={selectedLogo.width}
+                      onChange={(e) => updateSelectedLogo('width', Number(e.target.value))}
+                      className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 9. How it works section */}
             <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 shadow-sm space-y-2">
               <button
                 type="button"
@@ -1079,7 +1752,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
               >
                 <span className="flex items-center gap-1.5">
                   <HelpCircle className="w-4 h-4 text-indigo-600" />
-                  How it works
+                  How to customize boxes & layout
                 </span>
                 {showHowItWorks ? <ChevronUp className="w-4 h-4 text-indigo-600" /> : <ChevronDown className="w-4 h-4 text-indigo-600" />}
               </button>
@@ -1087,16 +1760,16 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
               {showHowItWorks && (
                 <div className="text-xs text-slate-600 space-y-2 pt-1 font-normal leading-relaxed">
                   <p>
-                    <strong className="text-zinc-900 font-semibold">1. Category Wise Format:</strong> Every category starts on a brand-new page. If a category has more players than the grid capacity (Columns × Rows), it paginates seamlessly into subsequent pages before moving to the next category.
+                    <strong className="text-zinc-900 font-semibold">1. Drag & Drop on Template Card:</strong> Click and drag any box inside Card #1 (marked <span className="text-indigo-600 font-bold">TEMPLATE</span>) to reposition it anywhere on the card.
                   </p>
                   <p>
-                    <strong className="text-zinc-900 font-semibold">2. Auction Format:</strong> Prints all lots sequentially in lot/serial order without category page breaks.
+                    <strong className="text-zinc-900 font-semibold">2. Resize Box:</strong> Click on a box in the template card to reveal the bottom-right resize handle. Drag the handle to adjust its width and height.
                   </p>
                   <p>
-                    <strong className="text-zinc-900 font-semibold">3. Master Template:</strong> Customizing fonts, positioning, and field label displays on the master card automatically formats all player cards across the printed PDF.
+                    <strong className="text-zinc-900 font-semibold">3. Change Text & Labels:</strong> Use the "Configure Box" panel to change the sample text, edit the label prefix, adjust font size, color, and alignment.
                   </p>
                   <p>
-                    <strong className="text-zinc-900 font-semibold">4. Print Engine:</strong> Generates high-resolution vector PDF sheets ready for standard A4 paper printing.
+                    <strong className="text-zinc-900 font-semibold">4. Adjustable Header & Footer:</strong> Customize title, notes, height, colors, and page numbering for both the live sheet and high-res vector PDF prints.
                   </p>
                 </div>
               )}
@@ -1119,7 +1792,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
             <div className="bg-slate-200/70 border border-slate-300 rounded-2xl p-6 overflow-hidden flex justify-center shadow-inner">
               <div
                 ref={canvasRef}
-                className="w-full max-w-[720px] aspect-[1/1.414] bg-white text-slate-900 rounded-xl shadow-2xl p-5 flex flex-col relative select-none border border-slate-300 overflow-hidden"
+                className="w-full max-w-[720px] aspect-[1/1.414] bg-white text-slate-900 rounded-xl shadow-2xl p-4 flex flex-col relative select-none border border-slate-300 overflow-hidden"
               >
                 {/* 1. Page Background Watermark Layer */}
                 {pageBackgroundImage && (
@@ -1171,26 +1844,49 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   )
                 })}
 
-                {/* Simulated Sheet Header with Branding */}
-                <div className="border-b border-slate-200 pb-2 mb-3 flex items-center justify-between text-[11px] font-bold text-slate-800 relative z-10">
-                  <div className="flex items-center gap-2">
-                    {showTournamentLogo && placedLogos.length === 0 && (
-                      <div className="w-5 h-5 rounded bg-indigo-600 text-white text-[8px] font-black flex items-center justify-center">
-                        T
-                      </div>
-                    )}
-                    {showTournamentName && (
-                      <span className="uppercase tracking-wider">
-                        {activeTab === 'category' ? 'Category: Icon Players' : 'Auction Format Order'}
+                {/* 3. Adjustable Sheet Header Banner */}
+                {headerConfig.show && (
+                  <div
+                    className="mb-3 px-3 rounded-lg flex items-center justify-between relative z-10 transition-all border border-slate-200/80 shadow-xs shrink-0"
+                    style={{
+                      height: `${headerConfig.height}px`,
+                      backgroundColor: headerConfig.bg_colour,
+                      color: headerConfig.text_colour,
+                      borderBottom: `2.5px solid ${accentColour}`,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      {showTournamentLogo && placedLogos.length === 0 && (
+                        <div
+                          className="rounded flex items-center justify-center font-black text-white shrink-0"
+                          style={{
+                            width: `${Math.max(16, headerConfig.height * 0.7)}px`,
+                            height: `${Math.max(16, headerConfig.height * 0.7)}px`,
+                            fontSize: `${Math.max(8, headerConfig.font_size * 0.75)}px`,
+                            backgroundColor: accentColour,
+                          }}
+                        >
+                          T
+                        </div>
+                      )}
+                      <span
+                        className="font-extrabold uppercase tracking-wide truncate"
+                        style={{ fontSize: `${headerConfig.font_size}px` }}
+                      >
+                        {headerConfig.title || (activeTab === 'category' ? 'Category: Icon Players' : 'Auction Format Order')}
                       </span>
-                    )}
-                  </div>
-                  <span className="text-slate-500 font-mono text-[10px]">
-                    {activeTab === 'category' ? 'Every category on new page' : 'Continuous order'}
-                  </span>
-                </div>
+                    </div>
 
-                {/* Grid */}
+                    <span
+                      className="font-semibold opacity-85 truncate ml-2 text-right shrink-0"
+                      style={{ fontSize: `${Math.max(7, headerConfig.font_size * 0.8)}px` }}
+                    >
+                      {headerConfig.right_text || (activeTab === 'category' ? 'Every category on new page' : 'Continuous order')}
+                    </span>
+                  </div>
+                )}
+
+                {/* 4. Grid of Player Cards */}
                 <div
                   className="grid gap-2 flex-1 relative z-10"
                   style={{
@@ -1198,78 +1894,212 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                     gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
                   }}
                 >
-                  {Array.from({ length: sampleCount }).map((_, cIdx) => (
-                    <div
-                      key={cIdx}
-                      className="relative rounded-lg border overflow-hidden p-1 transition"
-                      style={{
-                        backgroundColor: hexToRgba(cardFill, cardFillOpacity / 100),
-                        borderColor: accentColour,
-                        boxShadow: cIdx === 0 ? '0 0 0 2px #4f46e5' : 'none',
-                      }}
-                    >
-                      {cIdx === 0 && (
-                        <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-bl z-10">
-                          Template
-                        </div>
-                      )}
+                  {Array.from({ length: sampleCount }).map((_, cIdx) => {
+                    const isTemplate = cIdx === 0
 
-                      {/* Top accent bar */}
+                    return (
                       <div
-                        className="absolute top-0 left-0 right-0 h-1"
-                        style={{ backgroundColor: accentColour }}
-                      />
-
-                      {/* Render Card Elements */}
-                      {Object.entries(elements).map(([key, el]) => {
-                        if (!el.selected) return null
-                        const isPhoto = key === 'player_photo'
-
-                        let sampleText = ''
-                        if (key === 'player_number') sampleText = el.show_label ? `No: #${cIdx + 1}` : `#${cIdx + 1}`
-                        else if (key === 'name') sampleText = el.show_label ? 'Name: Virat Kohli' : 'Virat Kohli'
-                        else if (key === 'category') sampleText = el.show_label ? 'Cat: Icon' : 'Icon'
-                        else if (key === 'role') sampleText = el.show_label ? 'Role: Batsman' : 'Batsman'
-                        else if (key === 'base_price') sampleText = el.show_label ? 'Base Price: ₹50K' : '₹50,000'
-                        else if (key === 'location') sampleText = el.show_label ? 'Loc: Mumbai' : 'Mumbai'
-                        else if (key === 'batting') sampleText = el.show_label ? 'Bat: RHB' : 'Right-Hand'
-                        else if (key === 'bowling') sampleText = el.show_label ? 'Bowl: RAF' : 'Right-Arm'
-                        else if (key === 'mobile') sampleText = el.show_label ? 'Mob: 9876543210' : '9876543210'
-                        else if (key === 'age') sampleText = el.show_label ? 'Age: 28' : '28'
-                        else if (key === 'experience') sampleText = el.show_label ? 'Exp: 5 Yrs' : '5 Yrs'
-                        else if (key === 'application_id') sampleText = el.show_label ? 'App ID: 104' : '#104'
-
-                        return (
-                          <div
-                            key={key}
-                            onClick={() => setSelectedKey(key)}
-                            className={`absolute flex items-center overflow-hidden cursor-pointer ${
-                              cIdx === 0 && selectedKey === key ? 'ring-1 ring-indigo-500' : ''
-                            } ${
-                              isPhoto
-                                ? 'bg-slate-100 border border-slate-200 justify-center text-[7px] text-slate-500 font-bold'
-                                : ''
-                            }`}
-                            style={{
-                              left: `${el.x}%`,
-                              top: `${el.y}%`,
-                              width: `${el.w}%`,
-                              height: `${el.h}%`,
-                              fontSize: `${Math.max(6, Math.round(el.font_size * 0.65))}px`,
-                              color: el.colour,
-                              fontWeight: el.bold ? 800 : 400,
-                              justifyContent:
-                                el.align === 'center' ? 'center' : el.align === 'right' ? 'flex-end' : 'flex-start',
-                              zIndex: el.z,
-                            }}
-                          >
-                            {isPhoto ? (el.show_label ? 'PHOTO' : '') : sampleText}
+                        key={cIdx}
+                        ref={isTemplate ? templateCardRef : undefined}
+                        className="relative rounded-lg border overflow-hidden p-1 transition select-none"
+                        style={{
+                          backgroundColor: hexToRgba(cardFill, cardFillOpacity / 100),
+                          borderColor: accentColour,
+                          boxShadow: isTemplate ? '0 0 0 2px #4f46e5' : 'none',
+                        }}
+                      >
+                        {isTemplate && (
+                          <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-bl z-20 pointer-events-none">
+                            TEMPLATE
                           </div>
-                        )
-                      })}
-                    </div>
-                  ))}
+                        )}
+
+                        {/* Top accent bar */}
+                        <div
+                          className="absolute top-0 left-0 right-0 h-1 pointer-events-none"
+                          style={{ backgroundColor: accentColour }}
+                        />
+
+                        {/* Render Card Elements */}
+                        {Object.entries(elements).map(([key, el]) => {
+                          if (!el.selected) return null
+                          const isPhoto = key === 'player_photo'
+                          const isSelectedElement = isTemplate && selectedKey === key
+                          const isDraggingThis = isTemplate && draggingElementKey === key
+
+                          // Determine displayed text
+                          let valText = el.custom_text ?? ''
+                          if (!valText) {
+                            if (key === 'player_number') valText = `#${cIdx + 1}`
+                            else if (key === 'name') valText = 'Virat Kohli'
+                            else if (key === 'category') valText = 'Icon'
+                            else if (key === 'role') valText = 'Batsman'
+                            else if (key === 'base_price') valText = '₹50,000'
+                            else if (key === 'location') valText = 'Mumbai'
+                            else if (key === 'batting') valText = 'RHB'
+                            else if (key === 'bowling') valText = 'RAF'
+                            else if (key === 'mobile') valText = '9876543210'
+                            else if (key === 'age') valText = '28'
+                            else if (key === 'experience') valText = '5 Yrs'
+                            else if (key === 'application_id') valText = '104'
+                            else valText = el.label || 'Text'
+                          }
+
+                          const labelText = el.show_label && el.label ? `${el.label} ` : ''
+                          const displayText = isPhoto ? (el.show_label ? 'PHOTO' : '') : `${labelText}${valText}`
+
+                          const boxOpacity = el.bg_opacity !== undefined ? el.bg_opacity : elementBoxOpacity
+                          const boxBg = el.bg_colour || elementBoxBgColor || '#ffffff'
+
+                          return (
+                            <div
+                              key={key}
+                              onMouseDown={isTemplate ? (e) => handleElementMouseDown(e, key) : undefined}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedKey(key)
+                              }}
+                              className={`absolute flex items-center overflow-visible select-none transition-all ${
+                                isTemplate
+                                  ? 'cursor-move hover:ring-1 hover:ring-indigo-400 group'
+                                  : 'cursor-default pointer-events-none'
+                              } ${
+                                isSelectedElement
+                                  ? 'ring-2 ring-indigo-600 shadow-md z-30'
+                                  : ''
+                              } ${
+                                isDraggingThis ? 'opacity-90 scale-[1.02]' : ''
+                              } ${
+                                isPhoto
+                                  ? 'bg-slate-100 border border-slate-200 justify-center text-[7px] text-slate-500 font-bold'
+                                  : ''
+                              }`}
+                              style={{
+                                left: `${el.x}%`,
+                                top: `${el.y}%`,
+                                width: `${el.w}%`,
+                                height: `${el.h}%`,
+                                fontSize: `${Math.max(6, Math.round(el.font_size * 0.65))}px`,
+                                color: el.colour,
+                                fontWeight: el.bold ? 800 : 400,
+                                justifyContent:
+                                  el.align === 'center' ? 'center' : el.align === 'right' ? 'flex-end' : 'flex-start',
+                                zIndex: isSelectedElement ? 30 : el.z,
+                                backgroundColor: isPhoto
+                                  ? 'rgba(241, 245, 249, 0.95)'
+                                  : boxOpacity > 0
+                                  ? hexToRgba(boxBg, boxOpacity / 100)
+                                  : (isSelectedElement ? 'rgba(238, 242, 255, 0.25)' : 'transparent'),
+                                border: isPhoto
+                                  ? '1px solid rgba(203, 213, 225, 0.8)'
+                                  : boxOpacity > 0
+                                  ? `1px solid ${hexToRgba(el.colour || '#64748b', Math.min(0.4, 0.15 + (boxOpacity / 100) * 0.25))}`
+                                  : (isSelectedElement ? undefined : '1px solid transparent'),
+                                borderRadius: boxOpacity > 0 ? '4px' : undefined,
+                                padding: boxOpacity > 0 ? '0 4px' : undefined,
+                                boxShadow: boxOpacity > 15 ? '0 1px 2px rgba(0,0,0,0.05)' : undefined,
+                              }}
+                              title={
+                                isTemplate
+                                  ? `Drag to move ${FIELD_LABELS[key] || key} (X: ${el.x}%, Y: ${el.y}%, W: ${el.w}%, H: ${el.h}%)`
+                                  : undefined
+                              }
+                            >
+                              <span className="truncate w-full pointer-events-none" style={{ textAlign: el.align }}>
+                                {displayText}
+                              </span>
+
+                              {/* Active selection badge with coordinates & opacity control */}
+                              {isSelectedElement && (
+                                <>
+                                  <div
+                                    className="absolute -top-7 left-0 bg-indigo-950/95 text-white text-[8px] font-mono px-2 py-0.5 rounded-md shadow-xl whitespace-nowrap z-50 flex items-center gap-1.5 pointer-events-auto border border-indigo-400/50 backdrop-blur-xs select-none"
+                                    onClick={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                  >
+                                    <span className="flex items-center gap-0.5 text-indigo-200">
+                                      <Move className="w-2.5 h-2.5" />
+                                      {Math.round(el.x)}%, {Math.round(el.y)}%
+                                    </span>
+                                    <span className="text-indigo-400/60">|</span>
+                                    <span className="font-sans font-bold text-slate-200">Opacity:</span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        updateBoxOpacity(key, boxOpacity - 5)
+                                      }}
+                                      className="w-4 h-4 rounded bg-indigo-800 hover:bg-indigo-700 active:scale-95 text-white flex items-center justify-center font-bold text-[10px] transition border border-indigo-600/50"
+                                      title="Decrease box opacity (-5%)"
+                                    >
+                                      -
+                                    </button>
+                                    <span className="font-mono font-bold text-amber-300 min-w-[26px] text-center">
+                                      {boxOpacity}%
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        updateBoxOpacity(key, boxOpacity + 5)
+                                      }}
+                                      className="w-4 h-4 rounded bg-indigo-800 hover:bg-indigo-700 active:scale-95 text-white flex items-center justify-center font-bold text-[10px] transition border border-indigo-600/50"
+                                      title="Increase box opacity (+5%)"
+                                    >
+                                      +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleApplyBoxOpacityToAll(boxOpacity, boxBg)
+                                      }}
+                                      className="bg-indigo-600 hover:bg-indigo-500 text-[8px] font-sans font-bold px-1.5 py-0.5 rounded text-white shadow-2xs hover:scale-105 active:scale-95 transition ml-0.5"
+                                      title="Apply this box's opacity to ALL boxes across every card"
+                                    >
+                                      All Boxes
+                                    </button>
+                                  </div>
+
+                                  {/* Resize Handle (Bottom-Right) */}
+                                  <div
+                                    onMouseDown={(e) => handleElementResizeMouseDown(e, key)}
+                                    className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-indigo-600 hover:bg-indigo-800 rounded-xs cursor-se-resize shadow-md hover:scale-125 transition-transform z-40"
+                                    title="Drag corner to resize box width and height"
+                                  />
+                                </>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
                 </div>
+
+                {/* 5. Adjustable Sheet Footer Banner */}
+                {footerConfig.show && (
+                  <div
+                    className="mt-3 px-3 rounded-lg flex items-center justify-between relative z-10 transition-all border border-slate-200/80 shadow-xs shrink-0 font-medium"
+                    style={{
+                      height: `${footerConfig.height}px`,
+                      backgroundColor: footerConfig.bg_colour,
+                      color: footerConfig.text_colour,
+                      borderTop: `1.5px solid ${accentColour}`,
+                      fontSize: `${footerConfig.font_size}px`,
+                    }}
+                  >
+                    <span className="truncate flex-1 text-left">
+                      {footerConfig.left_text}
+                    </span>
+                    <span className="truncate font-semibold px-2 text-center">
+                      {(footerConfig.center_text || '').replace('{page}', '1').replace('{totalPages}', '1')}
+                    </span>
+                    <span className="truncate flex-1 text-right">
+                      {footerConfig.right_text}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -31,6 +31,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
     undoBid,
     resetBid,
     selectPlayerNo,
+    selectNextPlayer,
     startReauction,
   } = useLiveAuctionState(auctionId, 1200)
 
@@ -148,14 +149,16 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
 
   const handleCategoryChange = async (cat: string) => {
     setSelectedCategory(cat)
-    try {
-      const res = await apiClient.get(`/v1/auction/players/?auction=${auctionId}&category=${cat}`)
-      const players = res.data.results || res.data || []
-      const available = players.find((p: any) => p.status === 'AVAILABLE')
-      if (available) {
-        await selectPlayerNo(available.serial_no)
-      }
-    } catch (_) {}
+    setFeedbackMessage(null)
+    const res = await selectNextPlayer(cat)
+    if (res?.success) {
+      setFeedbackMessage({ text: `Brought in next player from category "${cat}".`, type: 'success' })
+    } else {
+      setFeedbackMessage({
+        text: res?.error || `No available players found in category "${cat}".`,
+        type: 'error',
+      })
+    }
   }
 
   const player = state?.active_player
@@ -375,7 +378,35 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Category Selector */}
+          <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 px-2.5 py-1.5 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Category:</span>
+            <select
+              value={selectedCategory}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="bg-transparent text-white font-extrabold text-xs cursor-pointer focus:outline-none"
+            >
+              <option value="ALL" className="bg-slate-900 text-white">All Categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c} className="bg-slate-900 text-white">
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => handleCategoryChange(selectedCategory)}
+            disabled={actionLoading}
+            className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs px-3 py-2 rounded-xl border border-white/20 transition"
+            title="Bring next available player in this category"
+          >
+            <ChevronRight className="w-3.5 h-3.5 mr-1 text-amber-400" />
+            Next In Category
+          </Button>
+
           <Button
             onClick={() => {
               setIsFullScreen(true)
@@ -565,6 +596,35 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
                 >
                   {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                 </button>
+
+                {/* Category Selector & Next Player trigger in Standard Console */}
+                <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-2 py-1 rounded-xl">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Cat:</span>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    className="bg-slate-900 border border-white/20 text-white font-bold text-xs rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
+                  >
+                    {categories.length > 0 ? (
+                      categories.map((c) => (
+                        <option key={c} value={c} className="bg-slate-900 text-white">
+                          {c}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="ALL" className="bg-slate-900 text-white">All Categories</option>
+                    )}
+                  </select>
+                  <Button
+                    size="sm"
+                    onClick={() => handleCategoryChange(selectedCategory)}
+                    disabled={actionLoading}
+                    className="h-7 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-2.5 rounded-lg shadow-xs"
+                    title="Bring next player from selected category to the auction block"
+                  >
+                    Next Player →
+                  </Button>
+                </div>
 
                 <Input
                   type="number"
@@ -1108,6 +1168,15 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
                       <option value="ALL">All Categories</option>
                     )}
                   </select>
+
+                  <button
+                    onClick={() => handleCategoryChange(selectedCategory)}
+                    disabled={actionLoading}
+                    className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-3 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    title="Bring next player from selected category"
+                  >
+                    <span>Next Player →</span>
+                  </button>
                 </div>
 
                 <button

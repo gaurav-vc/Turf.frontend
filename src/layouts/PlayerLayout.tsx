@@ -204,14 +204,16 @@ export default function PlayerLayout() {
                 {[
                   { tab: 'overview', label: 'Command Center' },
                   { tab: 'live', label: 'Live Broadcast' },
-                  { tab: 'roster', label: 'Roster & Intake' },
-                  { tab: 'designer', label: 'Page Designer' },
-                  { tab: 'pdf_studio', label: 'PDF Cards' },
-                  { tab: 'rules', label: 'Squad Rules & Slabs' },
+                  // Setup Pipeline (Requested 1 to 7 sequence)
+                  { tab: 'rules', label: 'Master Setup & Rules' },
+                  { tab: 'all_teams', label: 'Team Setup' },
                   { tab: 'fields', label: 'Custom Fields' },
-                  { tab: 'all_teams', label: 'Teams Roster' },
-                  { tab: 'sponsors', label: 'Sponsors & Media' },
+                  { tab: 'roster', label: 'Player Setup' },
+                  { tab: 'pdf_studio', label: 'PDF Designer' },
+                  { tab: 'designer', label: 'Auction Page Designer' },
                   { tab: 'draw', label: 'Group Draw' },
+                  // Media & Utilities
+                  { tab: 'sponsors', label: 'Sponsors & Media' },
                   { tab: 'overlays', label: 'OBS Overlays' },
                   { tab: 'spectator', label: 'Public Viewer' },
                   { tab: 'comms', label: 'WhatsApp Comms' },

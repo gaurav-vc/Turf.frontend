@@ -213,6 +213,23 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
     }
   }
 
+  const selectNextPlayer = async (category?: string) => {
+    if (!auctionId) return
+    setActionLoading(true)
+    try {
+      const res = await apiClient.post(`/v1/auction/console/${auctionId}/select_next_player/`, {
+        category,
+      })
+      if (res.data?.state) setState(res.data.state)
+      return { success: true }
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || 'Failed to select next player'
+      return { success: false, error: msg }
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   return {
     state,
     loading,
@@ -226,6 +243,7 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
     undoBid,
     resetBid,
     selectPlayerNo,
+    selectNextPlayer,
     startReauction,
   }
 }

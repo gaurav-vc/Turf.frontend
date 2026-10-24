@@ -135,9 +135,21 @@ export default function AuctionOverviewDashboard({
         setStartingAuction(false)
       }
     } else {
-      // Normal pending auction queue: launch directly into full screen arena
-      window.history.pushState({}, '', `?tab=live&fullscreen=1`)
-      onNavigateTab('live')
+      // Normal pending auction queue: ensure selected category player is queued on block
+      setStartingAuction(true)
+      try {
+        if (selectedCategory && selectedCategory !== 'ALL') {
+          await apiClient.post(`/v1/auction/console/${auctionId}/select_next_player/`, {
+            category: selectedCategory,
+          })
+        }
+      } catch (err) {
+        console.warn('Player selection on start', err)
+      } finally {
+        setStartingAuction(false)
+        window.history.pushState({}, '', `?tab=live&fullscreen=1`)
+        onNavigateTab('live')
+      }
     }
   }
 

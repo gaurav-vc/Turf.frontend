@@ -14,12 +14,23 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
   const [actionLoading, setActionLoading] = useState(false)
   const [teams, setTeams] = useState<any[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
-  const [groupCount, setGroupCount] = useState<number>(2)
+  const [configuredGroups, setConfiguredGroups] = useState<any[]>([])
 
   useEffect(() => {
     loadDrawState()
     loadTeams()
+    loadMasterSetupGroups()
   }, [auctionId])
+
+  const loadMasterSetupGroups = async () => {
+    try {
+      const res = await apiClient.get(`/v1/auction/console/${auctionId}/setup_rules/`)
+      const grps = res.data?.config?.groups || res.data?.groups || []
+      setConfiguredGroups(grps)
+    } catch (err) {
+      console.error('Failed to load master setup groups', err)
+    }
+  }
 
   const loadDrawState = async () => {
     setLoading(true)
@@ -47,7 +58,9 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
   const handleGenerateDraw = async () => {
     setActionLoading(true)
     try {
-      const gNames = Array.from({ length: groupCount }, (_, i) => `Group ${String.fromCharCode(65 + i)}`)
+      const gNames = configuredGroups.length > 0
+        ? configuredGroups.map((g) => g.name)
+        : ['Group A', 'Group B']
       const res = await apiClient.post(`/v1/auction/console/${auctionId}/group_draw/`, {
         action: 'generate',
         groups: gNames,
@@ -131,16 +144,15 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
 
         <div className="flex items-center gap-2">
           {cards.length === 0 ? (
-            <>
-              <select
-                value={groupCount}
-                onChange={(e) => setGroupCount(parseInt(e.target.value) || 2)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-zinc-900 font-semibold focus:outline-none"
-              >
-                <option value={2}>2 Groups (A & B)</option>
-                <option value={3}>3 Groups (A, B, C)</option>
-                <option value={4}>4 Groups (A, B, C, D)</option>
-              </select>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 border border-purple-200 text-xs text-purple-900 font-bold shadow-2xs">
+                <Trophy className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                <span>
+                  {configuredGroups.length > 0
+                    ? `Master Setup: ${configuredGroups.length} Groups (${configuredGroups.map((g) => g.name).join(', ')})`
+                    : '2 Default Groups (Configure in Master Setup & Rules)'}
+                </span>
+              </div>
               <Button
                 onClick={handleGenerateDraw}
                 disabled={actionLoading}
@@ -149,7 +161,7 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
                 <Shuffle className="h-4 w-4 mr-1.5" />
                 {actionLoading ? 'Generating...' : 'Generate Blind Cards'}
               </Button>
-            </>
+            </div>
           ) : (
             <>
               {/* Franchise Selector for Assignment */}
