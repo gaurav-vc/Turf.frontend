@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { apiClient } from '@/api/apiClient'
+import { getTeamTheme, getTeamShortcut } from './teamThemeUtils'
 
 interface AuctionPageDesignerProps {
   auctionId: string
@@ -552,6 +553,9 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
   const [previewArenaMode, setPreviewArenaMode] = useState<boolean>(true)
 
   // Templates Management State
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('default-arena')
+  const [liveTeams, setLiveTeams] = useState<any[]>([])
+  const [previewStationFeedback, setPreviewStationFeedback] = useState<string | null>(null)
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState<boolean>(false)
   const [newTemplateName, setNewTemplateName] = useState<string>('')
   const [templateFeedback, setTemplateFeedback] = useState<string | null>(null)
@@ -574,6 +578,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
   }
 
   const handleApplyTemplate = (tpl: ScreenTemplate) => {
+    setSelectedTemplateId(tpl.id)
     const existingTitle = design.zones?.branding?.title_text
     const tplBranding = tpl.design.zones?.branding
     const mergedBranding: BrandingConfig = {
@@ -667,9 +672,12 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
         console.warn('Using existing/cached design template', designErr)
       }
 
-      // 2. Fetch live tournament active player (isolated try/catch so it NEVER overwrites design!)
+      // 2. Fetch live tournament active player & teams (isolated try/catch so it NEVER overwrites design!)
       try {
         const stateRes = await apiClient.get(`/v1/auction/console/${auctionId}/live_state/`)
+        if (stateRes.data?.teams && Array.isArray(stateRes.data.teams)) {
+          setLiveTeams(stateRes.data.teams)
+        }
         if (stateRes.data?.active_player) {
           const p = stateRes.data.active_player
           setSamplePlayerData((prev: any) => ({
@@ -1080,6 +1088,71 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Main Auction Screen Layout Dropdown */}
+          <div className="flex items-center gap-1.5 bg-muted/60 border border-border px-3 py-1.5 rounded-xl shadow-2xs">
+            <Layout className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider hidden sm:inline">Screen:</span>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => {
+                const targetId = e.target.value
+                const allTemplates = [...PRESET_TEMPLATES, ...customTemplates]
+                const tpl = allTemplates.find((t) => t.id === targetId)
+                if (tpl) {
+                  handleApplyTemplate(tpl)
+                }
+              }}
+              className="bg-transparent text-foreground font-black text-xs cursor-pointer focus:outline-none"
+              title="Select Screen Design Template"
+            >
+              <optgroup label="Preset Screen Templates">
+                {PRESET_TEMPLATES.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id} className="bg-popover text-popover-foreground">
+                    {tpl.name}
+                  </option>
+                ))}
+              </optgroup>
+              {customTemplates.length > 0 && (
+                <optgroup label="Your Saved Templates">
+                  {customTemplates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id} className="bg-popover text-popover-foreground">
+                      {tpl.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+
+          {/* Franchise Bidding Stations Column Dropdown */}
+          <div className="flex items-center gap-1.5 bg-muted/60 border border-border px-3 py-1.5 rounded-xl shadow-2xs">
+            <Shield className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider hidden sm:inline">Franchise Cols:</span>
+            <select
+              value={design.zones?.team_columns || 4}
+              onChange={(e) => {
+                const cols = Number(e.target.value)
+                setDesign((prev) => ({
+                  ...prev,
+                  zones: { ...prev.zones, team_columns: cols },
+                }))
+              }}
+              className="bg-transparent text-foreground font-black text-xs cursor-pointer focus:outline-none"
+              title="Configure Franchise Bidding Stations Grid Columns"
+            >
+              <option value={2} className="bg-popover text-popover-foreground">2 Columns</option>
+              <option value={3} className="bg-popover text-popover-foreground">3 Columns</option>
+              <option value={4} className="bg-popover text-popover-foreground">4 Columns (Standard)</option>
+              <option value={5} className="bg-popover text-popover-foreground">5 Columns</option>
+              <option value={6} className="bg-popover text-popover-foreground">6 Columns</option>
+              <option value={7} className="bg-popover text-popover-foreground">7 Columns</option>
+              <option value={8} className="bg-popover text-popover-foreground">8 Columns</option>
+              <option value={10} className="bg-popover text-popover-foreground">10 Columns</option>
+              <option value={12} className="bg-popover text-popover-foreground">12 Columns</option>
+              <option value={14} className="bg-popover text-popover-foreground">14 Columns</option>
+            </select>
+          </div>
+
           {/* Templates Trigger */}
           <Button
             variant="outline"
@@ -1897,18 +1970,31 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-foreground">Team columns</label>
-                <Input
-                  type="number"
-                  value={design.zones?.team_columns || 14}
+                <div>
+                  <label className="text-xs font-bold text-foreground block">Franchise columns</label>
+                  <span className="text-[10px] text-muted-foreground">Grid layout for bidding stations</span>
+                </div>
+                <select
+                  value={design.zones?.team_columns || 4}
                   onChange={(e) =>
                     setDesign((prev) => ({
                       ...prev,
                       zones: { ...prev.zones, team_columns: Number(e.target.value) },
                     }))
                   }
-                  className="w-20 text-xs font-mono font-bold text-center h-8"
-                />
+                  className="rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-black text-amber-500 cursor-pointer h-8 shadow-xs"
+                >
+                  <option value={2}>2 Columns</option>
+                  <option value={3}>3 Columns</option>
+                  <option value={4}>4 Columns (Standard)</option>
+                  <option value={5}>5 Columns</option>
+                  <option value={6}>6 Columns</option>
+                  <option value={7}>7 Columns</option>
+                  <option value={8}>8 Columns</option>
+                  <option value={10}>10 Columns</option>
+                  <option value={12}>12 Columns</option>
+                  <option value={14}>14 Columns</option>
+                </select>
               </div>
 
               <div className="flex items-center justify-between">
@@ -4036,6 +4122,137 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               <span>💡</span>
               <span>
                 <strong>Drag & Drop:</strong> Drag this box or any button directly onto the canvas stage, or click <em>"+ Add to Canvas"</em>. Drag freely and use the 8 handles to resize.
+              </span>
+            </p>
+          </div>
+
+          {/* Franchise Bidding Stations Live Preview & Customizer Card */}
+          <div className="rounded-2xl border-2 border-amber-500/30 bg-card p-5 shadow-lg space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <Shield className="w-5 h-5 text-amber-500" />
+                <div>
+                  <h4 className="font-extrabold text-sm text-foreground flex items-center gap-2">
+                    Franchise Bidding Stations ({design.zones?.team_columns || 4} Columns)
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    Unique sequence colors, smart team shortcuts (e.g. Mumbai Indians → MI) and numeric key logic (1-9).
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                {/* Column Dropdown on Preview Card */}
+                <div className="flex items-center gap-1.5 bg-muted/70 border border-border px-2.5 py-1 rounded-xl">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Columns:</span>
+                  <select
+                    value={design.zones?.team_columns || 4}
+                    onChange={(e) => {
+                      const cols = Number(e.target.value)
+                      setDesign((prev) => ({
+                        ...prev,
+                        zones: { ...prev.zones, team_columns: cols },
+                      }))
+                    }}
+                    className="bg-transparent text-amber-500 font-black text-xs cursor-pointer focus:outline-none"
+                  >
+                    <option value={2}>2 Columns</option>
+                    <option value={3}>3 Columns</option>
+                    <option value={4}>4 Columns (Standard)</option>
+                    <option value={5}>5 Columns</option>
+                    <option value={6}>6 Columns</option>
+                    <option value={7}>7 Columns</option>
+                    <option value={8}>8 Columns</option>
+                    <option value={10}>10 Columns</option>
+                    <option value={12}>12 Columns</option>
+                    <option value={14}>14 Columns</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Feedback Alert */}
+            {previewStationFeedback && (
+              <div className="text-xs bg-amber-500/15 border border-amber-500/40 text-amber-500 px-3 py-1.5 rounded-xl font-bold flex items-center gap-2 animate-pulse">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>{previewStationFeedback}</span>
+              </div>
+            )}
+
+            {/* Dynamic Station Grid matching configured columns */}
+            <div
+              className="grid gap-3"
+              style={{
+                gridTemplateColumns: `repeat(${Math.max(
+                  2,
+                  Math.min(14, design.zones?.team_columns || 4)
+                )}, minmax(0, 1fr))`,
+              }}
+            >
+              {(liveTeams.length > 0
+                ? liveTeams
+                : Array.from({ length: Math.min(8, design.zones?.team_columns || 4) }, (_, i) => ({
+                    team_id: String(i + 1),
+                    team_name: `Team ${i + 1}`,
+                    short_name: `T${i + 1}`,
+                    balance: 0,
+                    max_bid: 0,
+                  }))
+              ).map((team: any, idx: number, arr: any[]) => {
+                const theme = getTeamTheme(idx, arr.length)
+                const shortcut = getTeamShortcut(team.team_name, team.short_name)
+
+                return (
+                  <div
+                    key={team.team_id || team.team_name || idx}
+                    onClick={() => {
+                      setPreviewStationFeedback(`Selected #${theme.sequenceNo} ${shortcut} (${team.team_name}) • Keyboard Key [${theme.keyShortcut}]`)
+                      setTimeout(() => setPreviewStationFeedback(null), 3000)
+                    }}
+                    style={{
+                      background: 'rgba(2, 19, 46, 0.95)',
+                      borderColor: theme.border,
+                      boxShadow: `0 0 8px ${theme.glow}`,
+                    }}
+                    className="group relative flex flex-col items-center justify-center rounded-xl border-2 p-2.5 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md"
+                    title={`Team #${theme.sequenceNo}: ${team.team_name} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}`}
+                  >
+                    {/* Top Row: Sequence Badge & Key */}
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <span
+                        style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
+                        className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs"
+                      >
+                        #{theme.sequenceNo}
+                      </span>
+                      {theme.keyShortcut && (
+                        <span className="text-[9px] font-mono font-bold bg-black/40 text-slate-300 px-1 py-0.2 rounded border border-white/10">
+                          [{theme.keyShortcut}]
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Centered Shortcut Text (Matching User's Screenshot) */}
+                    <span
+                      style={{ color: theme.pillText }}
+                      className="text-lg font-black font-mono tracking-wider drop-shadow-md py-0.5"
+                    >
+                      {shortcut}
+                    </span>
+
+                    {/* Compact Purse */}
+                    <span className="text-[10px] font-mono font-extrabold text-emerald-400 mt-1">
+                      ₹{Number(team.balance || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+              <span>⚡</span>
+              <span>
+                <strong>Live Sync:</strong> Changes to columns will automatically reflect in the live auction broadcast arena and persist when you tap <em>"Save Page Design"</em>.
               </span>
             </p>
           </div>

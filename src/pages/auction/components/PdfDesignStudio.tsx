@@ -9,6 +9,11 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
+  ChevronsUp,
+  ChevronsDown,
+  GripVertical,
+  ArrowUp,
+  ArrowDown,
   Layers,
   Image as ImageIcon,
   Move,
@@ -107,19 +112,19 @@ const DEFAULT_FOOTER_CONFIG: PdfFooterConfig = {
 }
 
 const DEFAULT_CARD_ELEMENTS: Record<string, CardElement> = {
-  player_number: { selected: true, x: 38, y: 6, w: 24, h: 12, font_size: 13, font_family: 'Helvetica-Bold', colour: '#0284c7', align: 'left', bold: true, italic: false, show_label: false, label: 'No:', custom_text: '#1', z: 2 },
-  player_photo: { selected: true, x: 4, y: 6, w: 30, h: 86, font_size: 10, font_family: 'Helvetica', colour: '#000000', align: 'center', bold: false, italic: false, show_label: true, label: '', custom_text: 'PHOTO', z: 2 },
-  name: { selected: true, x: 38, y: 19, w: 58, h: 14, font_size: 14, font_family: 'Helvetica-Bold', colour: '#0f172a', align: 'left', bold: true, italic: false, show_label: false, label: 'Name:', custom_text: 'Virat Kohli', z: 2 },
-  category: { selected: true, x: 62, y: 6, w: 34, h: 12, font_size: 10, font_family: 'Helvetica-Bold', colour: '#7c3aed', align: 'right', bold: true, italic: false, show_label: false, label: 'Cat:', custom_text: 'Icon', z: 2 },
-  base_price: { selected: true, x: 38, y: 44, w: 58, h: 14, font_size: 11, font_family: 'Helvetica-Bold', colour: '#16a34a', align: 'left', bold: true, italic: false, show_label: true, label: 'Base Price:', custom_text: '₹50,000', z: 2 },
-  role: { selected: true, x: 38, y: 32, w: 58, h: 12, font_size: 10, font_family: 'Helvetica', colour: '#334155', align: 'left', bold: false, italic: false, show_label: false, label: 'Role:', custom_text: 'Batsman', z: 2 },
-  location: { selected: true, x: 38, y: 58, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Loc:', custom_text: 'Mumbai', z: 2 },
-  batting: { selected: true, x: 68, y: 58, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Bat:', custom_text: 'RHB', z: 2 },
-  bowling: { selected: true, x: 38, y: 70, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Bowl:', custom_text: 'RAF', z: 2 },
-  mobile: { selected: true, x: 68, y: 70, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Mob:', custom_text: '9876543210', z: 2 },
-  age: { selected: true, x: 38, y: 82, w: 18, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Age:', custom_text: '28', z: 2 },
-  experience: { selected: true, x: 57, y: 82, w: 20, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Exp:', custom_text: '5 Yrs', z: 2 },
-  application_id: { selected: true, x: 78, y: 82, w: 18, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'App ID:', custom_text: '104', z: 2 },
+  player_number: { selected: true, x: 38, y: 6, w: 24, h: 12, font_size: 13, font_family: 'Helvetica-Bold', colour: '#0284c7', align: 'left', bold: true, italic: false, show_label: false, label: 'No:', z: 2 },
+  player_photo: { selected: true, x: 4, y: 6, w: 30, h: 86, font_size: 10, font_family: 'Helvetica', colour: '#000000', align: 'center', bold: false, italic: false, show_label: true, label: '', z: 2 },
+  name: { selected: true, x: 38, y: 19, w: 58, h: 14, font_size: 14, font_family: 'Helvetica-Bold', colour: '#0f172a', align: 'left', bold: true, italic: false, show_label: false, label: 'Name:', z: 2 },
+  category: { selected: true, x: 62, y: 6, w: 34, h: 12, font_size: 10, font_family: 'Helvetica-Bold', colour: '#7c3aed', align: 'right', bold: true, italic: false, show_label: false, label: 'Cat:', z: 2 },
+  base_price: { selected: true, x: 38, y: 44, w: 58, h: 14, font_size: 11, font_family: 'Helvetica-Bold', colour: '#16a34a', align: 'left', bold: true, italic: false, show_label: true, label: 'Base Price:', z: 2 },
+  role: { selected: true, x: 38, y: 32, w: 58, h: 12, font_size: 10, font_family: 'Helvetica', colour: '#334155', align: 'left', bold: false, italic: false, show_label: false, label: 'Role:', z: 2 },
+  location: { selected: true, x: 38, y: 58, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Loc:', z: 2 },
+  batting: { selected: true, x: 68, y: 58, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Bat:', z: 2 },
+  bowling: { selected: true, x: 38, y: 70, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Bowl:', z: 2 },
+  mobile: { selected: true, x: 68, y: 70, w: 28, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Mob:', z: 2 },
+  age: { selected: true, x: 38, y: 82, w: 18, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Age:', z: 2 },
+  experience: { selected: true, x: 57, y: 82, w: 20, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'Exp:', z: 2 },
+  application_id: { selected: true, x: 78, y: 82, w: 18, h: 11, font_size: 9, font_family: 'Helvetica', colour: '#64748b', align: 'left', bold: false, italic: false, show_label: true, label: 'App ID:', z: 2 },
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -161,6 +166,13 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const [accentColour, setAccentColour] = useState<string>('#2563eb')
   const [elements, setElements] = useState<Record<string, CardElement>>(DEFAULT_CARD_ELEMENTS)
   const [selectedKey, setSelectedKey] = useState<string>('name')
+
+  // Dynamic Real Players & Categories
+  const [realPlayers, setRealPlayers] = useState<any[]>([])
+  const [availableCategories, setAvailableCategories] = useState<string[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [draggingListKey, setDraggingListKey] = useState<string | null>(null)
+  const [dragOverListKey, setDragOverListKey] = useState<string | null>(null)
 
   // Adjustable Header & Footer state
   const [headerConfig, setHeaderConfig] = useState<PdfHeaderConfig>(DEFAULT_HEADER_CONFIG)
@@ -380,67 +392,115 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const loadDesign = async () => {
     setLoading(true)
     try {
-      const res = await apiClient.get(`/v1/auction/console/${auctionId}/page_design/`)
-      const d = res.data?.design_json?.pdf_design
-      if (d) {
-        if (d.activeTab) setActiveTab(d.activeTab)
-        if (d.cols) setCols(d.cols)
-        if (d.rows) setRows(d.rows)
-        if (d.element_box_opacity !== undefined) setElementBoxOpacity(Number(d.element_box_opacity))
-        if (d.element_box_bg_color) setElementBoxBgColor(d.element_box_bg_color)
-        if (d.card_fill_opacity !== undefined) setCardFillOpacity(d.card_fill_opacity)
-        if (d.accent_colour) setAccentColour(d.accent_colour)
-        if (d.elements) {
-          // Merge defaults with saved elements including any custom added elements
-          setElements({ ...DEFAULT_CARD_ELEMENTS, ...d.elements })
-        }
-        if (d.header) {
-          setHeaderConfig({ ...DEFAULT_HEADER_CONFIG, ...d.header })
-        }
-        if (d.footer) {
-          setFooterConfig({ ...DEFAULT_FOOTER_CONFIG, ...d.footer })
-        }
+      const [resDesign, resPlayers, resCats] = await Promise.allSettled([
+        apiClient.get(`/v1/auction/console/${auctionId}/page_design/`),
+        apiClient.get(`/v1/auction/players/?auction=${auctionId}`),
+        apiClient.get(`/v1/auction/categories/?auction=${auctionId}`),
+      ])
 
-        const b = d.branding || {}
-        if (typeof b.showTournamentName === 'boolean') setShowTournamentName(b.showTournamentName)
-        if (typeof b.showTournamentLogo === 'boolean') setShowTournamentLogo(b.showTournamentLogo)
-        if (b.logoCount) setLogoCount(b.logoCount)
-        if (b.logoAlignment) setLogoAlignment(b.logoAlignment)
-        if (b.titleMode) setTitleMode(b.titleMode)
-        if (b.showFieldLabelsByDefault) setShowFieldLabelsByDefault(b.showFieldLabelsByDefault)
-        if (b.titleX !== undefined) setTitleX(b.titleX)
-        if (b.titleY !== undefined) setTitleY(b.titleY)
-        if (b.titleWidth !== undefined) setTitleWidth(b.titleWidth)
-        if (b.titleImageName) setTitleImageName(b.titleImageName)
-        if (b.sponsorLogoFiles) setSponsorLogoFiles(b.sponsorLogoFiles)
-        if (b.cardBackgroundImage) setCardBackgroundImage(b.cardBackgroundImage)
-        if (b.pageBackgroundImage) setPageBackgroundImage(b.pageBackgroundImage)
-        if (b.pageBackgroundName) setPageBackgroundName(b.pageBackgroundName)
-        if (b.pageBackgroundOpacity !== undefined) setPageBackgroundOpacity(Number(b.pageBackgroundOpacity))
-        if (b.cardFillOpacity !== undefined) setCardFillOpacity(Number(b.cardFillOpacity))
+      // 1. Process Real Players & Categories
+      let fetchedPlayers: any[] = []
+      if (resPlayers.status === 'fulfilled') {
+        const rawP = resPlayers.value.data
+        fetchedPlayers = Array.isArray(rawP) ? rawP : (rawP?.results || [])
+      }
+      setRealPlayers(fetchedPlayers)
 
-        // Load multiple placed logos
-        if (Array.isArray(b.placedLogos) && b.placedLogos.length > 0) {
-          setPlacedLogos(b.placedLogos)
-          setSelectedLogoId(b.placedLogos[0].id)
-        } else if (Array.isArray(b.logos) && b.logos.length > 0) {
-          setPlacedLogos(b.logos)
-          setSelectedLogoId(b.logos[0].id)
-        } else if (b.customLogoUrl) {
-          const initialLogo: PlacedLogo = {
-            id: 'logo_1',
-            url: b.customLogoUrl,
-            name: b.customLogoName || 'Logo 1',
-            x: Number(b.logoX ?? 4),
-            y: Number(b.logoY ?? 1.5),
-            width: Number(b.logoWidth ?? 10),
+      let dbCats: string[] = []
+      if (resCats.status === 'fulfilled') {
+        const rawC = resCats.value.data
+        const cList = Array.isArray(rawC) ? rawC : (rawC?.results || [])
+        dbCats = cList.map((c: any) => c.name || c).filter(Boolean)
+      }
+      const playerCats = fetchedPlayers.map((p: any) => p.category).filter(Boolean) as string[]
+      const combinedCats = Array.from(new Set([...dbCats, ...playerCats]))
+      setAvailableCategories(combinedCats)
+
+      let initialCat = combinedCats[0] || 'General'
+      const catWithPlayers = combinedCats.find((c) =>
+        fetchedPlayers.some((p) => String(p.category || p.tier || '').trim().toLowerCase() === c.trim().toLowerCase())
+      )
+      if (catWithPlayers) {
+        initialCat = catWithPlayers
+      }
+      setSelectedCategory(initialCat)
+
+      // 2. Process Saved PDF Design with full persistence
+      if (resDesign.status === 'fulfilled') {
+        const rawData = resDesign.value.data?.design_json || resDesign.value.data || {}
+        const d = rawData.pdf_design || (rawData.elements ? rawData : null)
+        if (d) {
+          if (d.activeTab) setActiveTab(d.activeTab)
+          if (d.cols) setCols(d.cols)
+          if (d.rows) setRows(d.rows)
+          if (d.element_box_opacity !== undefined) setElementBoxOpacity(Number(d.element_box_opacity))
+          if (d.element_box_bg_color) setElementBoxBgColor(d.element_box_bg_color)
+          if (d.card_fill_opacity !== undefined) setCardFillOpacity(d.card_fill_opacity)
+          if (d.accent_colour) setAccentColour(d.accent_colour)
+          if (d.card_fill) setCardFill(d.card_fill)
+          if (d.elements) {
+            const cleaned: Record<string, CardElement> = {}
+            for (const [k, el] of Object.entries(d.elements as Record<string, CardElement>)) {
+              const def = DEFAULT_CARD_ELEMENTS[k]
+              const merged = { ...(def || {}), ...el }
+              // Remove legacy hardcoded dummy strings if present from old default saves
+              if (!merged.is_custom && merged.custom_text) {
+                if (['Virat Kohli', 'Icon', '₹50,000', 'Batsman', 'Mumbai', 'RHB', 'RAF', '9876543210', '28', '5 Yrs', '104', '#1'].includes(merged.custom_text.trim())) {
+                  delete merged.custom_text
+                }
+              }
+              cleaned[k] = merged
+            }
+            setElements({ ...DEFAULT_CARD_ELEMENTS, ...cleaned })
           }
-          setPlacedLogos([initialLogo])
-          setSelectedLogoId(initialLogo.id)
+          if (d.header) {
+            setHeaderConfig({ ...DEFAULT_HEADER_CONFIG, ...d.header })
+          }
+          if (d.footer) {
+            setFooterConfig({ ...DEFAULT_FOOTER_CONFIG, ...d.footer })
+          }
+
+          const b = d.branding || {}
+          if (typeof b.showTournamentName === 'boolean') setShowTournamentName(b.showTournamentName)
+          if (typeof b.showTournamentLogo === 'boolean') setShowTournamentLogo(b.showTournamentLogo)
+          if (b.logoCount) setLogoCount(b.logoCount)
+          if (b.logoAlignment) setLogoAlignment(b.logoAlignment)
+          if (b.titleMode) setTitleMode(b.titleMode)
+          if (b.showFieldLabelsByDefault) setShowFieldLabelsByDefault(b.showFieldLabelsByDefault)
+          if (b.titleX !== undefined) setTitleX(b.titleX)
+          if (b.titleY !== undefined) setTitleY(b.titleY)
+          if (b.titleWidth !== undefined) setTitleWidth(b.titleWidth)
+          if (b.titleImageName) setTitleImageName(b.titleImageName)
+          if (b.sponsorLogoFiles) setSponsorLogoFiles(b.sponsorLogoFiles)
+          if (b.cardBackgroundImage) setCardBackgroundImage(b.cardBackgroundImage)
+          if (b.pageBackgroundImage) setPageBackgroundImage(b.pageBackgroundImage)
+          if (b.pageBackgroundName) setPageBackgroundName(b.pageBackgroundName)
+          if (b.pageBackgroundOpacity !== undefined) setPageBackgroundOpacity(Number(b.pageBackgroundOpacity))
+          if (b.cardFillOpacity !== undefined) setCardFillOpacity(Number(b.cardFillOpacity))
+
+          // Load multiple placed logos
+          if (Array.isArray(b.placedLogos) && b.placedLogos.length > 0) {
+            setPlacedLogos(b.placedLogos)
+            setSelectedLogoId(b.placedLogos[0].id)
+          } else if (Array.isArray(b.logos) && b.logos.length > 0) {
+            setPlacedLogos(b.logos)
+            setSelectedLogoId(b.logos[0].id)
+          } else if (b.customLogoUrl) {
+            const initialLogo: PlacedLogo = {
+              id: 'logo_1',
+              url: b.customLogoUrl,
+              name: b.customLogoName || 'Logo 1',
+              x: Number(b.logoX ?? 4),
+              y: Number(b.logoY ?? 1.5),
+              width: Number(b.logoWidth ?? 10),
+            }
+            setPlacedLogos([initialLogo])
+            setSelectedLogoId(initialLogo.id)
+          }
         }
       }
     } catch (err) {
-      console.error('Failed to load PDF design', err)
+      console.error('Failed to load PDF design or players', err)
     } finally {
       setLoading(false)
     }
@@ -526,10 +586,12 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     setSaveSuccess(false)
     try {
       const res = await apiClient.get(`/v1/auction/console/${auctionId}/page_design/`)
-      const currentJson = res.data?.design_json || {}
-      currentJson.pdf_design = getDesignPayload()
+      const currentJson = ((res.data?.design_json || res.data || {}) as Record<string, any>)
+      const payload = getDesignPayload()
+      currentJson.pdf_design = payload
       await apiClient.post(`/v1/auction/console/${auctionId}/page_design/`, {
         design_json: currentJson,
+        pdf_design: payload,
       })
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
@@ -547,10 +609,11 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
       // Auto-save latest design payload before download
       try {
         const resDesign = await apiClient.get(`/v1/auction/console/${auctionId}/page_design/`)
-        const currentJson = resDesign.data?.design_json || {}
+        const currentJson = ((resDesign.data?.design_json || resDesign.data || {}) as Record<string, any>)
         currentJson.pdf_design = payload
         await apiClient.post(`/v1/auction/console/${auctionId}/page_design/`, {
           design_json: currentJson,
+          pdf_design: payload,
         })
       } catch (saveErr) {
         console.warn('Auto-save before export skipped:', saveErr)
@@ -689,8 +752,147 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     setSelectedKey('name')
   }
 
+  const reorderElements = (draggedKey: string, targetKey: string) => {
+    if (draggedKey === targetKey) return
+    const entries = Object.entries(elements)
+    const draggedIdx = entries.findIndex(([k]) => k === draggedKey)
+    const targetIdx = entries.findIndex(([k]) => k === targetKey)
+    if (draggedIdx === -1 || targetIdx === -1) return
+
+    const [item] = entries.splice(draggedIdx, 1)
+    entries.splice(targetIdx, 0, item)
+
+    const newObj: Record<string, CardElement> = {}
+    entries.forEach(([k, v]) => {
+      newObj[k] = v
+    })
+    setElements(newObj)
+  }
+
+  const moveElementToTop = (key: string) => {
+    const entries = Object.entries(elements)
+    const idx = entries.findIndex(([k]) => k === key)
+    if (idx <= 0) return
+    const [item] = entries.splice(idx, 1)
+    entries.unshift(item)
+
+    const maxZ = Math.max(...Object.values(elements).map((el) => el.z || 2), 2)
+    const newObj: Record<string, CardElement> = {}
+    entries.forEach(([k, v]) => {
+      newObj[k] = k === key ? { ...v, z: maxZ + 1 } : v
+    })
+    setElements(newObj)
+    setSelectedKey(key)
+  }
+
+  const moveElementToBottom = (key: string) => {
+    const entries = Object.entries(elements)
+    const idx = entries.findIndex(([k]) => k === key)
+    if (idx === -1 || idx === entries.length - 1) return
+    const [item] = entries.splice(idx, 1)
+    entries.push(item)
+
+    const minZ = Math.min(...Object.values(elements).map((el) => el.z || 2), 2)
+    const newObj: Record<string, CardElement> = {}
+    entries.forEach(([k, v]) => {
+      newObj[k] = k === key ? { ...v, z: Math.max(1, minZ - 1) } : v
+    })
+    setElements(newObj)
+    setSelectedKey(key)
+  }
+
+  const moveElementUp = (key: string) => {
+    const entries = Object.entries(elements)
+    const idx = entries.findIndex(([k]) => k === key)
+    if (idx <= 0) return
+    const prev = entries[idx - 1]
+    entries[idx - 1] = entries[idx]
+    entries[idx] = prev
+
+    const newObj: Record<string, CardElement> = {}
+    entries.forEach(([k, v]) => {
+      newObj[k] = v
+    })
+    setElements(newObj)
+  }
+
+  const moveElementDown = (key: string) => {
+    const entries = Object.entries(elements)
+    const idx = entries.findIndex(([k]) => k === key)
+    if (idx === -1 || idx >= entries.length - 1) return
+    const next = entries[idx + 1]
+    entries[idx + 1] = entries[idx]
+    entries[idx] = next
+
+    const newObj: Record<string, CardElement> = {}
+    entries.forEach(([k, v]) => {
+      newObj[k] = v
+    })
+    setElements(newObj)
+  }
+
+  const snapElementToCardTop = (key: string) => {
+    const maxZ = Math.max(...Object.values(elements).map((el) => el.z || 2), 2)
+    setElements((prev) => {
+      const cur = prev[key]
+      if (!cur) return prev
+      return {
+        ...prev,
+        [key]: {
+          ...cur,
+          y: 6,
+          z: maxZ + 1,
+        },
+      }
+    })
+  }
+
+  const snapElementToCardBottom = (key: string) => {
+    setElements((prev) => {
+      const cur = prev[key]
+      if (!cur) return prev
+      return {
+        ...prev,
+        [key]: {
+          ...cur,
+          y: Math.max(0, 96 - cur.h),
+        },
+      }
+    })
+  }
+
+  const bringElementToFront = (key: string) => {
+    const maxZ = Math.max(...Object.values(elements).map((el) => el.z || 2), 2)
+    setElements((prev) => {
+      const cur = prev[key]
+      if (!cur) return prev
+      return {
+        ...prev,
+        [key]: {
+          ...cur,
+          z: maxZ + 1,
+        },
+      }
+    })
+  }
+
+  const sendElementToBack = (key: string) => {
+    const minZ = Math.min(...Object.values(elements).map((el) => el.z || 2), 2)
+    setElements((prev) => {
+      const cur = prev[key]
+      if (!cur) return prev
+      return {
+        ...prev,
+        [key]: {
+          ...cur,
+          z: Math.max(1, minZ - 1),
+        },
+      }
+    })
+  }
+
   const selectedEl = elements[selectedKey] || elements.name
-  const sampleCount = Math.min(cols * rows, 12)
+  const sampleCount = cols * rows
 
   return (
     <div className="space-y-6">
@@ -1070,9 +1272,11 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                 </div>
               </div>
 
-              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
                 {Object.entries(elements).map(([key, el]) => {
                   const isSel = selectedKey === key
+                  const isDragOver = dragOverListKey === key
+                  const isBeingDragged = draggingListKey === key
                   const displayName = el.is_custom
                     ? (el.label || 'Custom Box')
                     : (FIELD_LABELS[key] || key.replace('_', ' ').toUpperCase())
@@ -1080,43 +1284,114 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   return (
                     <div
                       key={key}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', key)
+                        setDraggingListKey(key)
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = 'move'
+                        if (dragOverListKey !== key) setDragOverListKey(key)
+                      }}
+                      onDragLeave={() => {
+                        if (dragOverListKey === key) setDragOverListKey(null)
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        const src = e.dataTransfer.getData('text/plain') || draggingListKey
+                        if (src && src !== key) {
+                          reorderElements(src, key)
+                        }
+                        setDraggingListKey(null)
+                        setDragOverListKey(null)
+                      }}
                       onClick={() => setSelectedKey(key)}
-                      className={`flex items-center justify-between p-2 rounded-xl cursor-pointer text-xs transition ${
-                        isSel
-                          ? 'bg-indigo-50 border border-indigo-300 text-indigo-950 font-bold shadow-xs'
-                          : 'bg-slate-50/70 hover:bg-slate-100 border border-transparent text-slate-700'
+                      className={`flex items-center justify-between p-2 rounded-xl cursor-pointer text-xs transition border ${
+                        isBeingDragged
+                          ? 'opacity-40 bg-indigo-100 border-indigo-400 border-dashed'
+                          : isDragOver
+                          ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-400/40'
+                          : isSel
+                          ? 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold shadow-xs'
+                          : 'bg-slate-50/70 hover:bg-slate-100 border-transparent text-slate-700'
                       }`}
                     >
-                      <label
-                        className="flex items-center gap-2 cursor-pointer flex-1"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={el.selected}
-                          onChange={(e) => updateProp(key, 'selected', e.target.checked)}
-                          className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5"
-                        />
-                        <span className="truncate">{displayName}</span>
-                        {el.is_custom && (
-                          <span className="text-[9px] bg-purple-100 text-purple-700 font-bold px-1.5 py-0.2 rounded">
-                            Custom
-                          </span>
-                        )}
-                      </label>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        {/* Drag Handle */}
+                        <div
+                          className="cursor-grab active:cursor-grabbing p-0.5 text-slate-400 hover:text-indigo-600 rounded"
+                          title="Drag up or down to reorder box"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <GripVertical className="w-3.5 h-3.5" />
+                        </div>
 
-                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <label
+                          className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={el.selected}
+                            onChange={(e) => updateProp(key, 'selected', e.target.checked)}
+                            className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5 shrink-0"
+                          />
+                          <span className="truncate">{displayName}</span>
+                          {el.is_custom && (
+                            <span className="text-[9px] bg-purple-100 text-purple-700 font-bold px-1.5 py-0.2 rounded shrink-0">
+                              Custom
+                            </span>
+                          )}
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {/* Reorder Buttons: Top, Up, Down */}
+                        <button
+                          type="button"
+                          onClick={() => moveElementToTop(key)}
+                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-white rounded transition"
+                          title="Take box to the top"
+                        >
+                          <ChevronsUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveElementUp(key)}
+                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-white rounded transition"
+                          title="Move Up"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveElementDown(key)}
+                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-white rounded transition"
+                          title="Move Down"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveElementToBottom(key)}
+                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-white rounded transition"
+                          title="Take box to the bottom"
+                        >
+                          <ChevronsDown className="w-3.5 h-3.5" />
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => updateProp(key, 'show_label', !el.show_label)}
-                          className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold transition ${
+                          className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold transition ml-1 ${
                             el.show_label
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                               : 'bg-slate-200 text-slate-600'
                           }`}
                           title="Toggle prefix label"
                         >
-                          Label: {el.show_label ? 'ON' : 'OFF'}
+                          {el.show_label ? 'LBL: ON' : 'LBL: OFF'}
                         </button>
                         {el.is_custom && (
                           <button
@@ -1148,6 +1423,47 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   </span>
                 </div>
 
+                {/* Quick Reorder & Layer Action Buttons */}
+                <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-2 flex flex-wrap items-center justify-between gap-1.5">
+                  <span className="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5 text-indigo-600" /> Quick Move & Layer:
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => snapElementToCardTop(selectedKey)}
+                      className="px-2 py-1 bg-white hover:bg-indigo-600 hover:text-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg shadow-2xs transition flex items-center gap-1"
+                      title="Snap box to top of card (Y: 6%)"
+                    >
+                      <ArrowUp className="w-3 h-3" /> Take on Top
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => snapElementToCardBottom(selectedKey)}
+                      className="px-2 py-1 bg-white hover:bg-indigo-600 hover:text-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg shadow-2xs transition flex items-center gap-1"
+                      title="Snap box to bottom of card"
+                    >
+                      <ArrowDown className="w-3 h-3" /> To Bottom
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => bringElementToFront(selectedKey)}
+                      className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg shadow-2xs transition flex items-center gap-1"
+                      title="Bring layer to front"
+                    >
+                      Front Layer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => sendElementToBack(selectedKey)}
+                      className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg shadow-2xs transition flex items-center gap-1"
+                      title="Send layer to back"
+                    >
+                      Back Layer
+                    </button>
+                  </div>
+                </div>
+
                 {/* Text customization: Label / Prefix and Custom / Sample Value */}
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
@@ -1163,12 +1479,12 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                      Text / Sample Value
+                      {selectedEl.is_custom ? 'Custom Text' : 'Text Override (Dynamic by default)'}
                     </label>
                     <Input
                       value={selectedEl.custom_text ?? ''}
                       onChange={(e) => updateProp(selectedKey, 'custom_text', e.target.value)}
-                      placeholder="e.g. Virat Kohli"
+                      placeholder={selectedEl.is_custom ? 'Enter custom text' : 'Leave blank for dynamic player data'}
                       className="bg-white border-slate-200 text-xs h-8"
                     />
                   </div>
@@ -1778,14 +2094,68 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
           {/* Interactive Live Page Preview (Right 7 cols) */}
           <div className="lg:col-span-7 space-y-3">
-            <div className="flex items-center justify-between text-xs text-slate-600">
-              <span className="font-bold text-zinc-900 flex items-center gap-1.5">
-                <Grid className="w-4 h-4 text-indigo-600" />
-                Live Page Grid Preview ({cols} Columns × {rows} Rows)
-              </span>
-              <span className="text-[11px] text-slate-500 font-semibold">
-                Page 1 • {cols * rows} Cards per Page
-              </span>
+            {/* Category / Auction Format Status Bar */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-zinc-900 flex items-center gap-1.5 text-xs">
+                  <Grid className="w-4 h-4 text-indigo-600" />
+                  Live Page Grid Preview ({cols} Cols × {rows} Rows • {sampleCount} Cards)
+                </span>
+
+                {activeTab === 'category' ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-700">Preview Category:</span>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => {
+                        const newCat = e.target.value
+                        setSelectedCategory(newCat)
+                        if (!headerConfig.title || headerConfig.title.startsWith('Category:')) {
+                          setHeaderConfig((prev) => ({ ...prev, title: `Category: ${newCat}` }))
+                        }
+                      }}
+                      className="text-xs font-bold bg-indigo-50/80 border border-indigo-300 rounded-lg px-2.5 py-1 text-indigo-900 shadow-2xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {availableCategories.length > 0 ? (
+                        availableCategories.map((cat) => {
+                          const count = realPlayers.filter(
+                            (p) => String(p.category || p.tier || '').trim().toLowerCase() === cat.trim().toLowerCase()
+                          ).length
+                          return (
+                            <option key={cat} value={cat}>
+                              {cat} ({count} {count === 1 ? 'Player' : 'Players'})
+                            </option>
+                          )
+                        })
+                      ) : (
+                        <option value="General">General (0 Players)</option>
+                      )}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                    Auction Format: Showing {realPlayers.length} Roster Players in Sequential Lot Order
+                  </div>
+                )}
+              </div>
+
+              {activeTab === 'category' && (
+                <div className="flex items-center justify-between text-[11px] text-slate-500 px-1 pt-1 border-t border-slate-100">
+                  <span>
+                    Viewing category: <strong className="text-indigo-900">{selectedCategory}</strong>
+                  </span>
+                  <span>
+                    <strong>
+                      {
+                        realPlayers.filter(
+                          (p) => String(p.category || p.tier || '').trim().toLowerCase() === selectedCategory.trim().toLowerCase()
+                        ).length
+                      }
+                    </strong>{' '}
+                    real player(s) in this category
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* A4 Paper Simulation Canvas */}
@@ -1873,7 +2243,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                         className="font-extrabold uppercase tracking-wide truncate"
                         style={{ fontSize: `${headerConfig.font_size}px` }}
                       >
-                        {headerConfig.title || (activeTab === 'category' ? 'Category: Icon Players' : 'Auction Format Order')}
+                        {headerConfig.title || (activeTab === 'category' ? `Category: ${selectedCategory || 'Icon Players'}` : 'Auction Format Order')}
                       </span>
                     </div>
 
@@ -1896,6 +2266,46 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                 >
                   {Array.from({ length: sampleCount }).map((_, cIdx) => {
                     const isTemplate = cIdx === 0
+                    const categoryPlayers = realPlayers.filter(
+                      (p) => String(p.category || p.tier || '').trim().toLowerCase() === selectedCategory.trim().toLowerCase()
+                    )
+                    const displayedPlayers = activeTab === 'category' ? categoryPlayers : realPlayers
+                    const p = displayedPlayers[cIdx]
+
+                    // If not template and no player at this index, render an empty slot card:
+                    if (!p && !isTemplate) {
+                      return (
+                        <div
+                          key={cIdx}
+                          className="relative rounded-lg border border-dashed border-slate-300 bg-slate-50/50 p-2 flex flex-col items-center justify-center text-center select-none"
+                          style={{ borderColor: hexToRgba(accentColour, 0.3) }}
+                        >
+                          <div className="w-7 h-7 rounded-full bg-slate-200/80 text-slate-500 font-black text-xs flex items-center justify-center mb-1">
+                            #{cIdx + 1}
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400">Card Slot #{cIdx + 1}</span>
+                          <span className="text-[9px] text-slate-400 font-medium">Available Slot</span>
+                        </div>
+                      )
+                    }
+
+                    // Dynamic values from real player
+                    const pNum = p ? (p.serial_no != null ? `#${p.serial_no}` : `#${cIdx + 1}`) : `#${cIdx + 1}`
+                    const pUser = p?.player
+                    const pName = p
+                      ? (p.player_name || p.name || pUser?.full_name || pUser?.first_name || pUser?.username || `Player #${p.serial_no || cIdx + 1}`)
+                      : (displayedPlayers.length === 0 ? `(No Players in ${selectedCategory || 'Category'})` : `Player #${cIdx + 1}`)
+                    const pCat = p ? (p.category || p.tier || selectedCategory || 'Category') : (selectedCategory || 'Category')
+                    const pRole = p ? (p.role || p.player_skills || 'All-Rounder') : 'Role'
+                    const pPrice = p ? (p.base_price != null ? `₹${Number(p.base_price).toLocaleString('en-IN')}` : '₹0') : '₹0'
+                    const pLoc = p ? (p.location || '—') : '—'
+                    const pBat = p ? (p.batting_style || '—') : '—'
+                    const pBowl = p ? (p.bowling_style || '—') : '—'
+                    const pMob = p ? (p.mobile || '—') : '—'
+                    const pAge = p ? (p.age != null ? String(p.age) : '—') : '—'
+                    const pExp = p ? (p.custom_data?.experience || p.experience || '—') : '—'
+                    const pAppId = p ? (p.custom_data?.application_id || p.application_id || (p.id ? String(p.id).slice(0, 8) : `#${cIdx + 1}`)) : `#${cIdx + 1}`
+                    const pPhoto = p ? (p.photo_url || p.photo || '') : ''
 
                     return (
                       <div
@@ -1928,22 +2338,23 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                           const isDraggingThis = isTemplate && draggingElementKey === key
 
                           // Determine displayed text
-                          let valText = el.custom_text ?? ''
-                          if (!valText) {
-                            if (key === 'player_number') valText = `#${cIdx + 1}`
-                            else if (key === 'name') valText = 'Virat Kohli'
-                            else if (key === 'category') valText = 'Icon'
-                            else if (key === 'role') valText = 'Batsman'
-                            else if (key === 'base_price') valText = '₹50,000'
-                            else if (key === 'location') valText = 'Mumbai'
-                            else if (key === 'batting') valText = 'RHB'
-                            else if (key === 'bowling') valText = 'RAF'
-                            else if (key === 'mobile') valText = '9876543210'
-                            else if (key === 'age') valText = '28'
-                            else if (key === 'experience') valText = '5 Yrs'
-                            else if (key === 'application_id') valText = '104'
-                            else valText = el.label || 'Text'
-                          }
+                          let valText = ''
+                          if (el.custom_text) {
+                            valText = el.custom_text
+                          } else if (key === 'player_number') valText = pNum
+                          else if (key === 'name') valText = pName
+                          else if (key === 'category') valText = pCat
+                          else if (key === 'role') valText = pRole
+                          else if (key === 'base_price') valText = pPrice
+                          else if (key === 'location') valText = pLoc
+                          else if (key === 'batting') valText = pBat
+                          else if (key === 'bowling') valText = pBowl
+                          else if (key === 'mobile') valText = pMob
+                          else if (key === 'age') valText = pAge
+                          else if (key === 'experience') valText = pExp
+                          else if (key === 'application_id') valText = pAppId
+                          else if (p && p.custom_data && p.custom_data[key]) valText = String(p.custom_data[key])
+                          else valText = el.label || ''
 
                           const labelText = el.show_label && el.label ? `${el.label} ` : ''
                           const displayText = isPhoto ? (el.show_label ? 'PHOTO' : '') : `${labelText}${valText}`
@@ -2005,15 +2416,23 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                                   : undefined
                               }
                             >
-                              <span className="truncate w-full pointer-events-none" style={{ textAlign: el.align }}>
-                                {displayText}
-                              </span>
+                              {isPhoto && pPhoto ? (
+                                <img
+                                  src={pPhoto}
+                                  alt={pName}
+                                  className="w-full h-full object-cover rounded pointer-events-none"
+                                />
+                              ) : (
+                                <span className="truncate w-full pointer-events-none" style={{ textAlign: el.align }}>
+                                  {displayText}
+                                </span>
+                              )}
 
-                              {/* Active selection badge with coordinates & opacity control */}
+                              {/* Active selection badge with coordinates, top/bottom move & opacity control */}
                               {isSelectedElement && (
                                 <>
                                   <div
-                                    className="absolute -top-7 left-0 bg-indigo-950/95 text-white text-[8px] font-mono px-2 py-0.5 rounded-md shadow-xl whitespace-nowrap z-50 flex items-center gap-1.5 pointer-events-auto border border-indigo-400/50 backdrop-blur-xs select-none"
+                                    className="absolute -top-7 left-0 bg-indigo-950/95 text-white text-[8px] font-mono px-2 py-0.5 rounded-md shadow-xl whitespace-nowrap z-50 flex items-center gap-1 pointer-events-auto border border-indigo-400/50 backdrop-blur-xs select-none"
                                     onClick={(e) => e.stopPropagation()}
                                     onMouseDown={(e) => e.stopPropagation()}
                                   >
@@ -2021,6 +2440,30 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                                       <Move className="w-2.5 h-2.5" />
                                       {Math.round(el.x)}%, {Math.round(el.y)}%
                                     </span>
+                                    <span className="text-indigo-400/60">|</span>
+                                    {/* Snap to Top / Bottom */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        snapElementToCardTop(key)
+                                      }}
+                                      className="px-1.5 py-0.5 rounded bg-indigo-700 hover:bg-indigo-600 active:scale-95 text-[8px] font-bold text-white transition flex items-center gap-0.5 border border-indigo-500/60"
+                                      title="Take box to top of card (Y: 6%)"
+                                    >
+                                      🔝 Top
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        snapElementToCardBottom(key)
+                                      }}
+                                      className="px-1.5 py-0.5 rounded bg-indigo-700 hover:bg-indigo-600 active:scale-95 text-[8px] font-bold text-white transition flex items-center gap-0.5 border border-indigo-500/60"
+                                      title="Take box to bottom of card"
+                                    >
+                                      ⬇ Bottom
+                                    </button>
                                     <span className="text-indigo-400/60">|</span>
                                     <span className="font-sans font-bold text-slate-200">Opacity:</span>
                                     <button
@@ -2034,7 +2477,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                                     >
                                       -
                                     </button>
-                                    <span className="font-mono font-bold text-amber-300 min-w-[26px] text-center">
+                                    <span className="font-mono font-bold text-amber-300 min-w-[24px] text-center">
                                       {boxOpacity}%
                                     </span>
                                     <button
@@ -2057,7 +2500,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                                       className="bg-indigo-600 hover:bg-indigo-500 text-[8px] font-sans font-bold px-1.5 py-0.5 rounded text-white shadow-2xs hover:scale-105 active:scale-95 transition ml-0.5"
                                       title="Apply this box's opacity to ALL boxes across every card"
                                     >
-                                      All Boxes
+                                      All
                                     </button>
                                   </div>
 

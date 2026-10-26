@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { apiClient } from '@/api/apiClient'
 import { useLiveAuctionState } from '../hooks/useLiveAuctionState'
 import { type ActionButtonConfig, DEFAULT_ACTION_BUTTONS, DEFAULT_PAGE_DESIGN } from './AuctionPageDesigner'
+import { getTeamTheme, getTeamShortcut } from './teamThemeUtils'
 
 interface LiveBroadcastConsoleProps {
   auctionId: string
@@ -36,6 +37,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
   } = useLiveAuctionState(auctionId, 1200)
 
   const [pageDesign, setPageDesign] = useState<any>(null)
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [customBidAmount, setCustomBidAmount] = useState<number>(0)
   const [customBidTeamId, setCustomBidTeamId] = useState<string>('')
   const [isCustomBidModalOpen, setIsCustomBidModalOpen] = useState(false)
@@ -51,6 +53,45 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
   const [categories, setCategories] = useState<string[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
   const customBidInputId = useId()
+
+  const handleUpdateColumns = async (cols: number) => {
+    const updated = {
+      ...(pageDesign || DEFAULT_PAGE_DESIGN),
+      zones: {
+        ...(pageDesign?.zones || DEFAULT_PAGE_DESIGN.zones),
+        team_columns: cols,
+      },
+    }
+    setPageDesign(updated)
+    try {
+      await apiClient.post(`/v1/auction/console/${auctionId}/page_design/`, {
+        design_json: updated,
+      })
+    } catch (e) {
+      console.warn('Auto-save columns failed, state maintained in session', e)
+    }
+  }
+
+  const handleTeamSelectAndBid = (teamId: string) => {
+    setSelectedTeamId(teamId)
+    setCustomBidTeamId(teamId)
+    const isLeading = highestBid?.team_id === teamId
+    const teamObj = state?.teams?.find((t) => t.team_id === teamId)
+    const isExceeded = teamObj ? currentBid > teamObj.max_bid : false
+    if (!actionLoading && player && !isLeading && !isExceeded) {
+      handleQuickBid(teamId)
+    } else if (isLeading) {
+      setFeedbackMessage({
+        text: `${teamObj?.short_name || teamObj?.team_name || 'Team'} is currently leading the bid!`,
+        type: 'success',
+      })
+    } else if (isExceeded) {
+      setFeedbackMessage({
+        text: `${teamObj?.short_name || teamObj?.team_name || 'Team'} has exceeded purse/max bid limit!`,
+        type: 'error',
+      })
+    }
+  }
 
   const actionButtons: ActionButtonConfig[] =
     pageDesign?.zones?.action_buttons && Array.isArray(pageDesign.zones.action_buttons)
@@ -86,9 +127,16 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullScreen) {
-        setIsFullScreen(false)
-        return
+      if (e.key === 'Escape') {
+        if (isCustomBidModalOpen) {
+          e.preventDefault()
+          setIsCustomBidModalOpen(false)
+          return
+        }
+        if (isFullScreen) {
+          setIsFullScreen(false)
+          return
+        }
       }
 
       // Do not trigger shortcuts when typing in inputs/textareas/selects
@@ -101,6 +149,22 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
           target.isContentEditable)
       if (isInput) return
 
+      // Sequential Numeric Shortcut Keys: 1..9, 0 (Key 1 -> Team 1, Key 2 -> Team 2, etc.)
+      const numKeyMatch = e.code?.match(/^(?:Digit|Numpad)([0-9])$/) || e.key.match(/^([0-9])$/)
+      if (numKeyMatch && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const rawNum = parseInt(numKeyMatch[1], 10)
+        // '1'..'9' maps to index 0..8, '0' maps to index 9 (10th team)
+        const teamIndex = rawNum === 0 ? 9 : rawNum - 1
+        const teams = state?.teams || []
+        if (teamIndex >= 0 && teamIndex < teams.length) {
+          e.preventDefault()
+          const targetTeam = teams[teamIndex]
+          handleTeamSelectAndBid(targetTeam.team_id)
+          return
+        }
+      }
+
+      // Global Action Buttons
       if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         if (!actionLoading && player && highestBid) {
           e.preventDefault()
@@ -121,11 +185,23 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
           e.preventDefault()
           handleUndoSale()
         }
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+        // Team Shortcut Letter matching (e.g. typing 'M' triggers 'MI', etc.)
+        const keyUpper = e.key.toUpperCase()
+        const teams = state?.teams || []
+        const matchedTeam = teams.find((t) => {
+          const sc = getTeamShortcut(t.team_name, t.short_name).toUpperCase()
+          return sc === keyUpper || sc.startsWith(keyUpper)
+        })
+        if (matchedTeam) {
+          e.preventDefault()
+          handleTeamSelectAndBid(matchedTeam.team_id)
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isFullScreen, actionLoading, state?.active_player, state?.highest_bid])
+  }, [isFullScreen, isCustomBidModalOpen, actionLoading, state?.active_player, state?.highest_bid, state?.teams])
 
   const toggleBrowserFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -339,7 +415,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
   const openCustomBidModal = () => {
     setCustomBidStep(1)
     setCustomBidAmount(currentBid > 0 ? currentBid + 50000 : (player?.base_price || 10000))
-    if (state?.teams && state.teams.length > 0) {
+    if (selectedTeamId) {
+      setCustomBidTeamId(selectedTeamId)
+    } else if (state?.teams && state.teams.length > 0) {
       setCustomBidTeamId(state.teams[0].team_id)
     }
     setIsCustomBidModalOpen(true)
@@ -912,17 +990,47 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
             </div>
           </div>
 
-          {/* Franchise Quick Bid Grid with Dynamic Team Columns */}
+          {/* Franchise Quick Bid Grid with Dynamic Team Columns & Real-time Dropdown */}
           <div
             className="rounded-2xl border border-slate-800 p-5 shadow-xl"
             style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
           >
-            <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
-              <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
                 <Shield className="h-4 w-4 text-amber-400" />
-                Franchise Bidding Stations ({pageDesign?.zones?.team_columns || 4} Columns)
-              </h3>
-              <span className="text-xs text-slate-300 font-medium">Click station to place next slab bid</span>
+                <h3 className="text-sm font-extrabold uppercase tracking-wider text-white">
+                  Franchise Bidding Stations ({pageDesign?.zones?.team_columns || 4} Columns)
+                </h3>
+                <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+                  {state?.teams?.length || 0} Teams
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Real-time Franchise Columns Dropdown Selector */}
+                <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 px-2.5 py-1 rounded-xl">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">Columns:</span>
+                  <select
+                    value={pageDesign?.zones?.team_columns || 4}
+                    onChange={(e) => handleUpdateColumns(Number(e.target.value))}
+                    className="bg-transparent text-amber-400 font-black text-xs cursor-pointer focus:outline-none"
+                  >
+                    <option value={2} className="bg-slate-900 text-white">2 Columns</option>
+                    <option value={3} className="bg-slate-900 text-white">3 Columns</option>
+                    <option value={4} className="bg-slate-900 text-white">4 Columns (Standard)</option>
+                    <option value={5} className="bg-slate-900 text-white">5 Columns</option>
+                    <option value={6} className="bg-slate-900 text-white">6 Columns</option>
+                    <option value={7} className="bg-slate-900 text-white">7 Columns</option>
+                    <option value={8} className="bg-slate-900 text-white">8 Columns</option>
+                    <option value={10} className="bg-slate-900 text-white">10 Columns</option>
+                    <option value={12} className="bg-slate-900 text-white">12 Columns</option>
+                    <option value={14} className="bg-slate-900 text-white">14 Columns</option>
+                  </select>
+                </div>
+                <span className="text-xs text-slate-300 font-medium hidden sm:inline">
+                  Tap shortcut/card or press Key 1-9 to bid
+                </span>
+              </div>
             </div>
 
             <div
@@ -934,41 +1042,67 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
                 )}, minmax(0, 1fr))`,
               }}
             >
-              {state?.teams?.map((team) => {
+              {state?.teams?.map((team, idx) => {
                 const isLeading = highestBid?.team_id === team.team_id
                 const isExceeded = currentBid > team.max_bid
+                const isSelected = selectedTeamId === team.team_id
+                const theme = getTeamTheme(idx, state.teams.length)
+                const shortcut = getTeamShortcut(team.team_name, team.short_name)
 
                 return (
                   <button
                     key={team.team_id}
-                    onClick={() => handleQuickBid(team.team_id)}
+                    onClick={() => handleTeamSelectAndBid(team.team_id)}
                     disabled={actionLoading || !player || isLeading || isExceeded}
-                    className={`relative flex flex-col rounded-xl border p-3 text-left transition-all ${
+                    style={{
+                      background: isLeading
+                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(30, 20, 5, 0.95) 100%)'
+                        : 'rgba(2, 19, 46, 0.95)',
+                      borderColor: isLeading
+                        ? '#F59E0B'
+                        : isSelected
+                        ? theme.accentHover
+                        : theme.border,
+                      boxShadow: isLeading
+                        ? '0 0 18px rgba(245, 158, 11, 0.5)'
+                        : isSelected
+                        ? `0 0 14px ${theme.glow}`
+                        : `0 0 8px ${theme.glow}`,
+                    }}
+                    className={`group relative flex flex-col items-center justify-center rounded-xl border-2 p-2.5 transition-all cursor-pointer ${
                       isLeading
-                        ? 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500'
+                        ? 'ring-2 ring-amber-400'
                         : isExceeded
-                        ? 'border-red-900/30 bg-red-950/10 opacity-50 cursor-not-allowed'
-                        : 'border-white/15 bg-white/10 hover:border-amber-500/60 hover:bg-white/15'
+                        ? 'opacity-40 cursor-not-allowed grayscale'
+                        : 'hover:scale-105 active:scale-95 hover:brightness-125'
                     }`}
+                    title={`Team #${theme.sequenceNo} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-white text-sm truncate">{team.short_name}</span>
+                    {/* Top Row: Sequence Badge & Key */}
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <span
+                        style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
+                        className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs"
+                      >
+                        #{theme.sequenceNo}
+                      </span>
+                      {theme.keyShortcut && (
+                        <span className="text-[9px] font-mono text-slate-300 font-bold bg-black/40 px-1 py-0.2 rounded border border-white/10">
+                          [{theme.keyShortcut}]
+                        </span>
+                      )}
                       {isLeading && (
-                        <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                        <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-ping ml-auto" />
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-300 truncate mt-0.5">{team.team_name}</span>
 
-                    <div className="mt-3 border-t border-white/10 pt-2 flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-400">Purse:</span>
-                        <p className="font-mono text-emerald-400 font-bold">₹{team.balance.toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400">Max Bid:</span>
-                        <p className="font-mono text-amber-300 font-bold">₹{team.max_bid.toLocaleString()}</p>
-                      </div>
-                    </div>
+                    {/* Centered Shortcut Text (Matching User's Screenshot) */}
+                    <span
+                      style={{ color: isLeading ? '#FDE047' : theme.pillText }}
+                      className="text-lg font-black font-mono tracking-wider drop-shadow-md py-1"
+                    >
+                      {shortcut}
+                    </span>
                   </button>
                 )
               })}
@@ -1044,81 +1178,6 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
           </div>
         </div>
       </div>
-
-      {/* 2-Step Custom Bid Modal */}
-      <AnimatePresence>
-        {isCustomBidModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md rounded-2xl border border-amber-500/30 bg-slate-900 p-6 shadow-2xl"
-            >
-              <h3 className="text-lg font-bold text-white mb-2">Two-Step Custom Bid</h3>
-              <p className="text-xs text-slate-400 mb-4">
-                Step {customBidStep} of 2: {customBidStep === 1 ? 'Enter Valid Amount' : 'Select Bidding Team'}
-              </p>
-
-              {customBidStep === 1 ? (
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor={customBidInputId} className="text-xs text-slate-300 mb-1 block">Custom Amount (₹)</label>
-                    <Input
-                      id={customBidInputId}
-                      type="number"
-                      value={customBidAmount}
-                      onChange={(e) => setCustomBidAmount(parseFloat(e.target.value) || 0)}
-                      className="border-white/20 bg-white/5 font-mono text-lg text-amber-400"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="ghost" onClick={() => setIsCustomBidModalOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => setCustomBidStep(2)}
-                      disabled={customBidAmount <= currentBid}
-                      className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-400"
-                    >
-                      Next: Choose Team <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs text-slate-300 mb-1 block">Select Franchise</label>
-                    <select
-                      value={customBidTeamId}
-                      onChange={(e) => setCustomBidTeamId(e.target.value)}
-                      className="w-full rounded-lg border border-white/20 bg-slate-800 p-2 text-sm text-white"
-                    >
-                      {state?.teams?.map((t) => (
-                        <option key={t.team_id} value={t.team_id}>
-                          {t.team_name} (Max: ₹{t.max_bid.toLocaleString()})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <Button variant="ghost" onClick={() => setCustomBidStep(1)}>
-                      Back
-                    </Button>
-                    <Button
-                      onClick={submitCustomBid}
-                      disabled={actionLoading}
-                      className="bg-emerald-600 text-white font-bold hover:bg-emerald-500"
-                    >
-                      Confirm Bid of ₹{customBidAmount.toLocaleString()}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* FULL SCREEN ARENA OVERLAY (Matching Image 2) */}
       {isFullScreen && (() => {
@@ -1938,29 +1997,68 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
               {/* Franchise Bidding Stations Row */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 px-1">
-                  CLICK A TEAM TO PLACE THE NEXT BID:
+                  TEAMS (TAP OR PRESS 1-{Math.min(9, state?.teams?.length || 9)}):
                 </span>
-                {state?.teams?.map((team) => {
+                {state?.teams?.map((team, idx) => {
                   const isLeading = highestBid?.team_id === team.team_id
                   const isExceeded = currentBid > team.max_bid
+                  const isSelected = selectedTeamId === team.team_id
+                  const theme = getTeamTheme(idx, state.teams.length)
+                  const shortcut = getTeamShortcut(team.team_name, team.short_name)
 
                   return (
                     <button
                       key={team.team_id}
-                      onClick={() => handleQuickBid(team.team_id)}
+                      onClick={() => handleTeamSelectAndBid(team.team_id)}
                       disabled={actionLoading || !player || isLeading || isExceeded}
-                      className={`shrink-0 flex items-center gap-2.5 px-3 py-1.5 rounded-xl border font-bold text-xs transition shadow-2xs ${
+                      style={{
+                        background: isLeading
+                          ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(30, 20, 5, 0.95) 100%)'
+                          : 'rgba(2, 19, 46, 0.95)',
+                        borderColor: isLeading
+                          ? '#F59E0B'
+                          : isSelected
+                          ? theme.accentHover
+                          : theme.border,
+                        boxShadow: isLeading
+                          ? '0 0 16px rgba(245, 158, 11, 0.5)'
+                          : isSelected
+                          ? `0 0 14px ${theme.glow}`
+                          : `0 0 8px ${theme.glow}`,
+                      }}
+                      className={`group relative flex flex-col items-center justify-center rounded-xl border-2 px-3 py-1.5 transition-all cursor-pointer shrink-0 min-w-[76px] ${
                         isLeading
-                          ? 'border-amber-400 bg-amber-500 text-zinc-950 font-black ring-2 ring-amber-400/50 shadow-md'
+                          ? 'ring-2 ring-amber-400'
                           : isExceeded
-                          ? 'border-slate-800 bg-slate-900/50 text-slate-600 opacity-50 cursor-not-allowed'
-                          : 'border-blue-500/40 bg-blue-600 hover:bg-blue-500 text-white hover:border-blue-400'
+                          ? 'opacity-40 cursor-not-allowed grayscale'
+                          : 'hover:scale-105 active:scale-95 hover:brightness-125'
                       }`}
+                      title={`Team #${theme.sequenceNo} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}`}
                     >
-                      <span className="font-mono text-[11px] opacity-80">{team.short_name}</span>
-                      <span className="truncate max-w-[100px]">{team.team_name}</span>
-                      <span className="font-mono text-[11px] bg-black/20 px-1.5 py-0.5 rounded">
-                        ₹{Number(team.balance || 0).toLocaleString('en-IN')}
+                      {/* Top Row: Sequence Badge & Key */}
+                      <div className="flex items-center justify-between w-full mb-0.5 gap-2">
+                        <span
+                          style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
+                          className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs shrink-0"
+                        >
+                          #{theme.sequenceNo}
+                        </span>
+                        {theme.keyShortcut && (
+                          <span className="text-[9px] font-mono text-slate-300 font-bold bg-black/40 px-1 py-0.2 rounded border border-white/10 shrink-0">
+                            [{theme.keyShortcut}]
+                          </span>
+                        )}
+                        {isLeading && (
+                          <span className="flex h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping ml-auto" />
+                        )}
+                      </div>
+
+                      {/* Centered Shortcut Text (Matching User's Screenshot) */}
+                      <span
+                        style={{ color: isLeading ? '#FDE047' : theme.pillText }}
+                        className="text-base font-black font-mono tracking-wider drop-shadow-md py-0.5"
+                      >
+                        {shortcut}
                       </span>
                     </button>
                   )
@@ -2073,6 +2171,106 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
           </div>
         )
       })()}
+
+      {/* 2-Step Custom Bid Modal (Mounted at root with z-[99999] so it is visible in both fullscreen and normal modes) */}
+      <AnimatePresence>
+        {isCustomBidModalOpen && (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl border border-amber-500/40 bg-[#071326] p-6 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-bold text-white">Two-Step Custom Bid</h3>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomBidModalOpen(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mb-4">
+                Step {customBidStep} of 2: {customBidStep === 1 ? 'Enter Valid Amount' : 'Select Bidding Team'}
+              </p>
+
+              {customBidStep === 1 ? (
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor={customBidInputId} className="text-xs text-slate-300 mb-1 block">
+                      Custom Amount (₹)
+                    </label>
+                    <Input
+                      id={customBidInputId}
+                      type="number"
+                      autoFocus
+                      value={customBidAmount || ''}
+                      onChange={(e) => setCustomBidAmount(parseFloat(e.target.value) || 0)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && customBidAmount > currentBid) {
+                          e.preventDefault()
+                          setCustomBidStep(2)
+                        }
+                      }}
+                      className="border-white/20 bg-white/5 font-mono text-lg text-amber-400"
+                    />
+                    <div className="flex items-center justify-between text-[11px] mt-1.5 text-slate-400">
+                      <span>Current Leading Bid: <strong className="text-white">₹{currentBid.toLocaleString('en-IN')}</strong></span>
+                      {customBidAmount <= currentBid && (
+                        <span className="text-rose-400 font-semibold">Must exceed ₹{currentBid.toLocaleString('en-IN')}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="ghost" onClick={() => setIsCustomBidModalOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => setCustomBidStep(2)}
+                      disabled={customBidAmount <= currentBid}
+                      className="bg-amber-500 text-slate-950 font-bold hover:bg-amber-400"
+                    >
+                      Next: Choose Team <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-slate-300 mb-1 block">Select Franchise</label>
+                    <select
+                      value={customBidTeamId}
+                      onChange={(e) => setCustomBidTeamId(e.target.value)}
+                      className="w-full rounded-lg border border-white/20 bg-slate-800 p-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      autoFocus
+                    >
+                      {state?.teams?.map((t) => (
+                        <option key={t.team_id} value={t.team_id}>
+                          {t.team_name} (Purse: ₹{Number(t.balance || 0).toLocaleString('en-IN')})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <Button variant="ghost" onClick={() => setCustomBidStep(1)}>
+                      Back
+                    </Button>
+                    <Button
+                      onClick={submitCustomBid}
+                      disabled={actionLoading || !customBidTeamId || customBidAmount <= currentBid}
+                      className="bg-emerald-600 text-white font-bold hover:bg-emerald-500"
+                    >
+                      Confirm Bid of ₹{customBidAmount.toLocaleString('en-IN')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
