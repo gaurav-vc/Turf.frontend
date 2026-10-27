@@ -47,6 +47,7 @@ export interface ElementConfig {
   show_label?: boolean
   type?: 'standard' | 'photo' | 'video' | 'text' | 'bid_history' | 'action_bar' | 'top_bar'
   label?: string
+  custom_label?: string
   title?: string
   media_url?: string
   video_url?: string

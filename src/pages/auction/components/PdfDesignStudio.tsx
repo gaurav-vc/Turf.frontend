@@ -19,7 +19,6 @@ import {
   Move,
   Trash2,
   Sliders,
-  Sparkles,
   UploadCloud,
   Plus,
   AlignLeft,
@@ -34,10 +33,8 @@ import {
   Eye,
   EyeOff,
   BookOpen,
-  Download,
   Shield,
   Crown,
-  UserCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -129,6 +126,7 @@ export interface CardElement {
   italic: boolean
   show_label: boolean
   label?: string
+  custom_label?: string
   custom_text?: string
   is_custom?: boolean
   bg_colour?: string
@@ -230,14 +228,14 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const [cardFillOpacity, setCardFillOpacity] = useState<number>(95)
   const [elementBoxOpacity, setElementBoxOpacity] = useState<number>(0)
   const [elementBoxBgColor, setElementBoxBgColor] = useState<string>('#ffffff')
-  const [syncAllBoxesOpacity, setSyncAllBoxesOpacity] = useState<boolean>(true)
+  const [syncAllBoxesOpacity] = useState<boolean>(true)
   const [accentColour, setAccentColour] = useState<string>('#2563eb')
   const [elements, setElements] = useState<Record<string, CardElement>>(DEFAULT_CARD_ELEMENTS)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   // Sub-Designer States
   const [liveTeams, setLiveTeams] = useState<any[]>([])
-  const [tournamentInfo, setTournamentInfo] = useState<any>(null)
+  const [, setTournamentInfo] = useState<any>(null)
   const [coverPageConfig, setCoverPageConfig] = useState<CoverPageConfig>(DEFAULT_COVER_CONFIG)
   const [teamsDesignerConfig, setTeamsDesignerConfig] = useState<TeamsDesignerConfig>(DEFAULT_TEAMS_CONFIG)
   const [ownersDesignerConfig, setOwnersDesignerConfig] = useState<OwnersDesignerConfig>(DEFAULT_OWNERS_CONFIG)
@@ -683,21 +681,6 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     })
   }
 
-  const updateSelectedLogo = (prop: 'x' | 'y' | 'width', val: number) => {
-    if (!selectedLogoId) return
-    setPlacedLogos((prev) =>
-      prev.map((l) => (l.id === selectedLogoId ? { ...l, [prop]: val } : l))
-    )
-  }
-
-  const removeLogo = (id: string) => {
-    setPlacedLogos((prev) => prev.filter((l) => l.id !== id))
-    if (selectedLogoId === id) {
-      setSelectedLogoId(null)
-    }
-  }
-
-  const selectedLogo = placedLogos.find((l) => l.id === selectedLogoId) || placedLogos[0] || null
 
   const handleSave = async () => {
     setSaving(true)
@@ -1099,7 +1082,6 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     })
   }
 
-  const selectedEl = selectedKey ? elements[selectedKey] : null
   const sampleCount = cols * rows
 
   return (
@@ -2620,7 +2602,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                     </label>
                     <input
                       type="text"
-                      value={elements[selectedKey].custom_label ?? (CARD_ELEMENT_LABELS[selectedKey]?.label || '')}
+                      value={elements[selectedKey].custom_label ?? (elements[selectedKey].label || FIELD_LABELS[selectedKey] || '')}
                       onChange={(e) => updateElementProp(selectedKey, 'custom_label', e.target.value)}
                       placeholder="Custom Label"
                       className="w-28 h-7 px-2 rounded bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs shadow-inner"
