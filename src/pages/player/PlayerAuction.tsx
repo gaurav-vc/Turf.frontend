@@ -227,14 +227,18 @@ export default function PlayerAuction() {
               <div className="flex items-center gap-2">
                 <Button
                   onClick={() => {
-                    setSelectedAuction({
-                      id: '1',
-                      name: 'Turf Premier League (Live Auction Workspace)',
-                      status: 'ACTIVE',
-                      base_budget: 100000,
-                      teams: [],
-                      players: [],
-                    })
+                    if (auctions.length > 0) {
+                      setSelectedAuction(auctions[0])
+                    } else {
+                      setSelectedAuction({
+                        id: 'default',
+                        name: 'Turf Premier League (Live Auction Workspace)',
+                        status: 'ACTIVE',
+                        base_budget: 100000,
+                        teams: [],
+                        players: [],
+                      })
+                    }
                   }}
                   variant="outline"
                   className="border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 font-bold rounded-xl text-xs flex items-center gap-1.5"

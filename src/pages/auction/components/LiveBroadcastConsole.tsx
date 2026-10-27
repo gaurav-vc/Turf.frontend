@@ -1,15 +1,15 @@
-import { useState, useId, useEffect } from 'react'
+import { useState, useId, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import {
   Gavel, RotateCcw, Search, Shield, Trophy, Flame,
   Clock, CheckCircle, XCircle, ChevronRight, AlertCircle, RefreshCw, Sparkles,
-  Volume2, VolumeX, Play, Pause, Maximize2
+  Volume2, VolumeX, Play, Pause, Maximize2, Users
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { apiClient } from '@/api/apiClient'
+import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import { useLiveAuctionState } from '../hooks/useLiveAuctionState'
 import { type ActionButtonConfig, DEFAULT_ACTION_BUTTONS, DEFAULT_PAGE_DESIGN } from './AuctionPageDesigner'
 import { getTeamTheme, getTeamShortcut } from './teamThemeUtils'
@@ -17,9 +17,10 @@ import { getTeamTheme, getTeamShortcut } from './teamThemeUtils'
 interface LiveBroadcastConsoleProps {
   auctionId: string
   auctionName?: string
+  auctionBackground?: string
 }
 
-export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBroadcastConsoleProps) {
+export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBackground }: LiveBroadcastConsoleProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const {
     state,
@@ -52,6 +53,13 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
   )
   const [categories, setCategories] = useState<string[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
+  const [allowMultipleBids, setAllowMultipleBids] = useState(false)
+  const [autoAdvanceQueue, setAutoAdvanceQueue] = useState(true)
+  const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null)
+  const [upcomingQueue, setUpcomingQueue] = useState<any[]>([])
+  const [showQueueDrawer, setShowQueueDrawer] = useState(false)
+  const [teamKeyBuffer, setTeamKeyBuffer] = useState('')
+  const keyBufferTimerRef = useRef<any>(null)
   const customBidInputId = useId()
 
   const handleUpdateColumns = async (cols: number) => {
@@ -78,11 +86,13 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
     const isLeading = highestBid?.team_id === teamId
     const teamObj = state?.teams?.find((t) => t.team_id === teamId)
     const isExceeded = teamObj ? currentBid > teamObj.max_bid : false
-    if (!actionLoading && player && !isLeading && !isExceeded) {
+
+    // Allow re-bidding if allowMultipleBids is enabled or if not currently leading
+    if (!actionLoading && player && (!isLeading || allowMultipleBids) && !isExceeded) {
       handleQuickBid(teamId)
-    } else if (isLeading) {
+    } else if (isLeading && !allowMultipleBids) {
       setFeedbackMessage({
-        text: `${teamObj?.short_name || teamObj?.team_name || 'Team'} is currently leading the bid!`,
+        text: `${teamObj?.short_name || teamObj?.team_name || 'Team'} is currently leading! Toggle 'Multiple Bid: YES' to permit re-bidding.`,
         type: 'success',
       })
     } else if (isExceeded) {
@@ -125,6 +135,54 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
       })
   }, [auctionId])
 
+  // Load queue and config
+  const fetchQueue = () => {
+    apiClient
+      .get(`/v1/auction/console/${auctionId}/player_queue/?category=${encodeURIComponent(selectedCategory)}`)
+      .then((res) => {
+        if (res.data?.queue) setUpcomingQueue(res.data.queue)
+        if (res.data?.auto_advance_queue !== undefined) setAutoAdvanceQueue(Boolean(res.data.auto_advance_queue))
+        if (res.data?.allow_multiple_bids !== undefined) setAllowMultipleBids(Boolean(res.data.allow_multiple_bids))
+      })
+      .catch(() => {})
+  }
+
+  useEffect(() => {
+    fetchQueue()
+  }, [auctionId, state?.active_player?.id, selectedCategory])
+
+  const handleBringNextQueuedPlayer = async () => {
+    setAutoAdvanceCountdown(null)
+    setFeedbackMessage(null)
+    const res = await selectNextPlayer(selectedCategory)
+    if (res?.success) {
+      setFeedbackMessage({ text: 'Next queued player brought to auction block.', type: 'success' })
+      fetchQueue()
+    } else {
+      setFeedbackMessage({ text: res?.error || 'No more players in queue', type: 'error' })
+    }
+  }
+
+  // Auto-advance countdown timer effect
+  useEffect(() => {
+    let t: any = null
+    if (autoAdvanceCountdown !== null && autoAdvanceCountdown > 0) {
+      t = setInterval(() => {
+        setAutoAdvanceCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(t)
+            handleBringNextQueuedPlayer()
+            return null
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => {
+      if (t) clearInterval(t)
+    }
+  }, [autoAdvanceCountdown, selectedCategory])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -149,7 +207,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
           target.isContentEditable)
       if (isInput) return
 
-      // Sequential Numeric Shortcut Keys: 1..9, 0 (Key 1 -> Team 1, Key 2 -> Team 2, etc.)
+      // 1. Sequential Numeric Shortcut Keys: 1..9, 0 (Key 1 -> Team 1, Key 2 -> Team 2, etc.)
       const numKeyMatch = e.code?.match(/^(?:Digit|Numpad)([0-9])$/) || e.key.match(/^([0-9])$/)
       if (numKeyMatch && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const rawNum = parseInt(numKeyMatch[1], 10)
@@ -164,44 +222,85 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
         }
       }
 
-      // Global Action Buttons
-      if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // 2. Hammer Sold Action (Spacebar OR Shift+S)
+      if ((e.code === 'Space' || (e.shiftKey && (e.key === 's' || e.key === 'S'))) && !e.ctrlKey && !e.metaKey && !e.altKey) {
         if (!actionLoading && player && highestBid) {
           e.preventDefault()
           handleHammerSold()
+          return
         }
-      } else if ((e.key === 'u' || e.key === 'U') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      }
+
+      // 3. Hammer Unsold Action (Shift+U)
+      if (e.shiftKey && (e.key === 'u' || e.key === 'U') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         if (!actionLoading && player) {
           e.preventDefault()
           handleHammerUnsold()
+          return
         }
-      } else if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      }
+
+      // 4. Custom Bid Modal (Shift+C)
+      if (e.shiftKey && (e.key === 'c' || e.key === 'C') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         if (!actionLoading && player) {
           e.preventDefault()
           openCustomBidModal()
+          return
         }
-      } else if ((e.key === 'z' || e.key === 'Z') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      }
+
+      // 5. Undo Sale (Shift+Z)
+      if (e.shiftKey && (e.key === 'z' || e.key === 'Z') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         if (!actionLoading) {
           e.preventDefault()
           handleUndoSale()
+          return
         }
-      } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
-        // Team Shortcut Letter matching (e.g. typing 'M' triggers 'MI', etc.)
-        const keyUpper = e.key.toUpperCase()
+      }
+
+      // 6. Multi-character Team Shortname Typing Buffer (Letters A-Z)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
+        const char = e.key.toUpperCase()
+        const newBuf = (teamKeyBuffer + char).slice(-4)
+        setTeamKeyBuffer(newBuf)
+
+        if (keyBufferTimerRef.current) clearTimeout(keyBufferTimerRef.current)
+        keyBufferTimerRef.current = setTimeout(() => {
+          setTeamKeyBuffer('')
+        }, 800)
+
         const teams = state?.teams || []
-        const matchedTeam = teams.find((t) => {
+        // Check exact match on buffer first (e.g. "MI", "CSK", "SRH")
+        const exactMatch = teams.find((t) => {
           const sc = getTeamShortcut(t.team_name, t.short_name).toUpperCase()
-          return sc === keyUpper || sc.startsWith(keyUpper)
+          const sName = (t.short_name || '').toUpperCase()
+          return sc === newBuf || sName === newBuf
         })
-        if (matchedTeam) {
+
+        if (exactMatch) {
           e.preventDefault()
-          handleTeamSelectAndBid(matchedTeam.team_id)
+          setTeamKeyBuffer('')
+          handleTeamSelectAndBid(exactMatch.team_id)
+          return
+        }
+
+        // If buffer is length 1, check if only one team matches this prefix
+        if (newBuf.length === 1) {
+          const matches = teams.filter((t) => {
+            const sc = getTeamShortcut(t.team_name, t.short_name).toUpperCase()
+            return sc.startsWith(char)
+          })
+          if (matches.length === 1) {
+            e.preventDefault()
+            handleTeamSelectAndBid(matches[0].team_id)
+            return
+          }
         }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isFullScreen, isCustomBidModalOpen, actionLoading, state?.active_player, state?.highest_bid, state?.teams])
+  }, [isFullScreen, isCustomBidModalOpen, actionLoading, state?.active_player, state?.highest_bid, state?.teams, allowMultipleBids, teamKeyBuffer])
 
   const toggleBrowserFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -374,6 +473,10 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
       setTimerActive(false)
       triggerConfetti()
       setFeedbackMessage({ text: 'PLAYER SOLD! Balance updated in team purse.', type: 'success' })
+      if (autoAdvanceQueue) {
+        setAutoAdvanceCountdown(3)
+      }
+      fetchQueue()
     } else {
       setFeedbackMessage({ text: res?.error || 'Failed to mark sold', type: 'error' })
     }
@@ -386,6 +489,10 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
       playSoundEffect('unsold')
       setTimerActive(false)
       setFeedbackMessage({ text: 'Player marked UNSOLD. Lot cleared.', type: 'success' })
+      if (autoAdvanceQueue) {
+        setAutoAdvanceCountdown(2)
+      }
+      fetchQueue()
     } else {
       setFeedbackMessage({ text: res?.error || 'Failed to mark unsold', type: 'error' })
     }
@@ -443,7 +550,19 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
   }
 
   return (
-    <div className="space-y-6">
+    <div
+      className="space-y-6 rounded-3xl p-2 sm:p-4 transition-all"
+      style={
+        auctionBackground && auctionBackground !== 'stadium' && auctionBackground !== 'default'
+          ? {
+              backgroundImage: `linear-gradient(rgba(7, 22, 43, 0.88), rgba(7, 22, 43, 0.94)), url(${resolveMediaUrl(auctionBackground)})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundAttachment: 'fixed',
+            }
+          : undefined
+      }
+    >
       {/* Top Banner Toolbar: Title & Full Screen Arena Mode Trigger */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-slate-800 bg-[#07162b] p-4 rounded-2xl shadow-xl">
         <div>
@@ -456,10 +575,71 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Multiple Bid Toggle (Yes / No) */}
+          <button
+            type="button"
+            onClick={async () => {
+              const nextVal = !allowMultipleBids
+              setAllowMultipleBids(nextVal)
+              try {
+                await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, {
+                  allow_multiple_bids: nextVal,
+                })
+              } catch (_) {}
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${
+              allowMultipleBids
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
+            }`}
+            title="Enable to permit a team to place consecutive bids (re-bidding / raising own bid)"
+          >
+            <span className="text-[10px] text-slate-400 uppercase">Multiple Bid:</span>
+            <span className={`font-black font-mono ${allowMultipleBids ? 'text-emerald-400' : 'text-slate-300'}`}>
+              {allowMultipleBids ? 'YES' : 'NO'}
+            </span>
+          </button>
+
+          {/* Auto Advance Queue Toggle (On / Off) */}
+          <button
+            type="button"
+            onClick={async () => {
+              const nextVal = !autoAdvanceQueue
+              setAutoAdvanceQueue(nextVal)
+              try {
+                await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, {
+                  auto_advance_queue: nextVal,
+                })
+              } catch (_) {}
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${
+              autoAdvanceQueue
+                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
+                : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
+            }`}
+            title="Automatically load the next player from the queue after SOLD or UNSOLD"
+          >
+            <span className="text-[10px] text-slate-400 uppercase">Auto Queue:</span>
+            <span className={`font-black font-mono ${autoAdvanceQueue ? 'text-indigo-400' : 'text-slate-300'}`}>
+              {autoAdvanceQueue ? 'ON' : 'OFF'}
+            </span>
+          </button>
+
+          {/* Up Next Queue Drawer Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowQueueDrawer(!showQueueDrawer)}
+            className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-2.5 py-1.5 rounded-xl border border-white/15 transition cursor-pointer"
+            title="View upcoming players in queue"
+          >
+            <Users className="w-3.5 h-3.5 text-amber-400" />
+            <span>Up Next ({upcomingQueue.length})</span>
+          </button>
+
           {/* Category Selector */}
           <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 px-2.5 py-1.5 rounded-xl">
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Category:</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Cat:</span>
             <select
               value={selectedCategory}
               onChange={(e) => handleCategoryChange(e.target.value)}
@@ -476,13 +656,13 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
 
           <Button
             size="sm"
-            onClick={() => handleCategoryChange(selectedCategory)}
+            onClick={() => handleBringNextQueuedPlayer()}
             disabled={actionLoading}
-            className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs px-3 py-2 rounded-xl border border-white/20 transition"
-            title="Bring next available player in this category"
+            className="bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 font-bold text-xs px-3 py-1.5 rounded-xl border border-emerald-500/40 transition"
+            title="Bring next available player in queue"
           >
-            <ChevronRight className="w-3.5 h-3.5 mr-1 text-amber-400" />
-            Next In Category
+            <ChevronRight className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+            Next In Queue →
           </Button>
 
           <Button
@@ -490,13 +670,98 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
               setIsFullScreen(true)
               toggleBrowserFullscreen()
             }}
-            className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 cursor-pointer transition-all hover:scale-[1.02]"
+            className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 cursor-pointer transition-all hover:scale-[1.02]"
           >
             <Maximize2 className="w-4 h-4" />
-            <span>Open Full Screen Arena</span>
+            <span>Full Screen</span>
           </Button>
         </div>
       </div>
+
+      {/* Auto-Advance Countdown Banner */}
+      {autoAdvanceCountdown !== null && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-2.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 font-bold text-xs shadow-xl animate-pulse border-2 border-amber-300">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-slate-950 animate-spin" />
+            <span>
+              🎉 Auto-loading next player from queue in <strong>{autoAdvanceCountdown}s</strong>...
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBringNextQueuedPlayer}
+              className="bg-slate-950 text-white hover:bg-slate-800 px-3 py-1 rounded-xl text-xs font-black shadow-xs cursor-pointer transition"
+            >
+              Bring Next Now →
+            </button>
+            <button
+              type="button"
+              onClick={() => setAutoAdvanceCountdown(null)}
+              className="bg-amber-600/40 text-slate-950 hover:bg-amber-600/60 px-2.5 py-1 rounded-xl text-xs font-bold cursor-pointer transition"
+            >
+              Cancel Auto-Advance
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Queue Drawer Strip */}
+      {showQueueDrawer && (
+        <div className="bg-[#040e1d] border border-amber-500/40 p-4 rounded-2xl shadow-2xl space-y-3">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-amber-400" />
+              <h3 className="font-extrabold text-xs text-white uppercase tracking-wider">
+                Upcoming Queue ({upcomingQueue.length} Players Waiting)
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowQueueDrawer(false)}
+              className="text-xs text-slate-400 hover:text-white"
+            >
+              Close ✕
+            </button>
+          </div>
+          {upcomingQueue.length === 0 ? (
+            <div className="text-center py-4 text-xs text-slate-400 italic">
+              No players currently queued in this category.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 max-h-48 overflow-y-auto pr-1">
+              {upcomingQueue.map((p, idx) => (
+                <div
+                  key={p.id || idx}
+                  className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-center justify-between text-xs hover:border-amber-400/50 transition group"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="font-mono text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                      #{p.serial_no || idx + 1}
+                    </span>
+                    <div className="truncate">
+                      <span className="font-bold text-white block truncate">{p.name}</span>
+                      <span className="text-[10px] text-slate-400">{p.role} • ₹{Number(p.base_price || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (p.serial_no) {
+                        await selectPlayerNo(p.serial_no)
+                      }
+                    }}
+                    className="opacity-0 group-hover:opacity-100 bg-amber-400 text-slate-950 font-bold text-[10px] px-2 py-1 rounded transition shrink-0 ml-1 cursor-pointer"
+                    title="Bring this player immediately"
+                  >
+                    Select
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Feedback Banner */}
       <AnimatePresence>
@@ -883,11 +1148,97 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
                   )}
                 </div>
               </div>
+            ) : upcomingQueue.length > 0 ? (
+              <div className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/20 via-slate-900 to-slate-950 shadow-2xl space-y-4 my-2">
+                {autoAdvanceCountdown !== null && (
+                  <div className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs animate-pulse">
+                    <span className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      Auto-bringing next player in {autoAdvanceCountdown}s...
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleBringNextQueuedPlayer}
+                        className="px-2.5 py-1 rounded bg-amber-400 text-zinc-950 font-black text-xs hover:bg-amber-300 transition cursor-pointer"
+                      >
+                        Bring Now →
+                      </button>
+                      <button
+                        onClick={() => setAutoAdvanceCountdown(null)}
+                        className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                    NEXT IN QUEUE • LOT #{upcomingQueue[0].serial_no || upcomingQueue[0].player_number || 1}
+                  </span>
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    {upcomingQueue[0].category || 'General Pool'}
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                  {upcomingQueue[0].photo ? (
+                    <img
+                      src={resolveMediaUrl(upcomingQueue[0].photo)}
+                      alt={upcomingQueue[0].name}
+                      className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-400/60 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-2xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-2xl shadow-lg">
+                      🏏
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-black text-white">{upcomingQueue[0].name}</h3>
+                    <p className="text-xs text-slate-400 font-semibold">
+                      Role: <strong className="text-slate-200">{upcomingQueue[0].role || 'Player'}</strong> • Base Price:{' '}
+                      <strong className="text-amber-400 font-mono">
+                        ₹{Number(upcomingQueue[0].base_price || 0).toLocaleString('en-IN')}
+                      </strong>
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      {upcomingQueue.length} player{upcomingQueue.length > 1 ? 's' : ''} waiting in current queue
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <Button
+                    onClick={handleBringNextQueuedPlayer}
+                    disabled={actionLoading}
+                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>Bring to Auction Block</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowQueueDrawer(true)}
+                    className="border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl"
+                  >
+                    View Queue ({upcomingQueue.length})
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="flex h-56 flex-col items-center justify-center text-center">
                 <Gavel className="h-12 w-12 text-slate-600 mb-2" />
                 <h3 className="text-lg font-bold text-slate-300">No Player on the Block</h3>
-                <p className="text-xs text-slate-500 mt-1">Select a player from the roster or jump to a Player Number.</p>
+                <p className="text-xs text-slate-500 mt-1">Select a player from the roster, or click below to advance the queue.</p>
+                <Button
+                  onClick={handleBringNextQueuedPlayer}
+                  disabled={actionLoading}
+                  className="mt-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs rounded-xl"
+                >
+                  Fetch Next Available Player →
+                </Button>
               </div>
             )}
 
@@ -1053,7 +1404,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
                   <button
                     key={team.team_id}
                     onClick={() => handleTeamSelectAndBid(team.team_id)}
-                    disabled={actionLoading || !player || isLeading || isExceeded}
+                    disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isExceeded}
                     style={{
                       background: isLeading
                         ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(30, 20, 5, 0.95) 100%)'
@@ -1928,13 +2279,91 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
                       )
                     })}
                   </div>
+                ) : upcomingQueue.length > 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
+                    {autoAdvanceCountdown !== null && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs animate-pulse">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        <span>Auto-loading next player from queue in {autoAdvanceCountdown}s...</span>
+                        <button
+                          onClick={handleBringNextQueuedPlayer}
+                          className="px-2.5 py-1 rounded bg-amber-400 text-zinc-950 font-black text-xs hover:bg-amber-300 transition cursor-pointer"
+                        >
+                          Bring Now →
+                        </button>
+                        <button
+                          onClick={() => setAutoAdvanceCountdown(null)}
+                          className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                        UP NEXT IN QUEUE • LOT #{upcomingQueue[0].serial_no || upcomingQueue[0].player_number || 1}
+                      </span>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                        {upcomingQueue[0].category || 'General Pool'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-5 bg-black/40 border border-white/10 p-4 rounded-2xl max-w-md w-full">
+                      {upcomingQueue[0].photo ? (
+                        <img
+                          src={resolveMediaUrl(upcomingQueue[0].photo)}
+                          alt={upcomingQueue[0].name}
+                          className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-400/60 shadow-lg"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-3xl shadow-lg">
+                          🏏
+                        </div>
+                      )}
+                      <div className="text-left space-y-1">
+                        <h3 className="text-xl font-black text-white">{upcomingQueue[0].name}</h3>
+                        <p className="text-xs text-slate-300 font-semibold">
+                          Role: <strong className="text-white">{upcomingQueue[0].role || 'Player'}</strong>
+                        </p>
+                        <p className="text-xs text-amber-400 font-mono font-bold">
+                          Base Price: ₹{Number(upcomingQueue[0].base_price || 0).toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={handleBringNextQueuedPlayer}
+                        disabled={actionLoading}
+                        className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                      >
+                        <span>Bring Next Player to Floor</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowQueueDrawer(true)}
+                        className="border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl"
+                      >
+                        Queue ({upcomingQueue.length})
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6">
                     <Gavel className="h-16 w-16 text-slate-600 mb-3" />
                     <h2 className="text-2xl font-black text-white">No Player on the Block</h2>
                     <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                      Enter a Player Number below and tap SHOW, or select a player to bring them to the bidding floor.
+                      Enter a Player Number below and tap SHOW, or click below to advance the queue.
                     </p>
+                    <Button
+                      onClick={handleBringNextQueuedPlayer}
+                      disabled={actionLoading}
+                      className="mt-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs rounded-xl"
+                    >
+                      Fetch Next Available Player →
+                    </Button>
                   </div>
                 )}
               </div>
@@ -2010,7 +2439,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName }: LiveBro
                     <button
                       key={team.team_id}
                       onClick={() => handleTeamSelectAndBid(team.team_id)}
-                      disabled={actionLoading || !player || isLeading || isExceeded}
+                      disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isExceeded}
                       style={{
                         background: isLeading
                           ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(30, 20, 5, 0.95) 100%)'

@@ -289,16 +289,19 @@ export default function PlayerEntryFormModal({
             {/* Player No. */}
             <div>
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
-                Player No. <span className="text-slate-400 font-normal">(optional)</span>
+                Player No. / Sequence <span className="text-slate-400 font-normal">(optional)</span>
               </label>
               <Input
                 type="number"
                 min={1}
-                placeholder="Auto next number"
+                placeholder="Auto next sequence number"
                 value={formData.player_no}
                 onChange={(e) => setFormData({ ...formData, player_no: e.target.value })}
                 className="bg-white border-slate-200 text-xs text-zinc-900 rounded-xl font-semibold"
               />
+              <p className="text-[10px] text-slate-400 mt-1">
+                If another player already holds this number, theirs will automatically be set to blank.
+              </p>
             </div>
 
             {/* Name */}

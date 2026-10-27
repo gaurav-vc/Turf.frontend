@@ -56,6 +56,8 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
   const [retentionAllowed, setRetentionAllowed] = useState(false)
   const [bringBackUnsold, setBringBackUnsold] = useState(true)
   const [confirmSale, setConfirmSale] = useState(false)
+  const [allowMultipleBids, setAllowMultipleBids] = useState(false)
+  const [autoAdvanceQueue, setAutoAdvanceQueue] = useState(true)
   const [reserveAmount, setReserveAmount] = useState<number>(0)
   const [additionalKitty, setAdditionalKitty] = useState<number>(0)
   const [penaltyAmount, setPenaltyAmount] = useState<number>(0)
@@ -202,6 +204,8 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       if (cfg.retention_allowed !== undefined) setRetentionAllowed(Boolean(cfg.retention_allowed))
       if (cfg.bring_back_unsold !== undefined) setBringBackUnsold(Boolean(cfg.bring_back_unsold))
       if (cfg.confirm_sale !== undefined) setConfirmSale(Boolean(cfg.confirm_sale))
+      if (cfg.allow_multiple_bids !== undefined) setAllowMultipleBids(Boolean(cfg.allow_multiple_bids))
+      if (cfg.auto_advance_queue !== undefined) setAutoAdvanceQueue(Boolean(cfg.auto_advance_queue))
       if (cfg.reserve_amount !== undefined) setReserveAmount(cfg.reserve_amount)
       if (cfg.additional_kitty !== undefined) setAdditionalKitty(cfg.additional_kitty)
       if (cfg.penalty_amount !== undefined) setPenaltyAmount(cfg.penalty_amount)
@@ -407,6 +411,8 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       formData.append('retention_allowed', retentionAllowed ? 'true' : 'false')
       formData.append('bring_back_unsold', bringBackUnsold ? 'true' : 'false')
       formData.append('confirm_sale', confirmSale ? 'true' : 'false')
+      formData.append('allow_multiple_bids', allowMultipleBids ? 'true' : 'false')
+      formData.append('auto_advance_queue', autoAdvanceQueue ? 'true' : 'false')
       formData.append('reserve_amount', reserveAmount.toString())
       formData.append('additional_kitty', additionalKitty.toString())
       formData.append('penalty_amount', penaltyAmount.toString())
@@ -713,6 +719,43 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
             />
             Confirm sale before marking sold
           </label>
+        </div>
+
+        {/* Live Arena Flow & Queue Bidding Rules */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
+          <div className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-1.5">
+            <label className="flex items-center justify-between text-xs font-black text-foreground cursor-pointer select-none">
+              <span className="flex items-center gap-2">
+                <span>⚡ Allow Multiple / Consecutive Bids</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={allowMultipleBids}
+                onChange={(e) => setAllowMultipleBids(e.target.checked)}
+                className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 cursor-pointer"
+              />
+            </label>
+            <p className="text-[11px] text-muted-foreground">
+              When enabled (YES), a team can bid consecutively / raise their own bid without waiting for another team to bid.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 space-y-1.5">
+            <label className="flex items-center justify-between text-xs font-black text-foreground cursor-pointer select-none">
+              <span className="flex items-center gap-2">
+                <span>🔄 Auto-Advance Next Player from Queue</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={autoAdvanceQueue}
+                onChange={(e) => setAutoAdvanceQueue(e.target.checked)}
+                className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-400 cursor-pointer"
+              />
+            </label>
+            <p className="text-[11px] text-muted-foreground">
+              When enabled (YES), the console automatically loads the next queued player after a 3-second celebration on SOLD / UNSOLD.
+            </p>
+          </div>
         </div>
       </section>
 

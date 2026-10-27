@@ -706,23 +706,27 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
                       onDragOver={(e) => handleCardDragOver(e, c.card_number)}
                       onDragLeave={() => handleCardDragLeave(c.card_number)}
                       onDrop={(e) => handleCardDrop(e, c.card_number)}
-                      className={`relative flex min-h-[220px] flex-col justify-between rounded-3xl border p-4 text-center select-none overflow-hidden ${
+                      className={`relative flex min-h-[220px] flex-col justify-between rounded-3xl border p-4 text-center select-none overflow-hidden transition-all ${
                         isDragOver
                           ? 'border-purple-500 bg-purple-50/80 ring-4 ring-purple-300/60 shadow-lg scale-102'
                           : isJustRevealed
-                          ? 'border-amber-400 bg-amber-50 ring-4 ring-amber-400/50 shadow-2xl z-20'
+                          ? 'border-amber-400 bg-amber-50/90 ring-4 ring-amber-400/50 shadow-2xl z-20'
                           : isRevealed
-                          ? 'border-amber-300/80 bg-amber-50/70 shadow-sm'
+                          ? 'border-amber-300/80 bg-amber-50/40 shadow-sm'
                           : isAssigned
-                          ? 'border-purple-200 bg-purple-50/40 shadow-xs'
+                          ? 'border-purple-200 bg-purple-50/30 shadow-xs'
+                          : cardBgImage
+                          ? 'border-slate-200 shadow-xs'
                           : 'border-slate-200 bg-white hover:border-slate-300 shadow-xs'
                       }`}
                       style={{
                         transformStyle: 'preserve-3d',
                         backgroundColor: cardColour && cardColour !== '#FFFFFF' && !isRevealed ? cardColour : undefined,
-                        // Custom background image applied when revealed
-                        backgroundImage: (isRevealed && cardBgImage)
-                          ? `linear-gradient(rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.94)), url(${resolveMediaUrl(cardBgImage)})`
+                        // Custom background texture or uploaded image clearly visible both before and after reveal
+                        backgroundImage: cardBgImage
+                          ? (isRevealed
+                              ? `linear-gradient(rgba(255, 251, 235, 0.45), rgba(254, 243, 199, 0.55)), url(${resolveMediaUrl(cardBgImage)})`
+                              : `linear-gradient(rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.45)), url(${resolveMediaUrl(cardBgImage)})`)
                           : undefined,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',

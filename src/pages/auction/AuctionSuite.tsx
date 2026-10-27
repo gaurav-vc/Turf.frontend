@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { apiClient } from '@/api/apiClient'
+import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import {
   Gavel, Users, Layout, Sliders, Tag, Shuffle, Eye,
   Sparkles, MessageSquare, FileText, Tv, BarChart3, Shield
@@ -64,13 +64,40 @@ export default function AuctionSuite({ auctionId, auctionName, activeTab: propAc
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab') as TabType | null
   const [internalTab, setInternalTab] = useState<TabType>(tabFromUrl || 'overview')
+  const [branding, setBranding] = useState<{
+    tournament_logo?: string
+    overall_background?: string
+    auction_background?: string
+  }>({})
 
   const activeTab = propActiveTab || internalTab
+
+  const loadBranding = async () => {
+    try {
+      const res = await apiClient.get(`/v1/auction/console/${auctionId}/setup_rules/`)
+      const cfg = res.data?.config || {}
+      setBranding({
+        tournament_logo: cfg.tournament_logo || '',
+        overall_background: cfg.overall_background || '',
+        auction_background: cfg.auction_background || '',
+      })
+    } catch (e) {
+      console.warn('Failed to load branding setup', e)
+    }
+  }
+
+  useEffect(() => {
+    loadBranding()
+  }, [auctionId])
 
   useEffect(() => {
     const currentTab = searchParams.get('tab') as TabType | null
     if (currentTab && currentTab !== internalTab) {
       setInternalTab(currentTab)
+    }
+    // Refresh branding when navigating from rules
+    if (currentTab !== 'rules') {
+      loadBranding()
     }
   }, [searchParams])
 
@@ -83,8 +110,52 @@ export default function AuctionSuite({ auctionId, auctionName, activeTab: propAc
     }
   }
 
+  const hasOverallBg = branding.overall_background &&
+    branding.overall_background !== 'default' &&
+    branding.overall_background !== ''
+
   return (
-    <div className="space-y-6">
+    <div
+      className={`space-y-6 transition-all duration-300 ${hasOverallBg ? 'p-4 sm:p-6 rounded-3xl' : ''}`}
+      style={
+        hasOverallBg
+          ? {
+              backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.88)), url(${resolveMediaUrl(branding.overall_background)})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundAttachment: 'fixed',
+            }
+          : undefined
+      }
+    >
+      {/* Tournament Branding Bar (Logo + Name) */}
+      {branding.tournament_logo && (
+        <div className="flex items-center justify-between gap-4 bg-card/90 backdrop-blur-md border border-border/80 px-4 py-2.5 rounded-2xl shadow-xs">
+          <div className="flex items-center gap-3">
+            <img
+              src={resolveMediaUrl(branding.tournament_logo)}
+              alt="Tournament Logo"
+              className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1 border border-border/60 shadow-2xs"
+            />
+            <div>
+              <h2 className="text-sm font-black text-foreground flex items-center gap-2">
+                {auctionName || 'Turf Premier League'}
+                <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                  Official Tournament
+                </span>
+              </h2>
+              <p className="text-[10px] text-muted-foreground font-semibold">
+                Live Auction & Tournament Management
+              </p>
+            </div>
+          </div>
+          {hasOverallBg && (
+            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl hidden sm:inline-flex items-center gap-1">
+              ✨ Custom Theme Active
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Tab Panels */}
       <div>
@@ -99,6 +170,7 @@ export default function AuctionSuite({ auctionId, auctionName, activeTab: propAc
           <LiveBroadcastConsole
             auctionId={auctionId}
             auctionName={auctionName}
+            auctionBackground={branding.auction_background || branding.overall_background}
           />
         )}
         {activeTab === 'roster' && (

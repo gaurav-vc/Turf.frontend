@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Upload,
   Link2,
@@ -14,10 +14,17 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Eye,
+  EyeOff,
+  Flame,
+  CheckCircle,
+  HelpCircle,
+  Clock,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { apiClient } from '@/api/apiClient'
+import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import PlayerEntryFormModal from './PlayerEntryFormModal'
 
 interface PlayerRosterManagerProps {
@@ -65,6 +72,39 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
   const [bowlingFilter, setBowlingFilter] = useState<string>('ALL')
   const [taggingFilter, setTaggingFilter] = useState<string>('ALL')
   const [showFilterBar, setShowFilterBar] = useState(true)
+  const [showPhotos, setShowPhotos] = useState<boolean>(true)
+
+  // Real-time Roster Metrics (Sold, Unsold, Pending, In Auction, Total Spend)
+  const metrics = useMemo(() => {
+    let sold = 0
+    let unsold = 0
+    let pending = 0
+    let bidding = 0
+    let totalSpend = 0
+
+    players.forEach((p) => {
+      const st = String(p.status || '').toUpperCase()
+      if (st === 'SOLD') {
+        sold++
+        totalSpend += parseFloat(p.sold_price || 0) || 0
+      } else if (st === 'UNSOLD') {
+        unsold++
+      } else if (st === 'BIDDING') {
+        bidding++
+      } else {
+        pending++
+      }
+    })
+
+    return {
+      total: players.length,
+      sold,
+      unsold,
+      pending,
+      bidding,
+      totalSpend,
+    }
+  }, [players])
 
   // Bulk Upload State
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -547,6 +587,96 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
           </div>
         </div>
 
+        {/* Real-time Summary Metric Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1 border-b border-border/50 pb-3">
+          {/* Total Pool */}
+          <div
+            onClick={() => setAuctionStatusFilter('ALL')}
+            className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer ${
+              auctionStatusFilter === 'ALL'
+                ? 'bg-blue-50/80 border-blue-400 dark:bg-blue-950/40 shadow-xs ring-2 ring-blue-400/20'
+                : 'bg-muted/30 border-border hover:bg-muted/50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-blue-700 dark:text-blue-300">Total Pool</span>
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            </div>
+            <div className="text-lg sm:text-xl font-black text-foreground mt-1 font-mono">{metrics.total}</div>
+            <span className="text-[10px] text-muted-foreground font-semibold">Registered Players</span>
+          </div>
+
+          {/* Sold */}
+          <div
+            onClick={() => setAuctionStatusFilter('SOLD')}
+            className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer ${
+              auctionStatusFilter === 'SOLD'
+                ? 'bg-emerald-50/80 border-emerald-500 dark:bg-emerald-950/40 shadow-xs ring-2 ring-emerald-500/20'
+                : 'bg-muted/30 border-border hover:bg-muted/50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400">Sold</span>
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+            </div>
+            <div className="text-lg sm:text-xl font-black text-emerald-700 dark:text-emerald-400 mt-1 font-mono">{metrics.sold}</div>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate block">
+              ₹{metrics.totalSpend.toLocaleString('en-IN')} Spent
+            </span>
+          </div>
+
+          {/* Unsold */}
+          <div
+            onClick={() => setAuctionStatusFilter('UNSOLD')}
+            className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer ${
+              auctionStatusFilter === 'UNSOLD'
+                ? 'bg-rose-50/80 border-rose-400 dark:bg-rose-950/40 shadow-xs ring-2 ring-rose-400/20'
+                : 'bg-muted/30 border-border hover:bg-muted/50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-rose-700 dark:text-rose-400">Unsold</span>
+              <HelpCircle className="w-3.5 h-3.5 text-rose-500" />
+            </div>
+            <div className="text-lg sm:text-xl font-black text-rose-700 dark:text-rose-400 mt-1 font-mono">{metrics.unsold}</div>
+            <span className="text-[10px] text-muted-foreground font-semibold">Passed In Auction</span>
+          </div>
+
+          {/* Pending */}
+          <div
+            onClick={() => setAuctionStatusFilter('PENDING')}
+            className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer ${
+              auctionStatusFilter === 'PENDING'
+                ? 'bg-amber-50/80 border-amber-400 dark:bg-amber-950/40 shadow-xs ring-2 ring-amber-400/20'
+                : 'bg-muted/30 border-border hover:bg-muted/50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-400">Pending</span>
+              <Clock className="w-3.5 h-3.5 text-amber-500" />
+            </div>
+            <div className="text-lg sm:text-xl font-black text-amber-700 dark:text-amber-400 mt-1 font-mono">{metrics.pending}</div>
+            <span className="text-[10px] text-muted-foreground font-semibold">Waiting In Pool</span>
+          </div>
+
+          {/* In Auction */}
+          <div
+            onClick={() => setAuctionStatusFilter('BIDDING')}
+            className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer col-span-2 sm:col-span-1 ${
+              auctionStatusFilter === 'BIDDING'
+                ? 'bg-purple-50/80 border-purple-400 dark:bg-purple-950/40 shadow-xs ring-2 ring-purple-400/20'
+                : 'bg-muted/30 border-border hover:bg-muted/50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-purple-700 dark:text-purple-400">On Block</span>
+              <Flame className="w-3.5 h-3.5 text-purple-500" />
+            </div>
+            <div className="text-lg sm:text-xl font-black text-purple-700 dark:text-purple-400 mt-1 font-mono">{metrics.bidding}</div>
+            <span className="text-[10px] text-muted-foreground font-semibold">Active Bidding</span>
+          </div>
+        </div>
+
         {/* Tier 2: Search Bar & Quick Filter Controls */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
@@ -600,6 +730,18 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-muted-foreground pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
             </div>
+
+            {/* Photo Visibility Toggle (Hide / Unhide Photo) */}
+            <Button
+              variant={showPhotos ? 'outline' : 'secondary'}
+              size="sm"
+              onClick={() => setShowPhotos(!showPhotos)}
+              className="rounded-xl text-xs font-bold border-border h-9 flex items-center gap-1.5"
+              title={showPhotos ? 'Hide real-time player photos' : 'Unhide and display real-time player photos'}
+            >
+              {showPhotos ? <EyeOff className="w-3.5 h-3.5 text-indigo-500" /> : <Eye className="w-3.5 h-3.5 text-indigo-500" />}
+              <span>{showPhotos ? 'Hide Photo' : 'Unhide Photo'}</span>
+            </Button>
           </div>
 
           {/* Right: Filter Toggle & Reset */}
@@ -826,21 +968,21 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
         </div>
       )}
 
-      {/* ================= ROSTER TABLE ================= */}
+      {/* ================= ROSTER TABLE (Freeze Panes / Sticky Headers) ================= */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        <div className="max-h-[72vh] overflow-y-auto overflow-x-auto relative">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="border-b border-border bg-muted/40 font-black uppercase tracking-wider text-[11px]" style={{ color: '#334155' }}>
+            <thead className="sticky top-0 z-20 border-b border-border bg-slate-100 dark:bg-zinc-800 font-black uppercase tracking-wider text-[11px] shadow-xs" style={{ color: '#334155' }}>
               <tr>
-                <th className="py-3.5 px-3.5 w-12 text-center whitespace-nowrap" style={{ color: '#d97706' }}>#</th>
-                <th className="py-3.5 px-3.5 min-w-[190px] whitespace-nowrap" style={{ color: '#334155' }}>Player Name</th>
-                <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap" style={{ color: '#334155' }}>Category</th>
-                <th className="py-3.5 px-3.5 min-w-[160px] whitespace-nowrap" style={{ color: '#334155' }}>Role</th>
-                <th className="py-3.5 px-3.5 min-w-[110px] whitespace-nowrap" style={{ color: '#334155' }}>Base Price</th>
-                <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap" style={{ color: '#334155' }}>Auction Status</th>
-                <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap" style={{ color: '#334155' }}>Team Name</th>
-                <th className="py-3.5 px-3.5 min-w-[120px] whitespace-nowrap" style={{ color: '#334155' }}>Bid Amount</th>
-                <th className="py-3.5 px-3.5 text-right min-w-[240px] whitespace-nowrap" style={{ color: '#334155' }}>Action</th>
+                <th className="py-3.5 px-3.5 w-12 text-center whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#d97706' }}>#</th>
+                <th className="py-3.5 px-3.5 min-w-[200px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Player Name</th>
+                <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Category</th>
+                <th className="py-3.5 px-3.5 min-w-[160px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Role</th>
+                <th className="py-3.5 px-3.5 min-w-[110px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Base Price</th>
+                <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Auction Status</th>
+                <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Team Name</th>
+                <th className="py-3.5 px-3.5 min-w-[120px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Bid Amount</th>
+                <th className="py-3.5 px-3.5 text-right min-w-[240px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-foreground">
@@ -868,10 +1010,26 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
                       #{serial}
                     </td>
 
-                    {/* Player Name */}
+                    {/* Player Name & Photo */}
                     <td className="py-3 px-3.5 align-middle">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-xs shrink-0">
+                        {showPhotos && (p.photo_url || p.photo) ? (
+                          <img
+                            src={resolveMediaUrl(p.photo_url || p.photo)}
+                            alt={name}
+                            className="w-8 h-8 rounded-lg object-cover border border-indigo-200 dark:border-indigo-800 shadow-2xs shrink-0"
+                            onError={(e) => {
+                              const target = e.currentTarget
+                              target.style.display = 'none'
+                              const fallback = target.nextElementSibling
+                              if (fallback) (fallback as HTMLElement).style.display = 'flex'
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold items-center justify-center text-xs shrink-0"
+                          style={{ display: showPhotos && (p.photo_url || p.photo) ? 'none' : 'flex' }}
+                        >
                           {name.charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -1017,13 +1175,18 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
                           <Edit2 className="w-3 h-3" /> Edit
                         </Button>
 
-                        {/* Send to Block */}
-                        {onPlayerSelected && p.serial_no && p.status !== 'SOLD' && (
+                        {/* Send to Block (Always Visible) */}
+                        {onPlayerSelected && p.serial_no && (
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => onPlayerSelected(p.serial_no)}
-                            className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-bold px-2 rounded-lg shrink-0 whitespace-nowrap"
+                            className={`h-7 text-xs font-bold px-2 rounded-lg shrink-0 whitespace-nowrap ${
+                              isSold
+                                ? 'text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 bg-emerald-50/50'
+                                : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                            }`}
+                            title={isSold ? 'Sold Player - Click to view on auction block' : 'Send to auction block'}
                           >
                             Block →
                           </Button>

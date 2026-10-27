@@ -34,11 +34,25 @@ export const BASE_URL = getBaseUrl()
 
 export const resolveMediaUrl = (url: string | null | undefined): string => {
   if (!url) return ''
-  const trimmed = String(url).trim()
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+  let trimmed = String(url).trim()
+  if (!trimmed) return ''
+
+  const base = BASE_URL.replace(/\/api\/?$/, '')
+
+  // If the stored URL contains localhost:8000 or 127.0.0.1:8000 from local tests, rewrite it to current API host
+  if (trimmed.includes('localhost:8000/') || trimmed.includes('127.0.0.1:8000/')) {
+    const relPart = trimmed.replace(/^https?:\/\/[^/]+/, '')
+    return `${base}${relPart.startsWith('/') ? '' : '/'}${relPart}`
+  }
+
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
     return trimmed
   }
-  const base = BASE_URL.replace(/\/api\/?$/, '')
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed
+  }
+
   return `${base}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`
 }
 
