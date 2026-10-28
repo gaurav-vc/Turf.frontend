@@ -2402,310 +2402,362 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   </div>
                 </div>
 
-                {/* Quick Controls Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3 text-xs">
-                  {/* 1. Width */}
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                      Width (W: %)
-                    </label>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateElementProp(
-                            selectedKey,
-                            'w',
-                            Math.max(4, (elements[selectedKey].w || 20) - 2)
-                          )
-                        }
-                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm"
-                        title="Make narrower"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        min={4}
-                        max={100}
-                        value={Math.round(elements[selectedKey].w || 20)}
-                        onChange={(e) => updateElementProp(selectedKey, 'w', Math.max(4, Math.min(100, Number(e.target.value))))}
-                        className="w-14 h-7 text-center rounded bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateElementProp(
-                            selectedKey,
-                            'w',
-                            Math.min(100, (elements[selectedKey].w || 20) + 2)
-                          )
-                        }
-                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm"
-                        title="Make wider"
-                      >
-                        +
-                      </button>
+                {/* Inspector Control Pods */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 text-xs">
+                  {/* Pod 1: Dimensions & Position */}
+                  <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <Move className="w-3.5 h-3.5" />
+                        Dimensions & Position
+                      </span>
+                      <span className="text-[10px] text-slate-300 font-mono font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                        X: {Math.round(elements[selectedKey].x)}% • Y: {Math.round(elements[selectedKey].y)}%
+                      </span>
                     </div>
-                  </div>
 
-                  {/* 2. Height */}
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                      Height (H: %)
-                    </label>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateElementProp(
-                            selectedKey,
-                            'h',
-                            Math.max(3, (elements[selectedKey].h || 10) - 2)
-                          )
-                        }
-                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm"
-                        title="Make shorter"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        min={3}
-                        max={100}
-                        value={Math.round(elements[selectedKey].h || 10)}
-                        onChange={(e) => updateElementProp(selectedKey, 'h', Math.max(3, Math.min(100, Number(e.target.value))))}
-                        className="w-14 h-7 text-center rounded bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateElementProp(
-                            selectedKey,
-                            'h',
-                            Math.min(100, (elements[selectedKey].h || 10) + 2)
-                          )
-                        }
-                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm"
-                        title="Make taller"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 3. Font Size */}
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                      Font Size (px)
-                    </label>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateElementProp(
-                            selectedKey,
-                            'font_size',
-                            Math.max(6, (elements[selectedKey].font_size || 12) - 1)
-                          )
-                        }
-                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        min={6}
-                        max={72}
-                        value={elements[selectedKey].font_size || 12}
-                        onChange={(e) => updateElementProp(selectedKey, 'font_size', Number(e.target.value))}
-                        className="w-14 h-7 text-center rounded bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateElementProp(
-                            selectedKey,
-                            'font_size',
-                            Math.min(72, (elements[selectedKey].font_size || 12) + 1)
-                          )
-                        }
-                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 4. Text Colour */}
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                      Text Colour
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="color"
-                        value={elements[selectedKey].colour || '#000000'}
-                        onChange={(e) => updateElementProp(selectedKey, 'colour', e.target.value)}
-                        className="w-7 h-7 rounded border border-slate-700 bg-transparent cursor-pointer p-0"
-                      />
-                      <div className="flex items-center gap-1">
-                        {['#FFFFFF', '#FFD54A', '#10B981', '#38BDF8', '#EF4444'].map((c) => (
+                    <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                      {/* Width (W: %) */}
+                      <div className="flex-1 min-w-[105px]">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Width (W: %)
+                        </label>
+                        <div className="flex items-center">
                           <button
-                            key={c}
                             type="button"
-                            onClick={() => updateElementProp(selectedKey, 'colour', c)}
-                            style={{ backgroundColor: c }}
-                            className="w-4 h-4 rounded-full border border-slate-900 shadow-xs hover:scale-125 transition"
-                            title={c}
+                            onClick={() =>
+                              updateElementProp(
+                                selectedKey,
+                                'w',
+                                Math.max(4, (elements[selectedKey].w || 20) - 2)
+                              )
+                            }
+                            className="w-7 h-7 rounded-l bg-slate-800 hover:bg-slate-700 border border-r-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                            title="Make narrower (-2%)"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={4}
+                            max={100}
+                            value={Math.round(elements[selectedKey].w || 20)}
+                            onChange={(e) => updateElementProp(selectedKey, 'w', Math.max(4, Math.min(100, Number(e.target.value))))}
+                            className="w-12 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
                           />
-                        ))}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                selectedKey,
+                                'w',
+                                Math.min(100, (elements[selectedKey].w || 20) + 2)
+                              )
+                            }
+                            className="w-7 h-7 rounded-r bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                            title="Make wider (+2%)"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Height (H: %) */}
+                      <div className="flex-1 min-w-[105px]">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Height (H: %)
+                        </label>
+                        <div className="flex items-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                selectedKey,
+                                'h',
+                                Math.max(3, (elements[selectedKey].h || 10) - 2)
+                              )
+                            }
+                            className="w-7 h-7 rounded-l bg-slate-800 hover:bg-slate-700 border border-r-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                            title="Make shorter (-2%)"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={3}
+                            max={100}
+                            value={Math.round(elements[selectedKey].h || 10)}
+                            onChange={(e) => updateElementProp(selectedKey, 'h', Math.max(3, Math.min(100, Number(e.target.value))))}
+                            className="w-12 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                selectedKey,
+                                'h',
+                                Math.min(100, (elements[selectedKey].h || 10) + 2)
+                              )
+                            }
+                            className="w-7 h-7 rounded-r bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                            title="Make taller (+2%)"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Nudge D-Pad */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Nudge Position
+                        </label>
+                        <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                          <button
+                            type="button"
+                            onClick={() => nudgeElement(selectedKey, -2, 0)}
+                            className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
+                            title="Nudge Left"
+                          >
+                            ←
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => nudgeElement(selectedKey, 2, 0)}
+                            className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
+                            title="Nudge Right"
+                          >
+                            →
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => nudgeElement(selectedKey, 0, -2)}
+                            className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
+                            title="Nudge Up"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => nudgeElement(selectedKey, 0, 2)}
+                            className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
+                            title="Nudge Down"
+                          >
+                            ↓
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* 5. Show Label Name */}
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                      Show Label Name
-                    </label>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => updateElementProp(selectedKey, 'show_label', true)}
-                        className={`px-2 py-1 rounded text-[11px] font-bold border transition ${
-                          elements[selectedKey].show_label
-                            ? 'bg-amber-500 text-slate-950 border-amber-400'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                        }`}
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateElementProp(selectedKey, 'show_label', false)}
-                        className={`px-2 py-1 rounded text-[11px] font-bold border transition ${
-                          !elements[selectedKey].show_label
-                            ? 'bg-amber-500 text-slate-950 border-amber-400'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                        }`}
-                      >
-                        No
-                      </button>
+                  {/* Pod 2: Typography & Appearance */}
+                  <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <Type className="w-3.5 h-3.5" />
+                        Typography & Style
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Font & Colour
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                      {/* Font Size (px) */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Font Size (px)
+                        </label>
+                        <div className="flex items-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                selectedKey,
+                                'font_size',
+                                Math.max(6, (elements[selectedKey].font_size || 12) - 1)
+                              )
+                            }
+                            className="w-7 h-7 rounded-l bg-slate-800 hover:bg-slate-700 border border-r-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                            title="Decrease font size"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={6}
+                            max={72}
+                            value={elements[selectedKey].font_size || 12}
+                            onChange={(e) => updateElementProp(selectedKey, 'font_size', Number(e.target.value))}
+                            className="w-12 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                selectedKey,
+                                'font_size',
+                                Math.min(72, (elements[selectedKey].font_size || 12) + 1)
+                              )
+                            }
+                            className="w-7 h-7 rounded-r bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                            title="Increase font size"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Text Colour */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Text Colour
+                        </label>
+                        <div className="flex items-center gap-1.5 h-7">
+                          <input
+                            type="color"
+                            value={elements[selectedKey].colour || '#000000'}
+                            onChange={(e) => updateElementProp(selectedKey, 'colour', e.target.value)}
+                            className="w-7 h-7 rounded-lg border border-slate-700 bg-transparent cursor-pointer p-0 shrink-0"
+                            title="Custom Colour Picker"
+                          />
+                          <div className="flex items-center gap-1">
+                            {['#FFFFFF', '#FFD54A', '#10B981', '#38BDF8', '#EF4444'].map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => updateElementProp(selectedKey, 'colour', c)}
+                                style={{ backgroundColor: c }}
+                                className={`w-4 h-4 rounded-full border border-slate-900 shadow-xs hover:scale-125 transition cursor-pointer ${
+                                  (elements[selectedKey].colour || '#000000').toUpperCase() === c.toUpperCase()
+                                    ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-900'
+                                    : ''
+                                }`}
+                                title={c}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Alignment */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Align
+                        </label>
+                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'align', 'left')}
+                            className={`p-1 rounded transition cursor-pointer ${
+                              elements[selectedKey].align === 'left'
+                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                            title="Left Align"
+                          >
+                            <AlignLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'align', 'center')}
+                            className={`p-1 rounded transition cursor-pointer ${
+                              elements[selectedKey].align === 'center'
+                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                            title="Center Align"
+                          >
+                            <AlignCenter className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'align', 'right')}
+                            className={`p-1 rounded transition cursor-pointer ${
+                              elements[selectedKey].align === 'right'
+                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                            title="Right Align"
+                          >
+                            <AlignRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* 5b. Configurable Label Name */}
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                      Label Name
-                    </label>
-                    <input
-                      type="text"
-                      value={elements[selectedKey].custom_label ?? (elements[selectedKey].label || FIELD_LABELS[selectedKey] || '')}
-                      onChange={(e) => updateElementProp(selectedKey, 'custom_label', e.target.value)}
-                      placeholder="Custom Label"
-                      className="w-28 h-7 px-2 rounded bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs shadow-inner"
-                    />
-                  </div>
-
-                  {/* 5c. Configurable Content */}
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                      Custom Content
-                    </label>
-                    <input
-                      type="text"
-                      value={elements[selectedKey].custom_text || ''}
-                      onChange={(e) => updateElementProp(selectedKey, 'custom_text', e.target.value)}
-                      placeholder="Override text..."
-                      className="w-32 h-7 px-2 rounded bg-slate-950 border border-slate-700 text-white font-bold text-xs shadow-inner"
-                    />
-                  </div>
-
-                  {/* 6. Alignment */}
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                      Align
-                    </label>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => updateElementProp(selectedKey, 'align', 'left')}
-                        className={`p-1.5 rounded border ${
-                          elements[selectedKey].align === 'left'
-                            ? 'bg-amber-500 text-slate-950 border-amber-400'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                        }`}
-                        title="Left"
-                      >
-                        <AlignLeft className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateElementProp(selectedKey, 'align', 'center')}
-                        className={`p-1.5 rounded border ${
-                          elements[selectedKey].align === 'center'
-                            ? 'bg-amber-500 text-slate-950 border-amber-400'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                        }`}
-                        title="Center"
-                      >
-                        <AlignCenter className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateElementProp(selectedKey, 'align', 'right')}
-                        className={`p-1.5 rounded border ${
-                          elements[selectedKey].align === 'right'
-                            ? 'bg-amber-500 text-slate-950 border-amber-400'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                        }`}
-                        title="Right"
-                      >
-                        <AlignRight className="w-3.5 h-3.5" />
-                      </button>
+                  {/* Pod 3: Labels & Content Override */}
+                  <div className="md:col-span-2 xl:col-span-1 bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <Sliders className="w-3.5 h-3.5" />
+                        Labels & Content Override
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Text Customization
+                      </span>
                     </div>
-                  </div>
 
-                  {/* 7. Position Nudge */}
-                  <div className="col-span-2">
-                    <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                      Nudge Position (X: {Math.round(elements[selectedKey].x)}%, Y: {Math.round(elements[selectedKey].y)}%)
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => nudgeElement(selectedKey, -2, 0)}
-                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-xs font-bold text-slate-200"
-                        title="Nudge Left"
-                      >
-                        ←
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => nudgeElement(selectedKey, 2, 0)}
-                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-xs font-bold text-slate-200"
-                        title="Nudge Right"
-                      >
-                        →
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => nudgeElement(selectedKey, 0, -2)}
-                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-xs font-bold text-slate-200"
-                        title="Nudge Up"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => nudgeElement(selectedKey, 0, 2)}
-                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-xs font-bold text-slate-200"
-                        title="Nudge Down"
-                      >
-                        ↓
-                      </button>
+                    <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                      {/* Show Label (Yes / No) */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Show Label
+                        </label>
+                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'show_label', true)}
+                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
+                              elements[selectedKey].show_label
+                                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'show_label', false)}
+                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
+                              !elements[selectedKey].show_label
+                                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Configurable Label Name */}
+                      <div className="flex-1 min-w-[120px]">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Label Name
+                        </label>
+                        <input
+                          type="text"
+                          value={elements[selectedKey].custom_label ?? (elements[selectedKey].label || FIELD_LABELS[selectedKey] || '')}
+                          onChange={(e) => updateElementProp(selectedKey, 'custom_label', e.target.value)}
+                          placeholder="Custom Label"
+                          className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
+                        />
+                      </div>
+
+                      {/* Configurable Custom Text Content */}
+                      <div className="flex-1 min-w-[130px]">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Custom Content
+                        </label>
+                        <input
+                          type="text"
+                          value={elements[selectedKey].custom_text || ''}
+                          onChange={(e) => updateElementProp(selectedKey, 'custom_text', e.target.value)}
+                          placeholder="Override text..."
+                          className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
