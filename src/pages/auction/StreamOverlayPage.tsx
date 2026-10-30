@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, Flame, Shield, TrendingUp, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Trophy, Flame, Shield, TrendingUp, Sparkles, AlertCircle, CheckCircle2, Award } from 'lucide-react'
 import { apiClient } from '@/api/apiClient'
+import { getTeamShortcut } from './components/teamThemeUtils'
+import { parseStreamVideoUrl } from './components/streamVideoUtils'
 
 export default function StreamOverlayPage() {
   const { token } = useParams<{ token: string }>()
@@ -40,73 +42,105 @@ export default function StreamOverlayPage() {
   const isDemoParam = searchParams.get('demo') === 'true'
   const [demoMode, setDemoMode] = useState(isDemoParam)
 
-  const activePlayer = data?.active_player
-  // If no player is actively on the block, allow instant demo preview
-  const player = activePlayer || (demoMode ? {
-    id: 'demo_player_1',
-    player_name: 'VIRAT KOHLI',
-    serial_no: 18,
-    category: 'MARQUEE SET',
-    role: 'Top-Order Batsman',
-    batting_style: 'Right Hand Bat',
-    bowling_style: 'Right Arm Medium',
-    location: 'Delhi',
-    base_price: 20000000,
-    photo_url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=500&auto=format&fit=crop&q=80',
-    status: 'BIDDING',
-  } : null)
+  // Dynamic Configuration from searchParams and backend design JSON
+  const overlayConfig = data?.design?.overlay_config || {}
+  const videoEnabled = searchParams.get('video') === 'true' || (overlayConfig.video_enabled ?? false)
+  const streamUrl =
+    searchParams.get('stream_url') ||
+    (videoEnabled ? overlayConfig.video_url : '') ||
+    data?.design?.stream_url ||
+    data?.config?.stream_url
+  const videoOpacity = searchParams.get('video_opacity')
+    ? parseFloat(searchParams.get('video_opacity')!)
+    : (overlayConfig.video_opacity ?? 0.75)
+  const customAccent = searchParams.get('accent') || overlayConfig.accent_color || '#f59e0b'
+  const showPurse = searchParams.get('show_purse') !== 'false' && overlayConfig.show_purse !== false
+  const showSpecs = searchParams.get('show_specs') !== 'false' && overlayConfig.show_specs !== false
+  const showBasePrice = searchParams.get('show_base') !== 'false' && overlayConfig.show_base !== false
+  const showTitle = searchParams.get('show_title') !== 'false' && overlayConfig.show_title !== false
+  const showCelebration = searchParams.get('show_celebration') !== 'false' && overlayConfig.show_celebration !== false
+  const scale = searchParams.get('scale') ? parseFloat(searchParams.get('scale')!) : (overlayConfig.scale || 1)
+  const position = searchParams.get('pos') || overlayConfig.position || 'bottom' // bottom | center | top
+  const borderRadius = overlayConfig.border_radius ?? 24
 
-  const currentBid = activePlayer ? (data?.current_bid || 0) : (demoMode ? 175000000 : 0)
-  const highestBid = activePlayer ? data?.highest_bid : (demoMode ? { team_name: 'ROYAL CHALLENGERS', team_id: 'rcb_1' } : null)
+  // Drag and drop custom position and typography overrides from overlayConfig
+  const hasCustomPos = overlayConfig.pos_x != null && overlayConfig.pos_y != null
+  const posX = overlayConfig.pos_x ?? 8
+  const posY = overlayConfig.pos_y ?? 60
+  const posW = overlayConfig.pos_w ?? 84
+  const customTournamentTitle =
+    overlayConfig.custom_tournament_title || data?.auction_name || 'LIVE AUCTION'
+  const fontFamily = overlayConfig.font_family || 'Inter'
+  const fontSize = overlayConfig.font_size || 36
+  const fontBold = overlayConfig.font_bold !== false
+  const fontItalic = overlayConfig.font_italic || false
+  const fontAlign = overlayConfig.font_align || 'left'
+
+  const activePlayer = data?.active_player
+  // Real tournament preview player from the database (zero hardcoded dummy data)
+  const tournamentPreview = data?.preview_player || data?.recent_player || null
+
+  // If no live player is on the block, allow operator to preview overlay graphics with actual tournament data
+  const player = activePlayer || (demoMode ? tournamentPreview : null)
+
+  const currentBid = activePlayer
+    ? (data?.current_bid || activePlayer.base_price || 0)
+    : (demoMode && tournamentPreview ? (tournamentPreview.sold_price || tournamentPreview.base_price || 0) : 0)
+
+  const highestBid = activePlayer
+    ? data?.highest_bid
+    : (demoMode && tournamentPreview
+        ? (tournamentPreview.sold_to_name
+            ? { team_name: tournamentPreview.sold_to_name }
+            : data?.teams?.[0]
+            ? { team_name: data.teams[0].team_name, team_id: data.teams[0].team_id, short_name: data.teams[0].short_name }
+            : null)
+        : null)
+
   const leadingTeamName = highestBid?.team_name || ''
   const leadingTeamId = highestBid?.team_id
 
-  // Match leading team's financial info
+  // Match leading team's financial info dynamically from real tournament teams
   const leadingTeamFinancials = data?.teams?.find(
-    (t: any) => String(t.team_id) === String(leadingTeamId) || t.team_name === leadingTeamName
-  ) || (demoMode ? { balance: 425000000, max_bid: 280000000 } : null)
+    (t: any) => (leadingTeamId && String(t.team_id) === String(leadingTeamId)) || (leadingTeamName && t.team_name === leadingTeamName)
+  ) || (demoMode && data?.teams?.[0] ? data.teams[0] : null)
+
+  const leadingTeamShortcut = leadingTeamName
+    ? getTeamShortcut(leadingTeamName, leadingTeamFinancials?.short_name || highestBid?.short_name)
+    : ''
 
   const isSold = player?.status === 'SOLD'
   const isUnsold = player?.status === 'UNSOLD'
 
   const customRole = player?.role || 'All-Rounder'
-  const batting = player?.batting_style || 'Right Hand Bat'
-  const bowling = player?.bowling_style || 'Right Arm Medium'
+  const batting = player?.batting_style || ''
+  const bowling = player?.bowling_style || ''
+
+  const containerJustify =
+    position === 'top' ? 'justify-start' : position === 'center' ? 'justify-center' : 'justify-end'
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-8 flex flex-col justify-end items-center overflow-hidden font-sans select-none">
-      
-      {/* Optional Live Video Stream Background (e.g. YouTube, Twitch, HLS, or mp4) */}
+    <div
+      className={`min-h-screen bg-transparent p-4 sm:p-8 flex flex-col ${containerJustify} items-center overflow-hidden font-sans select-none`}
+    >
+      {/* Optional Live Video Stream Background (YouTube, Twitch, or Direct Video) */}
       {(() => {
-        const streamUrl = searchParams.get('stream_url') || data?.design?.stream_url || data?.config?.stream_url
         if (!streamUrl) return null
-
-        let embedUrl = ''
-        if (streamUrl.includes('youtube.com/watch') || streamUrl.includes('youtu.be/')) {
-          const match = streamUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/)
-          if (match && match[1]) {
-            embedUrl = `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1&controls=0&loop=1&playlist=${match[1]}`
-          }
-        } else if (streamUrl.includes('twitch.tv/')) {
-          const match = streamUrl.match(/twitch\.tv\/([a-zA-Z0-9_]+)/)
-          if (match && match[1]) {
-            const host = window.location.hostname
-            embedUrl = `https://player.twitch.tv/?channel=${match[1]}&parent=${host}&muted=true`
-          }
-        }
+        const resolved = parseStreamVideoUrl(streamUrl)
+        if (resolved.type === 'none') return null
 
         return (
           <div className="fixed inset-0 -z-10 w-full h-full overflow-hidden bg-black pointer-events-none">
-            {embedUrl ? (
+            {resolved.type === 'iframe' ? (
               <iframe
-                src={embedUrl}
-                className="w-full h-full object-cover border-0 pointer-events-none"
-                allow="autoplay; encrypted-media"
+                src={resolved.src}
+                className="w-full h-full object-cover border-0 pointer-events-none scale-105"
+                allow="autoplay; encrypted-media; picture-in-picture"
                 title="Live Arena Stream"
               />
             ) : (
               <video
-                src={streamUrl}
+                src={resolved.src}
                 autoPlay
                 loop
                 muted
@@ -114,24 +148,29 @@ export default function StreamOverlayPage() {
                 className="w-full h-full object-cover pointer-events-none"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ backgroundColor: `rgba(0, 0, 0, ${videoOpacity})` }}
+            />
           </div>
         )
       })()}
 
-      {/* Top Test Banner for OBS / Browser */}
+      {/* Top Test Banner for OBS / Browser (Zero hardcoded data) */}
       {!activePlayer && (
-        <div className="fixed top-4 right-4 z-50 pointer-events-auto flex items-center gap-2 bg-slate-950/80 border border-amber-500/40 rounded-xl px-3 py-1.5 backdrop-blur-md shadow-lg text-xs">
-          <span className="text-slate-300 font-medium">No live player on block</span>
+        <div className="fixed top-4 right-4 z-50 pointer-events-auto flex items-center gap-2 bg-slate-950/85 border border-amber-500/40 rounded-xl px-3 py-1.5 backdrop-blur-md shadow-lg text-xs">
+          <span className="text-slate-300 font-medium">
+            {demoMode ? 'Previewing tournament roster' : 'No live lot on block'}
+          </span>
           <button
             onClick={() => setDemoMode(!demoMode)}
-            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black tracking-wider uppercase text-[10px] shadow-sm transition-all"
+            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black tracking-wider uppercase text-[10px] shadow-sm transition-all cursor-pointer"
           >
-            {demoMode ? 'Show Standby Ticker' : '👁️ Preview IPL Card'}
+            {demoMode ? 'Show Standby Ticker' : '👁️ Preview Player Card'}
           </button>
         </div>
       )}
-      
+
       {/* =========================================================================
           1. IPL BROADCAST MEGA CARD (STAR SPORTS / JIOCINEMA STYLE) - DEFAULT
           ========================================================================= */}
@@ -141,51 +180,68 @@ export default function StreamOverlayPage() {
             <motion.div
               key={player.id}
               initial={{ y: 120, opacity: 0, scale: 0.94 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
+              animate={{ y: 0, opacity: 1, scale: scale }}
               exit={{ y: 120, opacity: 0, scale: 0.94 }}
               transition={{ type: 'spring', stiffness: 260, damping: 24 }}
               className="w-full max-w-5xl rounded-3xl overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85)] border-2 border-amber-400/80 bg-gradient-to-r from-slate-950 via-zinc-950 to-slate-950 text-white relative backdrop-blur-xl"
               style={{
-                boxShadow: '0 0 50px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                ...(hasCustomPos
+                  ? {
+                      position: 'absolute',
+                      left: `${posX}%`,
+                      top: `${posY}%`,
+                      width: `${posW}%`,
+                      transform: `scale(${scale})`,
+                      transformOrigin: 'top left',
+                    }
+                  : {
+                      transform: `scale(${scale})`,
+                    }),
+                borderColor: customAccent,
+                borderRadius: `${borderRadius}px`,
+                boxShadow: `0 0 50px ${customAccent}40, inset 0 1px 0 rgba(255, 255, 255, 0.2)`,
+                fontFamily: fontFamily,
               }}
             >
               {/* Dynamic Animated Top Status Bar */}
-              <div className="bg-gradient-to-r from-slate-900 via-amber-950/70 to-slate-900 px-6 py-2 border-b border-amber-500/30 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {isSold ? (
-                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/60 text-emerald-400 text-xs font-black tracking-wider uppercase animate-bounce">
-                      <Sparkles className="w-3.5 h-3.5" /> SOLD TO {leadingTeamName}
-                    </span>
-                  ) : isUnsold ? (
-                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/60 text-rose-400 text-xs font-black tracking-wider uppercase">
-                      <AlertCircle className="w-3.5 h-3.5" /> UNSOLD IN THIS ROUND
-                    </span>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+              {showTitle && (
+                <div className="bg-gradient-to-r from-slate-900 via-amber-950/70 to-slate-900 px-6 py-2 border-b border-amber-500/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {isSold ? (
+                      <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/60 text-emerald-400 text-xs font-black tracking-wider uppercase animate-bounce">
+                        <Sparkles className="w-3.5 h-3.5" /> SOLD TO {leadingTeamName || 'FRANCHISE'}
                       </span>
-                      <span className="text-xs font-black uppercase tracking-widest text-rose-400 flex items-center gap-1">
-                        LIVE ON THE BLOCK
+                    ) : isUnsold ? (
+                      <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/60 text-rose-400 text-xs font-black tracking-wider uppercase">
+                        <AlertCircle className="w-3.5 h-3.5" /> UNSOLD IN THIS ROUND
                       </span>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                        </span>
+                        <span className="text-xs font-black uppercase tracking-widest text-rose-400 flex items-center gap-1">
+                          LIVE ON THE BLOCK
+                        </span>
+                      </div>
+                    )}
 
-                  <span className="hidden sm:inline-block text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
-                    • {data?.auction_name || 'IPL MEGA AUCTION'}
-                  </span>
-                </div>
+                    <span className="hidden sm:inline-block text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
+                      • {customTournamentTitle}
+                    </span>
+                  </div>
 
-                {/* Right Tournament Crest Pill */}
-                <div className="flex items-center gap-2 font-mono text-[11px] font-bold text-amber-300">
-                  <Flame className="w-3.5 h-3.5 text-amber-400" />
-                  <span>LOT #{player.serial_no || 1}</span>
-                  <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 uppercase tracking-wider text-[10px]">
-                    {player.category || 'MARQUEE SET'}
-                  </span>
+                  {/* Right Tournament Lot & Category Pill */}
+                  <div className="flex items-center gap-2 font-mono text-[11px] font-bold text-amber-300">
+                    <Flame className="w-3.5 h-3.5 text-amber-400" />
+                    <span>LOT #{player.serial_no || 1}</span>
+                    <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 uppercase tracking-wider text-[10px]">
+                      {player.category || 'General Pool'}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Main Broadcast Body */}
               <div className="flex flex-col md:flex-row items-stretch">
@@ -211,41 +267,54 @@ export default function StreamOverlayPage() {
                   )}
 
                   {/* Base Price Watermark Tag */}
-                  <div className="absolute bottom-3 left-4 right-4 bg-slate-950/90 border border-amber-500/40 rounded-xl py-1.5 px-3 flex items-center justify-between text-xs backdrop-blur-md">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Base Price</span>
-                    <span className="font-mono font-extrabold text-amber-400">
-                      ₹{Number(player.base_price || 0).toLocaleString()}
-                    </span>
-                  </div>
+                  {showBasePrice && (
+                    <div className="absolute bottom-3 left-4 right-4 bg-slate-950/90 border border-amber-500/40 rounded-xl py-1.5 px-3 flex items-center justify-between text-xs backdrop-blur-md">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Base Price</span>
+                      <span className="font-mono font-extrabold text-amber-400">
+                        ₹{Number(player.base_price || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Player Profile & Bio Badges */}
                 <div className="flex-1 p-6 flex flex-col justify-between space-y-4">
                   <div>
                     {/* Role & Specs Pill */}
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className="px-2.5 py-1 rounded-lg bg-blue-500/20 border border-blue-400/40 text-blue-300 text-xs font-bold uppercase tracking-wider">
-                        {customRole}
-                      </span>
-                      {batting && (
-                        <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px] font-medium border border-slate-700">
-                          🏏 {batting}
+                    {showSpecs && (
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="px-2.5 py-1 rounded-lg bg-blue-500/20 border border-blue-400/40 text-blue-300 text-xs font-bold uppercase tracking-wider">
+                          {customRole}
                         </span>
-                      )}
-                      {bowling && (
-                        <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px] font-medium border border-slate-700">
-                          ⚡ {bowling}
-                        </span>
-                      )}
-                      {player.location && (
-                        <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px] font-medium border border-slate-700">
-                          📍 {player.location}
-                        </span>
-                      )}
-                    </div>
+                        {batting && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px] font-medium border border-slate-700">
+                            🏏 {batting}
+                          </span>
+                        )}
+                        {bowling && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px] font-medium border border-slate-700">
+                            ⚡ {bowling}
+                          </span>
+                        )}
+                        {player.location && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px] font-medium border border-slate-700">
+                            📍 {player.location}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Massive Bold Player Name */}
-                    <h1 className="text-3xl md:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-amber-200 uppercase drop-shadow-md">
+                    <h1
+                      style={{
+                        fontFamily: fontFamily,
+                        fontSize: `${fontSize}px`,
+                        fontWeight: fontBold ? 900 : 700,
+                        fontStyle: fontItalic ? 'italic' : 'normal',
+                        textAlign: fontAlign,
+                      }}
+                      className="tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-amber-200 uppercase drop-shadow-md"
+                    >
                       {player.player_name}
                     </h1>
                   </div>
@@ -253,7 +322,10 @@ export default function StreamOverlayPage() {
                   {/* Real-time Bid & Leading Team Mega Banner */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-900/90 border border-amber-500/40 rounded-2xl p-4 relative overflow-hidden backdrop-blur-md">
                     {/* Golden accent bar on left */}
-                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-400 via-yellow-300 to-amber-600"></div>
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-1.5"
+                      style={{ backgroundColor: customAccent }}
+                    />
 
                     {/* Left: Animated Current Bid */}
                     <div className="pl-3">
@@ -270,7 +342,7 @@ export default function StreamOverlayPage() {
                         transition={{ duration: 0.35 }}
                         className="font-mono text-3xl md:text-4xl font-black text-amber-400 tracking-tight mt-1 flex items-baseline gap-1"
                       >
-                        ₹{Number(currentBid).toLocaleString()}
+                        ₹{Number(currentBid).toLocaleString('en-IN')}
                         {bidFlashed && (
                           <motion.span
                             initial={{ opacity: 0, y: 5 }}
@@ -284,10 +356,10 @@ export default function StreamOverlayPage() {
                       </motion.div>
                     </div>
 
-                    {/* Right: Leading Franchise & Purse Details */}
+                    {/* Right: Bidder Team Name & Purse Details */}
                     <div className="sm:border-l sm:border-slate-800 sm:pl-4 flex flex-col justify-center">
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">
-                        LEADING FRANCHISE
+                        BIDDER TEAM NAME
                       </span>
                       {leadingTeamName ? (
                         <div>
@@ -296,21 +368,26 @@ export default function StreamOverlayPage() {
                             <span className="text-lg md:text-xl font-black text-white uppercase tracking-wide">
                               {leadingTeamName}
                             </span>
+                            {leadingTeamShortcut && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-xs font-bold">
+                                {leadingTeamShortcut}
+                              </span>
+                            )}
                           </div>
 
                           {/* Team Purse Ceiling Stats */}
-                          {leadingTeamFinancials && (
+                          {showPurse && leadingTeamFinancials && (
                             <div className="flex items-center gap-3 mt-1.5 text-[11px] font-mono text-slate-400 border-t border-slate-800 pt-1">
                               <span>
                                 Purse Left:{' '}
                                 <b className="text-emerald-400">
-                                  ₹{Number(leadingTeamFinancials.balance || 0).toLocaleString()}
+                                  ₹{Number(leadingTeamFinancials.balance || 0).toLocaleString('en-IN')}
                                 </b>
                               </span>
                               <span>
                                 Max Bid:{' '}
                                 <b className="text-amber-300">
-                                  ₹{Number(leadingTeamFinancials.max_bid || 0).toLocaleString()}
+                                  ₹{Number(leadingTeamFinancials.max_bid || 0).toLocaleString('en-IN')}
                                 </b>
                               </span>
                             </div>
@@ -327,7 +404,7 @@ export default function StreamOverlayPage() {
               </div>
 
               {/* Bottom Sold / Celebration Banner */}
-              {isSold && (
+              {isSold && showCelebration && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
@@ -335,29 +412,116 @@ export default function StreamOverlayPage() {
                 >
                   <Sparkles className="w-5 h-5 text-white" />
                   <span>
-                    CONGRATULATIONS {leadingTeamName} • SOLD AT ₹{Number(currentBid).toLocaleString()}
+                    CONGRATULATIONS {leadingTeamName} • SOLD AT ₹{Number(currentBid).toLocaleString('en-IN')}
                   </span>
                   <CheckCircle2 className="w-5 h-5 text-white" />
                 </motion.div>
               )}
             </motion.div>
           ) : (
-            /* Idle Broadcast Standby Ticker */
+            /* Dynamic Broadcast Standby & Roster Card (Zero hardcoded data) */
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="w-full max-w-4xl bg-slate-950/90 border border-amber-500/40 rounded-2xl p-4 flex items-center justify-between shadow-2xl backdrop-blur-md text-white"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-4xl bg-slate-950/95 border border-amber-500/40 rounded-3xl p-5 shadow-2xl backdrop-blur-xl text-white space-y-4"
+              style={{
+                boxShadow: `0 0 40px ${customAccent}30`,
+                borderColor: `${customAccent}60`,
+              }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse" />
-                <span className="font-black uppercase tracking-wider text-sm">
-                  {data?.auction_name || 'TOURNAMENT MEGA AUCTION'}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">| Awaiting next lot from auctioneer</span>
+              {/* Top Banner Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse" />
+                  <span className="font-black uppercase tracking-wider text-base sm:text-lg">
+                    {data?.auction_name || 'TOURNAMENT LIVE AUCTION'}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium hidden sm:inline-block">
+                    | Live Spectator Arena
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full uppercase tracking-widest">
+                    STANDBY FEED
+                  </span>
+                </div>
               </div>
-              <span className="font-mono text-xs font-bold text-amber-400 uppercase tracking-widest">
-                LIVE BROADCAST FEED
-              </span>
+
+              {/* Real Tournament Stats Strip */}
+              {data?.stats && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                  <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Lots</span>
+                    <span className="text-sm font-black text-white font-mono">{data.stats.total_players || 0}</span>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                    <span className="text-[10px] text-emerald-400 uppercase font-bold block">Sold</span>
+                    <span className="text-sm font-black text-emerald-400 font-mono">{data.stats.sold_count || 0}</span>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                    <span className="text-[10px] text-amber-400 uppercase font-bold block">Remaining</span>
+                    <span className="text-sm font-black text-amber-400 font-mono">{data.stats.remaining_count || 0}</span>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                    <span className="text-[10px] text-sky-400 uppercase font-bold block">Franchises</span>
+                    <span className="text-sm font-black text-sky-400 font-mono">{data.teams?.length || 0}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Upcoming Lot Teaser from real database */}
+              {tournamentPreview && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <Award className="w-4 h-4 text-amber-400" />
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-amber-400 block tracking-wider">
+                        {tournamentPreview.status === 'AVAILABLE' ? 'UPCOMING LOT' : 'RECENT LOT'}
+                      </span>
+                      <span className="text-sm font-extrabold text-white">
+                        LOT #{tournamentPreview.serial_no} • {tournamentPreview.player_name}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="px-2 py-0.5 rounded bg-white/10 text-slate-300 font-mono text-[11px] font-bold">
+                      {tournamentPreview.category || 'General Pool'}
+                    </span>
+                    <span className="block text-[11px] font-mono text-amber-300 font-bold mt-0.5">
+                      Base: ₹{Number(tournamentPreview.base_price || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Franchise Teams Roster Marquee */}
+              {data?.teams && data.teams.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
+                    Registered Franchises & Available Purses
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2 max-h-24 overflow-y-auto pr-1">
+                    {data.teams.map((tm: any, idx: number) => {
+                      const sc = getTeamShortcut(tm.team_name, tm.short_name)
+                      return (
+                        <div
+                          key={tm.team_id || idx}
+                          className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/5 border border-white/10 text-xs"
+                        >
+                          <span className="font-mono font-black text-amber-400 bg-amber-500/20 px-1.5 py-0.2 rounded text-[10px]">
+                            {sc}
+                          </span>
+                          <span className="font-bold text-white truncate max-w-[120px]">{tm.team_name}</span>
+                          <span className="font-mono text-emerald-400 font-bold text-[11px]">
+                            ₹{Number(tm.balance || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -403,11 +567,11 @@ export default function StreamOverlayPage() {
               <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-2">
                 <div>
                   <span className="text-[9px] uppercase tracking-wider text-slate-400">Current Bid</span>
-                  <p className="font-mono text-2xl font-black text-amber-400">₹{currentBid.toLocaleString()}</p>
+                  <p className="font-mono text-2xl font-black text-amber-400">₹{Number(currentBid).toLocaleString('en-IN')}</p>
                 </div>
                 {leadingTeamName && (
                   <div className="text-right">
-                    <span className="text-[9px] uppercase tracking-wider text-slate-400">Leading Franchise</span>
+                    <span className="text-[9px] uppercase tracking-wider text-slate-400">Bidder Team Name</span>
                     <p className="text-sm font-extrabold text-white">{leadingTeamName}</p>
                   </div>
                 )}
@@ -425,7 +589,7 @@ export default function StreamOverlayPage() {
           <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 block mb-1">
             🔴 LIVE AUCTION BLOCK
           </span>
-          <p className="font-mono text-3xl font-black text-white">₹{currentBid.toLocaleString()}</p>
+          <p className="font-mono text-3xl font-black text-white">₹{Number(currentBid).toLocaleString('en-IN')}</p>
           <div className="mt-2 border-t border-white/10 pt-1.5 flex items-center justify-between text-xs">
             <span className="text-slate-400">Bidder:</span>
             <span className="font-bold text-amber-300 truncate max-w-[140px]">{leadingTeamName || 'No bid yet'}</span>
@@ -442,7 +606,13 @@ export default function StreamOverlayPage() {
             <Trophy className="h-4 w-4 text-amber-400" />
             <span className="font-bold text-white">{data?.auction_name || 'Tournament Auction'}</span>
           </div>
-          <span className="text-slate-400 font-mono">BROADCAST OVERLAY STREAM</span>
+          <div className="flex items-center gap-3 overflow-hidden font-mono text-[11px]">
+            {data?.teams?.slice(0, 4).map((tm: any, i: number) => (
+              <span key={i} className="text-slate-400">
+                <b className="text-white">{tm.team_name}:</b> ₹{Number(tm.balance || 0).toLocaleString('en-IN')}
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -49,6 +49,7 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
   // 2. Auction Type & Player Selection
   const [auctionMode, setAuctionMode] = useState<'Centralized' | 'Online'>('Centralized')
   const [playerSelectionMode, setPlayerSelectionMode] = useState<'Open' | 'Category Wise'>('Open')
+  const [lotOrder, setLotOrder] = useState<'random' | 'sequential'>('random')
 
   // 3. Squad Rules & Budget
   const [maxSquad, setMaxSquad] = useState<number>(11)
@@ -132,6 +133,23 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
   const [newRuleMin, setNewRuleMin] = useState<number>(1)
   const [newRuleMax, setNewRuleMax] = useState<number | undefined>(undefined)
 
+  // 11. Broadcast Announcements & System Messages (Sheet 1 requirement 6)
+  const [customMessages, setCustomMessages] = useState<{
+    msg_post_sold: string
+    msg_unsold_pool: string
+    msg_category_complete: string
+    msg_team_cat_quota: string
+    msg_team_squad_complete: string
+    msg_auction_complete: string
+  }>({
+    msg_post_sold: 'Getting next player ready...',
+    msg_unsold_pool: 'Unsold players available in pool. Ready for Re-Auction round.',
+    msg_category_complete: 'All players in {category} are sold! Moving on to next category.',
+    msg_team_cat_quota: '{team} has acquired the target number of players for {category}!',
+    msg_team_squad_complete: '{team} has completed their full squad quota!',
+    msg_auction_complete: 'Auction Completed - All teams have completed their target squad!',
+  })
+
   useEffect(() => {
     loadSetupRules()
   }, [auctionId])
@@ -199,6 +217,7 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       if (cfg.auction_completion_message) setCompletionMessage(cfg.auction_completion_message)
       if (cfg.auction_mode) setAuctionMode(cfg.auction_mode)
       if (cfg.player_selection_mode) setPlayerSelectionMode(cfg.player_selection_mode)
+      if (cfg.lot_order) setLotOrder(cfg.lot_order)
       if (cfg.max_squad) setMaxSquad(cfg.max_squad)
       if (cfg.team_purse !== undefined) setTeamPurse(cfg.team_purse)
       if (cfg.retention_allowed !== undefined) setRetentionAllowed(Boolean(cfg.retention_allowed))
@@ -232,6 +251,12 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       if (cfg.timer_seconds) setTimerSeconds(cfg.timer_seconds)
       if (cfg.closing_wait_seconds) setClosingWaitSeconds(cfg.closing_wait_seconds)
       if (cfg.sound_effects !== undefined) setSoundEffects(Boolean(cfg.sound_effects))
+      if (cfg.custom_messages) {
+        setCustomMessages((prev) => ({
+          ...prev,
+          ...cfg.custom_messages,
+        }))
+      }
 
       if (d.auction) {
         if (d.auction.active_teams_count) setActiveTeamsCount(d.auction.active_teams_count)
@@ -384,7 +409,7 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
     setErrorMessage('')
 
     const totalTarget = categories.reduce((sum, c) => sum + (c.target_count || 0), 0)
-    if (totalTarget !== maxSquad && categories.length > 0) {
+    if (totalTarget > 0 && totalTarget !== maxSquad && categories.length > 0) {
       if (
         !confirm(
           `Notice: Sum of category targets (${totalTarget}) does not equal Max Squad (${maxSquad}). Would you like to auto-adjust Max Squad to ${totalTarget} before saving?`
@@ -404,6 +429,7 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       formData.append('auction_mode', auctionMode)
       formData.append('player_selection_mode', playerSelectionMode)
       formData.append('category_wise_bidding', playerSelectionMode === 'Category Wise' ? 'true' : 'false')
+      formData.append('lot_order', lotOrder)
 
       // 2. Budget & Squad
       formData.append('max_squad', (totalTarget > 0 ? totalTarget : maxSquad).toString())
@@ -477,6 +503,9 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       formData.append('timer_seconds', timerSeconds.toString())
       formData.append('closing_wait_seconds', closingWaitSeconds.toString())
       formData.append('sound_effects', soundEffects ? 'true' : 'false')
+
+      // 8. Broadcast Announcements & System Messages (Sheet 1 requirement 6)
+      formData.append('custom_messages', JSON.stringify(customMessages))
 
       await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -600,7 +629,7 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
           <Eye className="h-5 w-5 text-blue-500" />
           Auction Type & Player Selection
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
           <div className="space-y-2">
             <Label className="text-xs font-bold text-foreground">Auction Type *</Label>
             <select
@@ -627,7 +656,22 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
               <option value="Category Wise">Category Wise Auction</option>
             </select>
             <p className="text-[11px] text-muted-foreground">
-              Open = random player from any eligible category. Category Wise = random player from the selected category.
+              Open = player from any eligible category. Category Wise = player from the selected category.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-foreground">Player Lot Ordering *</Label>
+            <select
+              value={lotOrder}
+              onChange={(e) => setLotOrder(e.target.value as any)}
+              className="w-full rounded-xl border border-border bg-background p-2.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+            >
+              <option value="random">Random (Default)</option>
+              <option value="sequential">Sequential (1, 2, 3, 4...)</option>
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              Sequential brings lots strictly as 1, 2, 3, 4... Random brings random available lots.
             </p>
           </div>
         </div>
@@ -1040,8 +1084,8 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
                   </div>
                 </div>
 
-                {/* 4-Column Grid: Base Price, Target Count, Min Player, Max Player */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+                {/* 3-Column Grid: Base Price, Min Player, Max Player (Target Req/Team removed per Image 6 / Sheet 1) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase">
                       Base Price (₹)
@@ -1052,18 +1096,6 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
                       step={500}
                       value={cat.base_price}
                       onChange={(e) => handleUpdateCategory(idx, 'base_price', parseFloat(e.target.value) || 0)}
-                      className="text-xs font-bold font-mono rounded-xl bg-background h-8"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">
-                      Target (Req./Team)
-                    </label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={cat.target_count}
-                      onChange={(e) => handleUpdateCategory(idx, 'target_count', parseInt(e.target.value) || 0)}
                       className="text-xs font-bold font-mono rounded-xl bg-background h-8"
                     />
                   </div>
@@ -1647,6 +1679,117 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
           >
             <Plus className="h-4 w-4 mr-1" /> Add Squad Constraint
           </Button>
+        </div>
+      </section>
+
+      {/* 11. Broadcast Announcements & System Messages (Sheet 1 requirement 6) */}
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs space-y-4">
+        <div>
+          <h2 className="text-base font-black text-foreground flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-amber-500" />
+            Broadcast Announcements & Transition Messages
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Configure dynamic messages displayed on the live broadcast auction screen during player transitions, category completions, and quota milestones.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          {/* Message 1 */}
+          <div className="space-y-1.5 p-4 rounded-2xl border border-border bg-muted/20">
+            <Label className="text-xs font-black text-foreground">
+              1. Post-Sold Transition Screen
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              Shown once a player is sold before the next lot arrives (replaces &quot;No Player on Block&quot;).
+            </p>
+            <Input
+              value={customMessages.msg_post_sold}
+              onChange={(e) => setCustomMessages(prev => ({ ...prev, msg_post_sold: e.target.value }))}
+              placeholder="e.g. Getting next player ready..."
+              className="text-xs font-bold rounded-xl border-border bg-background"
+            />
+          </div>
+
+          {/* Message 2 */}
+          <div className="space-y-1.5 p-4 rounded-2xl border border-border bg-muted/20">
+            <Label className="text-xs font-black text-foreground">
+              2. Unsold Player Pool Notice
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              Shown if teams still need players and unsold players remain in the secondary pool.
+            </p>
+            <Input
+              value={customMessages.msg_unsold_pool}
+              onChange={(e) => setCustomMessages(prev => ({ ...prev, msg_unsold_pool: e.target.value }))}
+              placeholder="e.g. Unsold players available in pool. Ready for Re-Auction round."
+              className="text-xs font-bold rounded-xl border-border bg-background"
+            />
+          </div>
+
+          {/* Message 3 */}
+          <div className="space-y-1.5 p-4 rounded-2xl border border-border bg-muted/20">
+            <Label className="text-xs font-black text-foreground">
+              3. Category Completion Notice
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              Shown when target number of players in a category are sold. Use <code className="text-amber-500 font-bold">&#123;category&#125;</code>.
+            </p>
+            <Input
+              value={customMessages.msg_category_complete}
+              onChange={(e) => setCustomMessages(prev => ({ ...prev, msg_category_complete: e.target.value }))}
+              placeholder="e.g. All players in {category} are sold! Moving on to next category."
+              className="text-xs font-bold rounded-xl border-border bg-background"
+            />
+          </div>
+
+          {/* Message 4 */}
+          <div className="space-y-1.5 p-4 rounded-2xl border border-border bg-muted/20">
+            <Label className="text-xs font-black text-foreground">
+              4. Team Category Target Reached
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              Shown when a team buys required players for a category. Use <code className="text-amber-500 font-bold">&#123;team&#125;</code> and <code className="text-amber-500 font-bold">&#123;category&#125;</code>.
+            </p>
+            <Input
+              value={customMessages.msg_team_cat_quota}
+              onChange={(e) => setCustomMessages(prev => ({ ...prev, msg_team_cat_quota: e.target.value }))}
+              placeholder="e.g. {team} has acquired the target number of players for {category}!"
+              className="text-xs font-bold rounded-xl border-border bg-background"
+            />
+          </div>
+
+          {/* Message 5 */}
+          <div className="space-y-1.5 p-4 rounded-2xl border border-border bg-muted/20">
+            <Label className="text-xs font-black text-foreground">
+              5. Team Full Squad Completed
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              Shown when a team completes their full target squad across all categories. Use <code className="text-amber-500 font-bold">&#123;team&#125;</code>.
+            </p>
+            <Input
+              value={customMessages.msg_team_squad_complete}
+              onChange={(e) => setCustomMessages(prev => ({ ...prev, msg_team_squad_complete: e.target.value }))}
+              placeholder="e.g. {team} has completed their full squad quota!"
+              className="text-xs font-bold rounded-xl border-border bg-background"
+            />
+          </div>
+
+          {/* Message 6 */}
+          <div className="space-y-1.5 p-4 rounded-2xl border border-border bg-muted/20">
+            <Label className="text-xs font-black text-foreground">
+              6. All Teams Target Quotas Completed
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              Shown when all tournament teams have acquired their full squads.
+            </p>
+            <Input
+              value={customMessages.msg_auction_complete}
+              onChange={(e) => setCustomMessages(prev => ({ ...prev, msg_auction_complete: e.target.value }))}
+              placeholder="e.g. Auction Completed - All teams have completed their target squad!"
+              className="text-xs font-bold rounded-xl border-border bg-background"
+            />
+          </div>
         </div>
       </section>
 

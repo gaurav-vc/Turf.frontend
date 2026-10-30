@@ -53,6 +53,24 @@ export type ActiveSection =
   | 'owners_designer'
   | 'card_elements'
 
+export interface CustomCoverBlock {
+  id: string
+  type: 'text' | 'image'
+  content?: string
+  media_url?: string
+  text?: string
+  x: number // %
+  y: number // %
+  fontSize?: number
+  fontFamily?: string
+  color?: string
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  width?: number // %
+  height?: number // %
+}
+
 export interface CoverPageConfig {
   title: string
   subtitle: string
@@ -63,6 +81,15 @@ export interface CoverPageConfig {
   bg_colour: string
   text_colour: string
   accent_colour: string
+  font_family?: string
+  title_font_size?: number
+  subtitle_font_size?: number
+  date_venue_font_size?: number
+  show_teams_count?: boolean
+  show_players_count?: boolean
+  show_category_count?: boolean
+  show_players_per_category?: boolean
+  custom_blocks?: CustomCoverBlock[]
 }
 
 export interface TeamsDesignerConfig {
@@ -70,13 +97,36 @@ export interface TeamsDesignerConfig {
   show_captain: boolean
   show_squad_stats: boolean
   team_card_theme: 'solid' | 'gradient' | 'bordered'
+  show_player_names?: boolean
+  show_initial_kitty?: boolean
+  show_balance_kitty?: boolean
+  show_max_bid?: boolean
+  show_category_summary?: boolean
+  show_overall_total?: boolean
+}
+
+export interface OwnerColumnConfig {
+  key: string
+  label: string
+  enabled: boolean
 }
 
 export interface OwnersDesignerConfig {
   show_purse: boolean
   show_contact: boolean
   show_avatar: boolean
+  columns?: OwnerColumnConfig[]
 }
+
+const DEFAULT_OWNER_COLUMNS: OwnerColumnConfig[] = [
+  { key: 'team_name', label: 'Team Name', enabled: true },
+  { key: 'short_name', label: 'Short Name', enabled: true },
+  { key: 'team_logo', label: 'Team Logo', enabled: true },
+  { key: 'owner_name', label: 'Owner Name', enabled: true },
+  { key: 'mobile', label: 'Mobile Number', enabled: true },
+  { key: 'email', label: 'Email ID', enabled: true },
+  { key: 'total_kitty', label: 'Total Kitty', enabled: true },
+]
 
 const DEFAULT_COVER_CONFIG: CoverPageConfig = {
   title: 'TURF TOURNAMENT AUCTION',
@@ -88,6 +138,15 @@ const DEFAULT_COVER_CONFIG: CoverPageConfig = {
   bg_colour: '#0f172a',
   text_colour: '#ffffff',
   accent_colour: '#4f46e5',
+  font_family: 'Helvetica',
+  title_font_size: 26,
+  subtitle_font_size: 14,
+  date_venue_font_size: 11,
+  show_teams_count: true,
+  show_players_count: true,
+  show_category_count: true,
+  show_players_per_category: true,
+  custom_blocks: [],
 }
 
 const DEFAULT_TEAMS_CONFIG: TeamsDesignerConfig = {
@@ -95,12 +154,19 @@ const DEFAULT_TEAMS_CONFIG: TeamsDesignerConfig = {
   show_captain: true,
   show_squad_stats: true,
   team_card_theme: 'solid',
+  show_player_names: true,
+  show_initial_kitty: true,
+  show_balance_kitty: true,
+  show_max_bid: true,
+  show_category_summary: true,
+  show_overall_total: true,
 }
 
 const DEFAULT_OWNERS_CONFIG: OwnersDesignerConfig = {
   show_purse: true,
   show_contact: true,
   show_avatar: true,
+  columns: DEFAULT_OWNER_COLUMNS,
 }
 
 export interface PlacedLogo {
@@ -124,6 +190,8 @@ export interface CardElement {
   align: 'left' | 'center' | 'right'
   bold: boolean
   italic: boolean
+  underline?: boolean
+  image_fit?: 'contain' | 'cover' | 'fill'
   show_label: boolean
   label?: string
   custom_label?: string
@@ -219,6 +287,74 @@ function hexToRgba(hex: string, alpha: number) {
   return hex
 }
 
+interface LiveTeamItem {
+  id?: string | number
+  name?: string
+  short_name?: string
+  primary_color?: string
+  logo?: string
+  logo_url?: string
+  owner_name?: string
+  owner_mobile?: string
+  owner_email?: string
+  owner_phone?: string
+  mobile?: string
+  email?: string
+  manager_name?: string
+  initial_purse?: number
+  starting_budget?: number
+  purse?: number
+  budget?: number
+  remaining_budget?: number
+  max_bid?: number
+  team?: {
+    name?: string
+    short_name?: string
+    primary_color?: string
+    logo?: string
+    user?: {
+      email?: string
+      mobile_number?: string
+      full_name?: string
+      first_name?: string
+      username?: string
+    }
+  }
+}
+
+interface RealPlayerItem {
+  id?: string | number
+  name?: string
+  player_name?: string
+  serial_no?: string | number
+  photo?: string
+  photo_url?: string
+  image_url?: string
+  category?: string
+  tier?: string
+  role?: string
+  player_skills?: string
+  location?: string
+  batting_style?: string
+  bowling_style?: string
+  mobile?: string
+  age?: string | number
+  experience?: string | number
+  application_id?: string
+  base_price?: number
+  sold_price?: number
+  sold_to?: string | number
+  team_id?: string | number
+  status?: string
+  custom_data?: Record<string, string | number | boolean | null | undefined>
+  player?: {
+    full_name?: string
+    first_name?: string
+    username?: string
+    email?: string
+  }
+}
+
 export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const [activeSection, setActiveSection] = useState<ActiveSection>('page_grid')
   const [activeTab, setActiveTab] = useState<'category' | 'auction'>('category')
@@ -234,14 +370,14 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   // Sub-Designer States
-  const [liveTeams, setLiveTeams] = useState<any[]>([])
-  const [, setTournamentInfo] = useState<any>(null)
+  const [liveTeams, setLiveTeams] = useState<LiveTeamItem[]>([])
+  const [, setTournamentInfo] = useState<Record<string, unknown> | null>(null)
   const [coverPageConfig, setCoverPageConfig] = useState<CoverPageConfig>(DEFAULT_COVER_CONFIG)
   const [teamsDesignerConfig, setTeamsDesignerConfig] = useState<TeamsDesignerConfig>(DEFAULT_TEAMS_CONFIG)
   const [ownersDesignerConfig, setOwnersDesignerConfig] = useState<OwnersDesignerConfig>(DEFAULT_OWNERS_CONFIG)
 
   // Dynamic Real Players & Categories
-  const [realPlayers, setRealPlayers] = useState<any[]>([])
+  const [realPlayers, setRealPlayers] = useState<RealPlayerItem[]>([])
   const [availableCategories, setAvailableCategories] = useState<string[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [draggingListKey, setDraggingListKey] = useState<string | null>(null)
@@ -458,12 +594,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     }
   }, [draggingLogoId, draggingElementKey, resizingElementKey])
 
-  useEffect(() => {
-    loadDesign()
-  }, [auctionId])
-
   const loadDesign = async () => {
-    setLoading(true)
     try {
       const [resDesign, resPlayers, resCats, resTeams, resSetup] = await Promise.allSettled([
         apiClient.get(`/v1/auction/console/${auctionId}/page_design/`),
@@ -474,20 +605,20 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
       ])
 
       // 1. Process Real Players & Categories
-      let fetchedPlayers: any[] = []
+      let fetchedPlayers: RealPlayerItem[] = []
       if (resPlayers.status === 'fulfilled') {
         const rawP = resPlayers.value.data
-        fetchedPlayers = Array.isArray(rawP) ? rawP : (rawP?.results || [])
+        fetchedPlayers = (Array.isArray(rawP) ? rawP : (rawP?.results || [])) as RealPlayerItem[]
       }
       setRealPlayers(fetchedPlayers)
 
       let dbCats: string[] = []
       if (resCats.status === 'fulfilled') {
         const rawC = resCats.value.data
-        const cList = Array.isArray(rawC) ? rawC : (rawC?.results || [])
-        dbCats = cList.map((c: any) => c.name || c).filter(Boolean)
+        const cList = (Array.isArray(rawC) ? rawC : (rawC?.results || [])) as (Record<string, unknown> | string)[]
+        dbCats = cList.map((c) => (typeof c === 'string' ? c : (c.name as string) || '')).filter(Boolean)
       }
-      const playerCats = fetchedPlayers.map((p: any) => p.category).filter(Boolean) as string[]
+      const playerCats = fetchedPlayers.map((p) => p.category).filter(Boolean) as string[]
       const combinedCats = Array.from(new Set([...dbCats, ...playerCats]))
       setAvailableCategories(combinedCats)
 
@@ -503,7 +634,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
       // 2. Process Teams & Tournament Setup
       if (resTeams.status === 'fulfilled') {
         const rawT = resTeams.value.data
-        const tList = Array.isArray(rawT) ? rawT : (rawT?.results || rawT?.teams || [])
+        const tList = (Array.isArray(rawT) ? rawT : (rawT?.results || rawT?.teams || [])) as LiveTeamItem[]
         setLiveTeams(tList)
       }
 
@@ -539,7 +670,15 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
           if (d.card_fill) setCardFill(d.card_fill)
           if (d.elements) {
             const cleaned: Record<string, CardElement> = {}
-            for (const [k, el] of Object.entries(d.elements as Record<string, CardElement>)) {
+            for (const [rawK, el] of Object.entries(d.elements as Record<string, CardElement>)) {
+              // Normalize and deduplicate legacy synonymous keys
+              let k = rawK
+              if (rawK === 'player_name') k = 'name'
+              else if (rawK === 'player_category') k = 'category'
+              else if (rawK === 'player_role') k = 'role'
+              else if (rawK === 'serial_no') k = 'player_number'
+              else if (rawK === 'player_image' || rawK === 'photo') k = 'player_photo'
+
               const def = DEFAULT_CARD_ELEMENTS[k]
               const merged = { ...(def || {}), ...el }
               // Remove legacy hardcoded dummy strings if present from old default saves
@@ -616,6 +755,12 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     }
   }
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadDesign()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auctionId])
+
   const getDesignPayload = () => ({
     activeTab,
     cols,
@@ -687,7 +832,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     setSaveSuccess(false)
     try {
       const res = await apiClient.get(`/v1/auction/console/${auctionId}/page_design/`)
-      const currentJson = ((res.data?.design_json || res.data || {}) as Record<string, any>)
+      const currentJson = ((res.data?.design_json || res.data || {}) as Record<string, unknown>)
       const payload = getDesignPayload()
       currentJson.pdf_design = payload
       await apiClient.post(`/v1/auction/console/${auctionId}/page_design/`, {
@@ -710,7 +855,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
       // Auto-save latest design payload before download
       try {
         const resDesign = await apiClient.get(`/v1/auction/console/${auctionId}/page_design/`)
-        const currentJson = ((resDesign.data?.design_json || resDesign.data || {}) as Record<string, any>)
+        const currentJson = ((resDesign.data?.design_json || resDesign.data || {}) as Record<string, unknown>)
         currentJson.pdf_design = payload
         await apiClient.post(`/v1/auction/console/${auctionId}/page_design/`, {
           design_json: currentJson,
@@ -753,7 +898,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Auction_Teams_Report.pdf`
+      a.download = `Auction_Teams_and_Squad.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -761,6 +906,27 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     } catch (err) {
       console.error('Failed to export teams PDF', err)
       const downloadUrl = `${apiBase}/v1/auction/console/${auctionId}/export_teams_pdf/`
+      window.open(downloadUrl, '_blank')
+    }
+  }
+
+  const handleDownloadOwnersPdf = async () => {
+    try {
+      const res = await apiClient.get(`/v1/auction/console/${auctionId}/export_owners_pdf/`, {
+        responseType: 'blob',
+      })
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Franchise_Owners_Summary.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      console.error('Failed to export owners PDF', err)
+      const downloadUrl = `${apiBase}/v1/auction/console/${auctionId}/export_owners_pdf/`
       window.open(downloadUrl, '_blank')
     }
   }
@@ -824,7 +990,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     })
   }
 
-  const updateElementProp = (key: string, prop: keyof CardElement, val: any) => {
+  const updateElementProp = <P extends keyof CardElement>(key: string, prop: P, val: CardElement[P]) => {
     setElements((prev) => {
       const el = prev[key]
       if (!el) return prev
@@ -864,7 +1030,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     reader.readAsDataURL(file)
   }
 
-  const updateProp = (key: string, prop: keyof CardElement, val: any) => {
+  const updateProp = <P extends keyof CardElement>(key: string, prop: P, val: CardElement[P]) => {
     setElements((prev) => ({
       ...prev,
       [key]: {
@@ -902,7 +1068,9 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   }
 
   const handleAddCustomBox = () => {
-    const newKey = `custom_${Date.now()}`
+    const existingBoxesCount = Object.keys(elements).filter((k) => k.startsWith('box_') || k.startsWith('custom_')).length
+    const boxNumber = existingBoxesCount + 1
+    const newKey = `box_${boxNumber}`
     const newBox: CardElement = {
       selected: true,
       x: 38,
@@ -915,9 +1083,11 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
       align: 'left',
       bold: false,
       italic: false,
+      underline: false,
       show_label: true,
-      label: 'Badge:',
-      custom_text: 'Custom Text',
+      label: `Box ${boxNumber}:`,
+      custom_label: `Box ${boxNumber}`,
+      custom_text: `Box ${boxNumber} Content`,
       is_custom: true,
       z: 3,
     }
@@ -1114,7 +1284,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
           <Button
             onClick={handleDownloadCardsPdf}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm rounded-xl"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm rounded-xl cursor-pointer"
             title="Download printable grid of player auction cards"
           >
             <Printer className="w-3.5 h-3.5" />
@@ -1123,37 +1293,47 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
           <Button
             variant="outline"
-            onClick={handleDownloadTeamsPdf}
-            className="border-slate-300 text-zinc-800 hover:bg-slate-100 text-xs font-bold flex items-center gap-1.5 rounded-xl"
-            title="Export team-wise player roster PDF"
+            onClick={handleDownloadCategoryPdf}
+            className="border-slate-300 text-zinc-800 hover:bg-slate-100 text-xs font-bold flex items-center gap-1.5 rounded-xl cursor-pointer"
+            title="Download category-wise player roster PDF"
           >
-            <Users className="w-3.5 h-3.5 text-indigo-600" />
-            Export Teams PDF
+            <Grid className="w-3.5 h-3.5 text-purple-600" />
+            Download Players Category Wise
           </Button>
 
           <Button
             variant="outline"
-            onClick={handleDownloadCategoryPdf}
-            className="border-slate-300 text-zinc-800 hover:bg-slate-100 text-xs font-bold flex items-center gap-1.5 rounded-xl"
-            title="Export category-wise player roster PDF"
+            onClick={handleDownloadOwnersPdf}
+            className="border-slate-300 text-zinc-800 hover:bg-slate-100 text-xs font-bold flex items-center gap-1.5 rounded-xl cursor-pointer"
+            title="Download dedicated franchise owners and financial kitty PDF"
           >
-            <Grid className="w-3.5 h-3.5 text-purple-600" />
-            Export Category-wise PDF
+            <Crown className="w-3.5 h-3.5 text-amber-500" />
+            Download Owners
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={handleDownloadTeamsPdf}
+            className="border-slate-300 text-zinc-800 hover:bg-slate-100 text-xs font-bold flex items-center gap-1.5 rounded-xl cursor-pointer"
+            title="Download standalone team and squad breakdown PDF"
+          >
+            <Users className="w-3.5 h-3.5 text-indigo-600" />
+            Download Team and Squad
           </Button>
 
           <Button
             onClick={handleDownloadBookletPdf}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm rounded-xl"
-            title="Merge all pages and download complete tournament booklet PDF"
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm rounded-xl cursor-pointer"
+            title="Download complete multi-page tournament booklet (Cover, Owners & Category Pool)"
           >
             <BookOpen className="w-3.5 h-3.5 text-amber-300" />
-            Download Complete Booklet (PDF)
+            Download Complete Booklet
           </Button>
 
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm rounded-xl"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm rounded-xl cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
             {saving ? 'Saving...' : 'Save Design'}
@@ -1312,11 +1492,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                         key={p.val}
                         type="button"
                         onClick={() => setCardFillOpacity(p.val)}
-                        className={`text-[9px] py-1 rounded font-bold border transition ${
-                          cardFillOpacity === p.val
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                        }`}
+                        className={`text-[9px] py-1 rounded font-bold border transition ${cardFillOpacity === p.val
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
                       >
                         {p.label}
                       </button>
@@ -1611,6 +1790,141 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   />
                 </div>
 
+                {/* Typography Controls */}
+                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Font Family</label>
+                    <select
+                      value={coverPageConfig.font_family || 'Helvetica'}
+                      onChange={(e) => setCoverPageConfig((prev) => ({ ...prev, font_family: e.target.value }))}
+                      className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 font-bold cursor-pointer"
+                    >
+                      <option value="Helvetica">Helvetica</option>
+                      <option value="Times-Roman">Times New Roman</option>
+                      <option value="Courier">Courier</option>
+                      <option value="Arial">Arial</option>
+                      <option value="Roboto">Roboto</option>
+                      <option value="Inter">Inter</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-700 block mb-1">Title Font Size</label>
+                    <input
+                      type="number"
+                      min={16}
+                      max={48}
+                      value={coverPageConfig.title_font_size || 26}
+                      onChange={(e) => setCoverPageConfig((prev) => ({ ...prev, title_font_size: Number(e.target.value) }))}
+                      className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2 font-bold font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Individual System Stat Toggles */}
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="text-[11px] font-bold text-slate-800 uppercase block mb-1.5">
+                    Individual Stat Toggles
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={coverPageConfig.show_teams_count !== false}
+                        onChange={(e) => setCoverPageConfig((prev) => ({ ...prev, show_teams_count: e.target.checked }))}
+                        className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                      />
+                      <span>Number of Teams</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={coverPageConfig.show_players_count !== false}
+                        onChange={(e) => setCoverPageConfig((prev) => ({ ...prev, show_players_count: e.target.checked }))}
+                        className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                      />
+                      <span>Number of Players</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={coverPageConfig.show_category_count !== false}
+                        onChange={(e) => setCoverPageConfig((prev) => ({ ...prev, show_category_count: e.target.checked }))}
+                        className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                      />
+                      <span>Number of Categories</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={coverPageConfig.show_players_per_category !== false}
+                        onChange={(e) => setCoverPageConfig((prev) => ({ ...prev, show_players_per_category: e.target.checked }))}
+                        className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                      />
+                      <span>Players in each Category</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Multiple Custom Cover Blocks */}
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-slate-800 uppercase">Custom Cover Blocks</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newBlock: CustomCoverBlock = {
+                          id: `cblock_${Date.now()}`,
+                          type: 'text',
+                          content: 'Custom Announcement Text',
+                          x: 50,
+                          y: 85,
+                          fontSize: 14,
+                          color: '#ffffff',
+                          bold: true,
+                        }
+                        setCoverPageConfig((prev) => ({
+                          ...prev,
+                          custom_blocks: [...(prev.custom_blocks || []), newBlock],
+                        }))
+                      }}
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 cursor-pointer"
+                    >
+                      + Add Text Block
+                    </button>
+                  </div>
+                  {coverPageConfig.custom_blocks && coverPageConfig.custom_blocks.length > 0 && (
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                      {coverPageConfig.custom_blocks.map((blk, bIdx) => (
+                        <div key={blk.id || bIdx} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                          <input
+                            type="text"
+                            value={blk.content}
+                            onChange={(e) => {
+                              const updated = [...(coverPageConfig.custom_blocks || [])]
+                              updated[bIdx] = { ...updated[bIdx], content: e.target.value }
+                              setCoverPageConfig((prev) => ({ ...prev, custom_blocks: updated }))
+                            }}
+                            className="bg-transparent font-bold flex-1 text-slate-800 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = (coverPageConfig.custom_blocks || []).filter((_, idx) => idx !== bIdx)
+                              setCoverPageConfig((prev) => ({ ...prev, custom_blocks: updated }))
+                            }}
+                            className="text-red-500 hover:text-red-700 ml-2 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
                     <input
@@ -1629,7 +1943,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                       onChange={(e) => setCoverPageConfig((prev) => ({ ...prev, show_stats: e.target.checked }))}
                       className="rounded border-slate-300 text-indigo-600 h-4 w-4"
                     />
-                    <span>Show Teams & Players</span>
+                    <span>Show Stats Section</span>
                   </label>
                 </div>
 
@@ -1718,21 +2032,61 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
                     <input
                       type="checkbox"
-                      checked={teamsDesignerConfig.show_purse}
-                      onChange={(e) => setTeamsDesignerConfig((prev) => ({ ...prev, show_purse: e.target.checked }))}
+                      checked={teamsDesignerConfig.show_player_names !== false}
+                      onChange={(e) => setTeamsDesignerConfig((prev) => ({ ...prev, show_player_names: e.target.checked }))}
                       className="rounded border-slate-300 text-indigo-600 h-4 w-4"
                     />
-                    <span>Show Purse in Squads</span>
+                    <span>Player Names on Squads</span>
                   </label>
 
                   <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
                     <input
                       type="checkbox"
-                      checked={teamsDesignerConfig.show_captain}
-                      onChange={(e) => setTeamsDesignerConfig((prev) => ({ ...prev, show_captain: e.target.checked }))}
+                      checked={teamsDesignerConfig.show_initial_kitty !== false}
+                      onChange={(e) => setTeamsDesignerConfig((prev) => ({ ...prev, show_initial_kitty: e.target.checked }))}
                       className="rounded border-slate-300 text-indigo-600 h-4 w-4"
                     />
-                    <span>Show Captain / Owner</span>
+                    <span>Show Initial Kitty</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={teamsDesignerConfig.show_balance_kitty !== false}
+                      onChange={(e) => setTeamsDesignerConfig((prev) => ({ ...prev, show_balance_kitty: e.target.checked }))}
+                      className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                    />
+                    <span>Show Balance Kitty</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={teamsDesignerConfig.show_max_bid !== false}
+                      onChange={(e) => setTeamsDesignerConfig((prev) => ({ ...prev, show_max_bid: e.target.checked }))}
+                      className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                    />
+                    <span>Show Max Bid Limit</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={teamsDesignerConfig.show_category_summary !== false}
+                      onChange={(e) => setTeamsDesignerConfig((prev) => ({ ...prev, show_category_summary: e.target.checked }))}
+                      className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                    />
+                    <span>Category Summary</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={teamsDesignerConfig.show_overall_total !== false}
+                      onChange={(e) => setTeamsDesignerConfig((prev) => ({ ...prev, show_overall_total: e.target.checked }))}
+                      className="rounded border-slate-300 text-indigo-600 h-4 w-4"
+                    />
+                    <span>Overall Total Squad</span>
                   </label>
                 </div>
 
@@ -1788,6 +2142,75 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   <span className="text-[10px] text-slate-500 bg-slate-100 font-semibold px-2 py-0.5 rounded">
                     Page 2 Financials
                   </span>
+                </div>
+
+                {/* Configurable Column Sequence & Visibility (Sheet 4 Req 1) */}
+                <div className="space-y-2 pt-1 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Configure & Reorder Columns
+                    </span>
+                    <span className="text-[9px] text-slate-400">Use ↑ ↓ to change sequence</span>
+                  </div>
+
+                  <div className="space-y-1 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    {(ownersDesignerConfig.columns || DEFAULT_OWNER_COLUMNS).map((col, cIdx, arr) => {
+                      const handleMove = (direction: 'up' | 'down') => {
+                        const newCols = [...arr]
+                        const targetIdx = direction === 'up' ? cIdx - 1 : cIdx + 1
+                        if (targetIdx < 0 || targetIdx >= newCols.length) return
+                        const temp = newCols[cIdx]
+                        newCols[cIdx] = newCols[targetIdx]
+                        newCols[targetIdx] = temp
+                        setOwnersDesignerConfig((prev) => ({ ...prev, columns: newCols }))
+                      }
+
+                      const handleToggle = () => {
+                        const newCols = arr.map((item, idx) =>
+                          idx === cIdx ? { ...item, enabled: !item.enabled } : item
+                        )
+                        setOwnersDesignerConfig((prev) => ({ ...prev, columns: newCols }))
+                      }
+
+                      return (
+                        <div
+                          key={col.key}
+                          className="flex items-center justify-between p-1.5 rounded-lg bg-white border border-slate-200 text-xs shadow-2xs"
+                        >
+                          <label className="flex items-center gap-2 font-bold text-slate-800 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={col.enabled}
+                              onChange={handleToggle}
+                              className="rounded border-slate-300 text-amber-600 h-3.5 w-3.5"
+                            />
+                            <span>{col.label}</span>
+                          </label>
+
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleMove('up')}
+                              disabled={cIdx === 0}
+                              className="p-1 text-slate-500 hover:text-slate-900 disabled:opacity-30 rounded hover:bg-slate-100 cursor-pointer"
+                              title="Move column earlier"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMove('down')}
+                              disabled={cIdx === arr.length - 1}
+                              className="p-1 text-slate-500 hover:text-slate-900 disabled:opacity-30 rounded hover:bg-slate-100 cursor-pointer"
+                              title="Move column later"
+                            >
+                              ↓
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1916,15 +2339,14 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                             setDragOverListKey(null)
                           }}
                           onClick={() => setSelectedKey(key)}
-                          className={`flex items-center justify-between p-2 rounded-xl cursor-pointer text-xs transition border ${
-                            isBeingDragged
-                              ? 'opacity-40 bg-indigo-100 border-indigo-400 border-dashed'
-                              : isDragOver
+                          className={`flex items-center justify-between p-2 rounded-xl cursor-pointer text-xs transition border ${isBeingDragged
+                            ? 'opacity-40 bg-indigo-100 border-indigo-400 border-dashed'
+                            : isDragOver
                               ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-400/40'
                               : isSel
-                              ? 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold shadow-xs'
-                              : 'bg-slate-50/70 hover:bg-slate-100 border-transparent text-slate-700'
-                          }`}
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold shadow-xs'
+                                : 'bg-slate-50/70 hover:bg-slate-100 border-transparent text-slate-700'
+                            }`}
                         >
                           <div className="flex items-center gap-1.5 flex-1 min-w-0">
                             {/* Drag Handle */}
@@ -1948,7 +2370,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                               />
                               <span className="truncate">{displayName}</span>
                               {el.is_custom && (
-                                <span className="text-[9px] bg-purple-100 text-purple-700 font-bold px-1.5 py-0.2 rounded shrink-0">
+                                <span className="text-[9px] bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded shrink-0">
                                   Custom
                                 </span>
                               )}
@@ -1993,11 +2415,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                             <button
                               type="button"
                               onClick={() => updateProp(key, 'show_label', !el.show_label)}
-                              className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold transition ml-1 ${
-                                el.show_label
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                  : 'bg-slate-200 text-slate-600'
-                              }`}
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-semibold transition ml-1 ${el.show_label
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-slate-200 text-slate-600'
+                                }`}
                               title="Toggle prefix label"
                             >
                               {el.show_label ? 'LBL: ON' : 'LBL: OFF'}
@@ -2130,36 +2551,32 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                           <button
                             type="button"
                             onClick={() => updateProp(selectedKey, 'align', 'left')}
-                            className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${
-                              elements[selectedKey].align === 'left' ? 'bg-white shadow-xs font-bold text-indigo-600' : 'hover:bg-slate-200'
-                            }`}
+                            className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${elements[selectedKey].align === 'left' ? 'bg-white shadow-xs font-bold text-indigo-600' : 'hover:bg-slate-200'
+                              }`}
                           >
                             <AlignLeft className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => updateProp(selectedKey, 'align', 'center')}
-                            className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${
-                              elements[selectedKey].align === 'center' ? 'bg-white shadow-xs font-bold text-indigo-600' : 'hover:bg-slate-200'
-                            }`}
+                            className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${elements[selectedKey].align === 'center' ? 'bg-white shadow-xs font-bold text-indigo-600' : 'hover:bg-slate-200'
+                              }`}
                           >
                             <AlignCenter className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => updateProp(selectedKey, 'align', 'right')}
-                            className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${
-                              elements[selectedKey].align === 'right' ? 'bg-white shadow-xs font-bold text-indigo-600' : 'hover:bg-slate-200'
-                            }`}
+                            className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${elements[selectedKey].align === 'right' ? 'bg-white shadow-xs font-bold text-indigo-600' : 'hover:bg-slate-200'
+                              }`}
                           >
                             <AlignRight className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => updateProp(selectedKey, 'bold', !elements[selectedKey].bold)}
-                            className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${
-                              elements[selectedKey].bold ? 'bg-indigo-600 text-white font-black' : 'hover:bg-slate-200'
-                            }`}
+                            className={`flex-1 py-1 flex items-center justify-center rounded text-slate-600 ${elements[selectedKey].bold ? 'bg-indigo-600 text-white font-black' : 'hover:bg-slate-200'
+                              }`}
                           >
                             <Bold className="w-3.5 h-3.5" />
                           </button>
@@ -2383,11 +2800,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                       size="sm"
                       variant="outline"
                       onClick={() => toggleElementSelected(selectedKey)}
-                      className={`h-7 text-xs font-bold rounded-lg px-2.5 transition cursor-pointer ${
-                        elements[selectedKey]?.selected
-                          ? 'border-red-500/40 text-red-400 hover:bg-red-500/10'
-                          : 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
-                      }`}
+                      className={`h-7 text-xs font-bold rounded-lg px-2.5 transition cursor-pointer ${elements[selectedKey]?.selected
+                        ? 'border-red-500/40 text-red-400 hover:bg-red-500/10'
+                        : 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
+                        }`}
                     >
                       {elements[selectedKey]?.selected ? (
                         <>
@@ -2562,7 +2978,26 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                    <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                      {/* Font Family Picker */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Font Family
+                        </label>
+                        <select
+                          value={elements[selectedKey].font_family || 'Helvetica'}
+                          onChange={(e) => updateElementProp(selectedKey, 'font_family', e.target.value)}
+                          className="h-7 px-2 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs cursor-pointer focus:outline-none focus:border-amber-400"
+                        >
+                          <option value="Helvetica">Helvetica</option>
+                          <option value="Times-Roman">Times New Roman</option>
+                          <option value="Courier">Courier</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Roboto">Roboto</option>
+                          <option value="Inter">Inter</option>
+                        </select>
+                      </div>
+
                       {/* Font Size (px) */}
                       <div>
                         <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
@@ -2608,6 +3043,60 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                         </div>
                       </div>
 
+                      {/* Bold, Italic, Underline Toggles */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Style
+                        </label>
+                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'bold', !elements[selectedKey].bold)}
+                            className={`px-2 h-6 rounded text-xs font-black transition cursor-pointer ${elements[selectedKey].bold ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                              }`}
+                            title="Bold"
+                          >
+                            B
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'italic', !elements[selectedKey].italic)}
+                            className={`px-2 h-6 rounded text-xs font-bold italic transition cursor-pointer ${elements[selectedKey].italic ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                              }`}
+                            title="Italic"
+                          >
+                            I
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'underline', !elements[selectedKey].underline)}
+                            className={`px-2 h-6 rounded text-xs font-bold underline transition cursor-pointer ${elements[selectedKey].underline ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                              }`}
+                            title="Underline"
+                          >
+                            U
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Image Fit for Player Photo */}
+                      {selectedKey === 'player_photo' && (
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                            Image Fit
+                          </label>
+                          <select
+                            value={elements[selectedKey].image_fit || 'cover'}
+                            onChange={(e) => updateElementProp(selectedKey, 'image_fit', e.target.value as 'cover' | 'contain' | 'fill')}
+                            className="h-7 px-2 rounded-lg bg-slate-900 border border-slate-700 text-amber-300 font-bold text-xs cursor-pointer focus:outline-none focus:border-amber-400"
+                          >
+                            <option value="cover">Cover (Fill & Crop)</option>
+                            <option value="contain">Contain (Fit Box)</option>
+                            <option value="fill">Fill (Stretch)</option>
+                          </select>
+                        </div>
+                      )}
+
                       {/* Text Colour */}
                       <div>
                         <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
@@ -2628,11 +3117,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                                 type="button"
                                 onClick={() => updateElementProp(selectedKey, 'colour', c)}
                                 style={{ backgroundColor: c }}
-                                className={`w-4 h-4 rounded-full border border-slate-900 shadow-xs hover:scale-125 transition cursor-pointer ${
-                                  (elements[selectedKey].colour || '#000000').toUpperCase() === c.toUpperCase()
-                                    ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-900'
-                                    : ''
-                                }`}
+                                className={`w-4 h-4 rounded-full border border-slate-900 shadow-xs hover:scale-125 transition cursor-pointer ${(elements[selectedKey].colour || '#000000').toUpperCase() === c.toUpperCase()
+                                  ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-900'
+                                  : ''
+                                  }`}
                                 title={c}
                               />
                             ))}
@@ -2649,11 +3137,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                           <button
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'align', 'left')}
-                            className={`p-1 rounded transition cursor-pointer ${
-                              elements[selectedKey].align === 'left'
-                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
+                            className={`p-1 rounded transition cursor-pointer ${elements[selectedKey].align === 'left'
+                              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                              : 'text-slate-400 hover:text-white'
+                              }`}
                             title="Left Align"
                           >
                             <AlignLeft className="w-3.5 h-3.5" />
@@ -2661,11 +3148,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                           <button
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'align', 'center')}
-                            className={`p-1 rounded transition cursor-pointer ${
-                              elements[selectedKey].align === 'center'
-                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
+                            className={`p-1 rounded transition cursor-pointer ${elements[selectedKey].align === 'center'
+                              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                              : 'text-slate-400 hover:text-white'
+                              }`}
                             title="Center Align"
                           >
                             <AlignCenter className="w-3.5 h-3.5" />
@@ -2673,11 +3159,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                           <button
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'align', 'right')}
-                            className={`p-1 rounded transition cursor-pointer ${
-                              elements[selectedKey].align === 'right'
-                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
+                            className={`p-1 rounded transition cursor-pointer ${elements[selectedKey].align === 'right'
+                              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                              : 'text-slate-400 hover:text-white'
+                              }`}
                             title="Right Align"
                           >
                             <AlignRight className="w-3.5 h-3.5" />
@@ -2699,62 +3184,62 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                      {/* Show Label (Yes / No) */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                          Show Label
-                        </label>
-                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5">
-                          <button
-                            type="button"
-                            onClick={() => updateElementProp(selectedKey, 'show_label', true)}
-                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
-                              elements[selectedKey].show_label
+                    <div className="space-y-2 pt-0.5">
+                      {/* Row 1: Show Label Toggle + Label Name */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="w-24 shrink-0">
+                          <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                            Show Label
+                          </label>
+                          <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
+                            <button
+                              type="button"
+                              onClick={() => updateElementProp(selectedKey, 'show_label', true)}
+                              className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${elements[selectedKey].show_label
                                 ? 'bg-amber-500 text-slate-950 shadow-xs'
                                 : 'text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            Yes
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateElementProp(selectedKey, 'show_label', false)}
-                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
-                              !elements[selectedKey].show_label
+                                }`}
+                            >
+                              Yes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateElementProp(selectedKey, 'show_label', false)}
+                              className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${!elements[selectedKey].show_label
                                 ? 'bg-amber-500 text-slate-950 shadow-xs'
                                 : 'text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            No
-                          </button>
+                                }`}
+                            >
+                              No
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Configurable Label Name */}
+                        <div className="flex-1 min-w-[130px]">
+                          <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                            Label Name
+                          </label>
+                          <input
+                            type="text"
+                            value={elements[selectedKey].custom_label ?? (elements[selectedKey].label || FIELD_LABELS[selectedKey] || '')}
+                            onChange={(e) => updateElementProp(selectedKey, 'custom_label', e.target.value)}
+                            placeholder="Custom Label"
+                            className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
+                          />
                         </div>
                       </div>
 
-                      {/* Configurable Label Name */}
-                      <div className="flex-1 min-w-[120px]">
+                      {/* Row 2: Configurable Custom Text Content */}
+                      <div className="w-full">
                         <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                          Label Name
-                        </label>
-                        <input
-                          type="text"
-                          value={elements[selectedKey].custom_label ?? (elements[selectedKey].label || FIELD_LABELS[selectedKey] || '')}
-                          onChange={(e) => updateElementProp(selectedKey, 'custom_label', e.target.value)}
-                          placeholder="Custom Label"
-                          className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
-                        />
-                      </div>
-
-                      {/* Configurable Custom Text Content */}
-                      <div className="flex-1 min-w-[130px]">
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                          Custom Content
+                          Custom Content Override
                         </label>
                         <input
                           type="text"
                           value={elements[selectedKey].custom_text || ''}
                           onChange={(e) => updateElementProp(selectedKey, 'custom_text', e.target.value)}
-                          placeholder="Override text..."
+                          placeholder="Override default display text..."
                           className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
                         />
                       </div>
@@ -2772,9 +3257,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   style={{
                     backgroundColor: coverPageConfig.bg_colour,
                     color: coverPageConfig.text_colour,
+                    fontFamily: coverPageConfig.font_family || 'Inter, sans-serif',
                   }}
                 >
-                  <div className="my-auto space-y-6">
+                  <div className="my-auto space-y-5">
                     {coverPageConfig.show_logo && (
                       <div className="flex justify-center">
                         {coverPageConfig.logo_url ? (
@@ -2796,8 +3282,11 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
                     <div className="space-y-2">
                       <h1
-                        className="text-2xl sm:text-3xl font-black tracking-wider uppercase drop-shadow-sm"
-                        style={{ color: coverPageConfig.text_colour }}
+                        className="font-black tracking-wider uppercase drop-shadow-sm leading-tight"
+                        style={{
+                          color: coverPageConfig.text_colour,
+                          fontSize: coverPageConfig.title_font_size ? `${coverPageConfig.title_font_size}px` : '28px',
+                        }}
                       >
                         {coverPageConfig.title || 'TURF TOURNAMENT AUCTION'}
                       </h1>
@@ -2814,28 +3303,54 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                       style={{ backgroundColor: coverPageConfig.accent_colour }}
                     />
 
-                    {coverPageConfig.show_stats && (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto pt-2">
-                        <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
-                          <span className="text-[10px] uppercase font-bold text-slate-300 block">Franchise Teams</span>
-                          <span className="text-lg font-black">{liveTeams.length || 8}</span>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
-                          <span className="text-[10px] uppercase font-bold text-slate-300 block">Roster Pool</span>
-                          <span className="text-lg font-black">{realPlayers.length || 0}</span>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
-                          <span className="text-[10px] uppercase font-bold text-slate-300 block">Categories</span>
-                          <span className="text-lg font-black">{availableCategories.length || 1}</span>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15">
-                          <span className="text-[10px] uppercase font-bold text-slate-300 block">Format</span>
-                          <span className="text-lg font-black">Official</span>
-                        </div>
+                    {/* Stats Grid honoring individual stat toggles (Sheet 4 Req 3) */}
+                    {coverPageConfig.show_stats !== false && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-lg mx-auto pt-2">
+                        {coverPageConfig.show_teams_count !== false && (
+                          <div className="bg-white/10 backdrop-blur-xs p-2.5 rounded-xl border border-white/15">
+                            <span className="text-[10px] uppercase font-bold text-slate-300 block">Franchise Teams</span>
+                            <span className="text-lg font-black">{liveTeams.length || 8}</span>
+                          </div>
+                        )}
+                        {coverPageConfig.show_players_count !== false && (
+                          <div className="bg-white/10 backdrop-blur-xs p-2.5 rounded-xl border border-white/15">
+                            <span className="text-[10px] uppercase font-bold text-slate-300 block">Players Pool</span>
+                            <span className="text-lg font-black">{realPlayers.length || 0}</span>
+                          </div>
+                        )}
+                        {coverPageConfig.show_category_count !== false && (
+                          <div className="bg-white/10 backdrop-blur-xs p-2.5 rounded-xl border border-white/15">
+                            <span className="text-[10px] uppercase font-bold text-slate-300 block">Categories</span>
+                            <span className="text-lg font-black">{availableCategories.length || 1}</span>
+                          </div>
+                        )}
+                        {coverPageConfig.show_players_per_category !== false && (
+                          <div className="bg-white/10 backdrop-blur-xs p-2.5 rounded-xl border border-white/15">
+                            <span className="text-[10px] uppercase font-bold text-slate-300 block">Avg / Category</span>
+                            <span className="text-lg font-black">
+                              {Math.round((realPlayers.length || 0) / Math.max(1, availableCategories.length))}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    <div className="pt-4 text-xs font-semibold opacity-75">
+                    {/* Custom Cover Blocks (Sheet 4 Req 2) */}
+                    {coverPageConfig.custom_blocks && coverPageConfig.custom_blocks.length > 0 && (
+                      <div className="space-y-2 pt-2">
+                        {coverPageConfig.custom_blocks.map((blk) => (
+                          <div key={blk.id} className="p-2 rounded-xl bg-white/10 border border-white/15 text-xs font-semibold">
+                            {blk.type === 'image' && (blk.media_url || blk.content) ? (
+                              <img src={blk.media_url || blk.content} alt="" className="max-h-20 max-w-full mx-auto object-contain" />
+                            ) : (
+                              <span>{blk.text || blk.content}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="pt-2 text-xs font-semibold opacity-75">
                       {coverPageConfig.date_venue}
                     </div>
                   </div>
@@ -2872,9 +3387,18 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                       {liveTeams.slice(0, 6).map((tm, tIdx) => {
                         const tName = tm.team?.name || tm.name || `Team ${tIdx + 1}`
                         const tColor = tm.team?.primary_color || tm.primary_color || '#3b82f6'
-                        const purse = tm.remaining_budget != null ? `₹${Number(tm.remaining_budget).toLocaleString('en-IN')}` : '₹50,000'
+                        const initKitty = tm.initial_purse || tm.starting_budget || tm.budget || tm.purse || 10000000
+                        const balanceKitty = tm.remaining_budget != null ? tm.remaining_budget : 10000000
+                        const maxBid = tm.max_bid !== undefined ? tm.max_bid : balanceKitty
                         const owner = tm.owner_name || tm.manager_name || 'Franchise Owner'
                         const soldPlayers = realPlayers.filter((p) => String(p.sold_to || p.team_id || '') === String(tm.id || ''))
+
+                        // Category summary breakdown
+                        const catBreakdown = soldPlayers.reduce((acc: Record<string, number>, p: RealPlayerItem) => {
+                          const cat = (p.category as string) || 'Open'
+                          acc[cat] = (acc[cat] || 0) + 1
+                          return acc
+                        }, {})
 
                         return (
                           <div key={tm.id || tIdx} className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 shadow-2xs space-y-2">
@@ -2883,28 +3407,69 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                                 <span className="w-3.5 h-3.5 rounded-full border border-slate-300" style={{ backgroundColor: tColor }} />
                                 <span className="font-extrabold text-xs text-slate-900 truncate max-w-[130px]">{tName}</span>
                               </div>
-                              <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                                {purse}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] text-slate-500">
-                              <span>Owner: <strong className="text-slate-800">{owner}</strong></span>
-                              <span>Squad: <strong className="text-indigo-700">{soldPlayers.length}/11</strong></span>
-                            </div>
-                            <div className="space-y-1 max-h-24 overflow-hidden pt-1">
-                              {soldPlayers.length > 0 ? (
-                                soldPlayers.slice(0, 4).map((p, pIdx) => (
-                                  <div key={p.id || pIdx} className="flex items-center justify-between text-[9px] bg-white px-1.5 py-0.5 rounded border border-slate-100">
-                                    <span className="font-bold text-slate-800 truncate max-w-[110px]">{p.name || 'Player'}</span>
-                                    <span className="font-mono text-slate-500">₹{Number(p.sold_price || p.base_price || 0).toLocaleString('en-IN')}</span>
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="text-[9px] italic text-slate-400 py-2 text-center bg-white/70 rounded">
-                                  No players signed yet (Active Pool)
-                                </div>
+                              {teamsDesignerConfig.show_balance_kitty !== false && (
+                                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  ₹{Number(balanceKitty).toLocaleString('en-IN')}
+                                </span>
                               )}
                             </div>
+
+                            {/* Additional Financial Metrics */}
+                            {(teamsDesignerConfig.show_initial_kitty || teamsDesignerConfig.show_max_bid) && (
+                              <div className="flex flex-wrap items-center gap-1.5 text-[9px] font-mono">
+                                {teamsDesignerConfig.show_initial_kitty && (
+                                  <span className="text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                    Init: ₹{Number(initKitty).toLocaleString('en-IN')}
+                                  </span>
+                                )}
+                                {teamsDesignerConfig.show_max_bid && (
+                                  <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-bold">
+                                    Max: ₹{Number(maxBid).toLocaleString('en-IN')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between text-[10px] text-slate-500">
+                              <span>Owner: <strong className="text-slate-800">{owner}</strong></span>
+                              {teamsDesignerConfig.show_overall_total !== false && (
+                                <span>Squad: <strong className="text-indigo-700">{soldPlayers.length}/11</strong></span>
+                              )}
+                            </div>
+
+                            {/* Category Summary Breakdown */}
+                            {teamsDesignerConfig.show_category_summary !== false && (
+                              <div className="flex flex-wrap items-center gap-1 text-[8.5px] bg-slate-100/80 p-1.5 rounded-lg border border-slate-200/60">
+                                <span className="font-bold text-slate-600">Category:</span>
+                                {Object.keys(catBreakdown).length > 0 ? (
+                                  Object.entries(catBreakdown).map(([cat, count]) => (
+                                    <span key={cat} className="px-1 py-0.5 rounded bg-white text-slate-700 border border-slate-200 font-semibold">
+                                      {cat}: {count}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-slate-400 italic">0 acquired</span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Player Names List */}
+                            {teamsDesignerConfig.show_player_names !== false && (
+                              <div className="space-y-1 max-h-24 overflow-hidden pt-1">
+                                {soldPlayers.length > 0 ? (
+                                  soldPlayers.slice(0, 4).map((p, pIdx) => (
+                                    <div key={p.id || pIdx} className="flex items-center justify-between text-[9px] bg-white px-1.5 py-0.5 rounded border border-slate-100">
+                                      <span className="font-bold text-slate-800 truncate max-w-[110px]">{p.name || 'Player'}</span>
+                                      <span className="font-mono text-slate-500">₹{Number(p.sold_price || p.base_price || 0).toLocaleString('en-IN')}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-[9px] italic text-slate-400 py-2 text-center bg-white/70 rounded">
+                                    No players signed yet (Active Pool)
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )
                       })}
@@ -2942,40 +3507,122 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
                     {/* Financials Table */}
                     <div className="pt-4 overflow-x-auto">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="bg-slate-100 text-slate-700 text-[10px] uppercase font-black border-y border-slate-200">
-                            <th className="py-2 px-2.5">Team</th>
-                            <th className="py-2 px-2.5">Owner / Contact</th>
-                            <th className="py-2 px-2.5 text-right">Starting Purse</th>
-                            <th className="py-2 px-2.5 text-right">Remaining</th>
-                            <th className="py-2 px-2.5 text-center">Players</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 font-medium">
-                          {liveTeams.map((tm, idx) => {
-                            const tName = tm.team?.name || tm.name || `Team ${idx + 1}`
-                            const tColor = tm.team?.primary_color || tm.primary_color || '#3b82f6'
-                            const owner = tm.owner_name || tm.manager_name || 'Franchise Owner'
-                            const starting = '₹1,00,000'
-                            const remaining = tm.remaining_budget != null ? `₹${Number(tm.remaining_budget).toLocaleString('en-IN')}` : '₹50,000'
-                            const soldCount = realPlayers.filter((p) => String(p.sold_to || p.team_id || '') === String(tm.id || '')).length
+                      {(() => {
+                        const activeCols = (ownersDesignerConfig.columns && ownersDesignerConfig.columns.length > 0
+                          ? ownersDesignerConfig.columns
+                          : DEFAULT_OWNER_COLUMNS
+                        ).filter((c) => c.enabled)
 
-                            return (
-                              <tr key={tm.id || idx} className="hover:bg-slate-50/80 transition">
-                                <td className="py-2.5 px-2.5 flex items-center gap-2">
-                                  <span className="w-3 h-3 rounded-full border border-slate-300 shrink-0" style={{ backgroundColor: tColor }} />
-                                  <span className="font-extrabold text-slate-900">{tName}</span>
-                                </td>
-                                <td className="py-2.5 px-2.5 text-slate-700 font-semibold">{owner}</td>
-                                <td className="py-2.5 px-2.5 text-right font-mono text-slate-600">{starting}</td>
-                                <td className="py-2.5 px-2.5 text-right font-mono font-bold text-emerald-700">{remaining}</td>
-                                <td className="py-2.5 px-2.5 text-center font-bold text-indigo-700">{soldCount} / 11</td>
+                        return (
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-100 text-slate-700 text-[10px] uppercase font-black border-y border-slate-200">
+                                {activeCols.map((col) => (
+                                  <th
+                                    key={col.key}
+                                    className={`py-2 px-2.5 ${col.key === 'total_kitty' || col.key === 'starting_purse' || col.key === 'remaining'
+                                      ? 'text-right'
+                                      : col.key === 'short_name' || col.key === 'players' || col.key === 'team_logo'
+                                        ? 'text-center'
+                                        : ''
+                                      }`}
+                                  >
+                                    {col.label}
+                                  </th>
+                                ))}
                               </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-medium">
+                              {liveTeams.map((tm, idx) => {
+                                const tName = tm.team?.name || tm.name || `Team ${idx + 1}`
+                                const tShort = tm.team?.short_name || tm.short_name || tName.slice(0, 3).toUpperCase()
+                                const tColor = tm.team?.primary_color || tm.primary_color || '#3b82f6'
+                                const owner = tm.owner_name || tm.manager_name || 'Franchise Owner'
+                                const mobile = tm.owner_mobile || tm.mobile || tm.owner_phone || '—'
+                                const email = tm.owner_email || tm.email || '—'
+                                const logo = tm.logo_url || tm.logo || tm.team?.logo
+                                const initPurse = tm.initial_purse || tm.starting_budget || tm.purse || 100000
+                                const totalKitty = `₹${Number(initPurse).toLocaleString('en-IN')}`
+                                const remaining = tm.remaining_budget != null ? `₹${Number(tm.remaining_budget).toLocaleString('en-IN')}` : '₹50,000'
+                                const soldCount = realPlayers.filter((p) => String(p.sold_to || p.team_id || '') === String(tm.id || '')).length
+
+                                return (
+                                  <tr key={tm.id || idx} className="hover:bg-slate-50/80 transition">
+                                    {activeCols.map((col) => {
+                                      if (col.key === 'team_name') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 flex items-center gap-2">
+                                            <span className="w-3 h-3 rounded-full border border-slate-300 shrink-0" style={{ backgroundColor: tColor }} />
+                                            <span className="font-extrabold text-slate-900">{tName}</span>
+                                          </td>
+                                        )
+                                      }
+                                      if (col.key === 'short_name') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 text-center">
+                                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-mono font-black text-[10px]">
+                                              {tShort}
+                                            </span>
+                                          </td>
+                                        )
+                                      }
+                                      if (col.key === 'team_logo') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 text-center">
+                                            {logo ? (
+                                              <img src={logo} alt="" className="w-6 h-6 rounded-md object-contain border border-slate-200 inline-block" />
+                                            ) : (
+                                              <div className="w-6 h-6 rounded-md bg-slate-200 text-slate-700 inline-flex items-center justify-center font-black text-[9px]">
+                                                {tShort.slice(0, 2)}
+                                              </div>
+                                            )}
+                                          </td>
+                                        )
+                                      }
+                                      if (col.key === 'owner_name') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 text-slate-700 font-semibold">{owner}</td>
+                                        )
+                                      }
+                                      if (col.key === 'mobile') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 font-mono text-slate-600">{mobile}</td>
+                                        )
+                                      }
+                                      if (col.key === 'email') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 font-mono text-slate-600 text-[10px]">{email}</td>
+                                        )
+                                      }
+                                      if (col.key === 'total_kitty') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 text-right font-mono font-bold text-emerald-700">{totalKitty}</td>
+                                        )
+                                      }
+                                      if (col.key === 'starting_purse') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 text-right font-mono text-slate-600">{totalKitty}</td>
+                                        )
+                                      }
+                                      if (col.key === 'remaining') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 text-right font-mono font-bold text-emerald-700">{remaining}</td>
+                                        )
+                                      }
+                                      if (col.key === 'players') {
+                                        return (
+                                          <td key={col.key} className="py-2.5 px-2.5 text-center font-bold text-indigo-700">{soldCount} / 11</td>
+                                        )
+                                      }
+                                      return <td key={col.key} className="py-2.5 px-2.5 text-slate-600">—</td>
+                                    })}
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        )
+                      })()}
                     </div>
                   </div>
 
@@ -2991,460 +3638,468 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
             {activeSection !== 'cover_page' && activeSection !== 'teams_designer' && activeSection !== 'owners_designer' && (
               <>
                 <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-bold text-zinc-900 flex items-center gap-1.5 text-xs">
-                  <Grid className="w-4 h-4 text-indigo-600" />
-                  Live Page Grid Preview ({cols} Cols × {rows} Rows • {sampleCount} Cards)
-                </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-bold text-zinc-900 flex items-center gap-1.5 text-xs">
+                      <Grid className="w-4 h-4 text-indigo-600" />
+                      Live Page Grid Preview ({cols} Cols × {rows} Rows • {sampleCount} Cards)
+                    </span>
 
-                {activeTab === 'category' ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-700">Preview Category:</span>
-                    <select
-                      value={selectedCategory}
-                      onChange={(e) => {
-                        const newCat = e.target.value
-                        setSelectedCategory(newCat)
-                        if (!headerConfig.title || headerConfig.title.startsWith('Category:')) {
-                          setHeaderConfig((prev) => ({ ...prev, title: `Category: ${newCat}` }))
-                        }
-                      }}
-                      className="text-xs font-bold bg-indigo-50/80 border border-indigo-300 rounded-lg px-2.5 py-1 text-indigo-900 shadow-2xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      {availableCategories.length > 0 ? (
-                        availableCategories.map((cat) => {
-                          const count = realPlayers.filter(
-                            (p) => String(p.category || p.tier || '').trim().toLowerCase() === cat.trim().toLowerCase()
-                          ).length
-                          return (
-                            <option key={cat} value={cat}>
-                              {cat} ({count} {count === 1 ? 'Player' : 'Players'})
-                            </option>
-                          )
-                        })
-                      ) : (
-                        <option value="General">General (0 Players)</option>
-                      )}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                    Auction Format: Showing {realPlayers.length} Roster Players in Sequential Lot Order
-                  </div>
-                )}
-              </div>
-
-              {activeTab === 'category' && (
-                <div className="flex items-center justify-between text-[11px] text-slate-500 px-1 pt-1 border-t border-slate-100">
-                  <span>
-                    Viewing category: <strong className="text-indigo-900">{selectedCategory}</strong>
-                  </span>
-                  <span>
-                    <strong>
-                      {
-                        realPlayers.filter(
-                          (p) => String(p.category || p.tier || '').trim().toLowerCase() === selectedCategory.trim().toLowerCase()
-                        ).length
-                      }
-                    </strong>{' '}
-                    real player(s) in this category
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* A4 Paper Simulation Canvas */}
-            <div className="bg-slate-200/70 border border-slate-300 rounded-2xl p-6 overflow-hidden flex justify-center shadow-inner">
-              <div
-                ref={canvasRef}
-                className="w-full max-w-[720px] aspect-[1/1.414] bg-white text-slate-900 rounded-xl shadow-2xl p-4 flex flex-col relative select-none border border-slate-300 overflow-hidden"
-              >
-                {/* 1. Page Background Watermark Layer */}
-                {pageBackgroundImage && (
-                  <div
-                    className="absolute inset-0 pointer-events-none z-0 bg-center bg-cover transition-opacity duration-150"
-                    style={{
-                      backgroundImage: `url(${pageBackgroundImage})`,
-                      opacity: pageBackgroundOpacity / 100,
-                    }}
-                  />
-                )}
-
-                {/* 2. Multiple Draggable Placed Logos */}
-                {placedLogos.map((logo) => {
-                  const isSelected = selectedLogoId === logo.id || (!selectedLogoId && placedLogos[0]?.id === logo.id)
-                  const isDragging = draggingLogoId === logo.id
-                  return (
-                    <div
-                      key={logo.id}
-                      onMouseDown={(e) => handleLogoMouseDown(e, logo)}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedLogoId(logo.id)
-                      }}
-                      className={`absolute z-30 cursor-grab active:cursor-grabbing select-none group p-0.5 rounded transition-all ${
-                        isDragging
-                          ? 'ring-2 ring-indigo-500 bg-white/40 shadow-xl scale-105'
-                          : isSelected
-                          ? 'ring-2 ring-indigo-400 bg-indigo-50/30 shadow-md'
-                          : 'hover:ring-1 hover:ring-indigo-300 hover:bg-white/20'
-                      }`}
-                      style={{
-                        left: `${logo.x}%`,
-                        top: `${logo.y}%`,
-                        width: `${logo.width}%`,
-                        touchAction: 'none',
-                      }}
-                      title={`Drag to reposition ${logo.name} (${Math.round(logo.x)}%, ${Math.round(logo.y)}%)`}
-                    >
-                      <img
-                        src={logo.url}
-                        alt={logo.name}
-                        className="w-full h-auto object-contain pointer-events-none drop-shadow-sm"
-                      />
-                      <div className="absolute -top-5 left-0 bg-indigo-950/90 text-white text-[8px] font-mono px-1 rounded shadow pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap flex items-center gap-1 z-40">
-                        <Move className="w-2.5 h-2.5" /> {logo.name}: {Math.round(logo.x)}%, {Math.round(logo.y)}%
-                      </div>
-                    </div>
-                  )
-                })}
-
-                {/* 3. Adjustable Sheet Header Banner */}
-                {headerConfig.show && (
-                  <div
-                    className="mb-3 px-3 rounded-lg flex items-center justify-between relative z-10 transition-all border border-slate-200/80 shadow-xs shrink-0"
-                    style={{
-                      height: `${headerConfig.height}px`,
-                      backgroundColor: headerConfig.bg_colour,
-                      color: headerConfig.text_colour,
-                      borderBottom: `2.5px solid ${accentColour}`,
-                    }}
-                  >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      {showTournamentLogo && placedLogos.length === 0 && (
-                        <div
-                          className="rounded flex items-center justify-center font-black text-white shrink-0"
-                          style={{
-                            width: `${Math.max(16, headerConfig.height * 0.7)}px`,
-                            height: `${Math.max(16, headerConfig.height * 0.7)}px`,
-                            fontSize: `${Math.max(8, headerConfig.font_size * 0.75)}px`,
-                            backgroundColor: accentColour,
+                    {activeTab === 'category' ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-slate-700">Preview Category:</span>
+                        <select
+                          value={selectedCategory}
+                          onChange={(e) => {
+                            const newCat = e.target.value
+                            setSelectedCategory(newCat)
+                            if (!headerConfig.title || headerConfig.title.startsWith('Category:')) {
+                              setHeaderConfig((prev) => ({ ...prev, title: `Category: ${newCat}` }))
+                            }
                           }}
+                          className="text-xs font-bold bg-indigo-50/80 border border-indigo-300 rounded-lg px-2.5 py-1 text-indigo-900 shadow-2xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
-                          T
-                        </div>
-                      )}
-                      <span
-                        className="font-extrabold uppercase tracking-wide truncate"
-                        style={{ fontSize: `${headerConfig.font_size}px` }}
-                      >
-                        {headerConfig.title || (activeTab === 'category' ? `Category: ${selectedCategory || 'Icon Players'}` : 'Auction Format Order')}
+                          {availableCategories.length > 0 ? (
+                            availableCategories.map((cat) => {
+                              const count = realPlayers.filter(
+                                (p) => String(p.category || p.tier || '').trim().toLowerCase() === cat.trim().toLowerCase()
+                              ).length
+                              return (
+                                <option key={cat} value={cat}>
+                                  {cat} ({count} {count === 1 ? 'Player' : 'Players'})
+                                </option>
+                              )
+                            })
+                          ) : (
+                            <option value="General">General (0 Players)</option>
+                          )}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                        Auction Format: Showing {realPlayers.length} Roster Players in Sequential Lot Order
+                      </div>
+                    )}
+                  </div>
+
+                  {activeTab === 'category' && (
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 px-1 pt-1 border-t border-slate-100">
+                      <span>
+                        Viewing category: <strong className="text-indigo-900">{selectedCategory}</strong>
+                      </span>
+                      <span>
+                        <strong>
+                          {
+                            realPlayers.filter(
+                              (p) => String(p.category || p.tier || '').trim().toLowerCase() === selectedCategory.trim().toLowerCase()
+                            ).length
+                          }
+                        </strong>{' '}
+                        real player(s) in this category
                       </span>
                     </div>
-
-                    <span
-                      className="font-semibold opacity-85 truncate ml-2 text-right shrink-0"
-                      style={{ fontSize: `${Math.max(7, headerConfig.font_size * 0.8)}px` }}
-                    >
-                      {headerConfig.right_text || (activeTab === 'category' ? 'Every category on new page' : 'Continuous order')}
-                    </span>
-                  </div>
-                )}
-
-                {/* 4. Grid of Player Cards */}
-                <div
-                  className="grid gap-2 flex-1 relative z-10"
-                  style={{
-                    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-                    gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-                  }}
-                >
-                  {Array.from({ length: sampleCount }).map((_, cIdx) => {
-                    const isTemplate = cIdx === 0
-                    const categoryPlayers = realPlayers.filter(
-                      (p) => String(p.category || p.tier || '').trim().toLowerCase() === selectedCategory.trim().toLowerCase()
-                    )
-                    const displayedPlayers = activeTab === 'category' ? categoryPlayers : realPlayers
-                    const p = displayedPlayers[cIdx]
-
-                    // If not template and no player at this index, render an empty slot card:
-                    if (!p && !isTemplate) {
-                      return (
-                        <div
-                          key={cIdx}
-                          className="relative rounded-lg border border-dashed border-slate-300 bg-slate-50/50 p-2 flex flex-col items-center justify-center text-center select-none"
-                          style={{ borderColor: hexToRgba(accentColour, 0.3) }}
-                        >
-                          <div className="w-7 h-7 rounded-full bg-slate-200/80 text-slate-500 font-black text-xs flex items-center justify-center mb-1">
-                            #{cIdx + 1}
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-400">Card Slot #{cIdx + 1}</span>
-                          <span className="text-[9px] text-slate-400 font-medium">Available Slot</span>
-                        </div>
-                      )
-                    }
-
-                    // Dynamic values from real player
-                    const pNum = p ? (p.serial_no != null ? `#${p.serial_no}` : `#${cIdx + 1}`) : `#${cIdx + 1}`
-                    const pUser = p?.player
-                    const pName = p
-                      ? (p.player_name || p.name || pUser?.full_name || pUser?.first_name || pUser?.username || `Player #${p.serial_no || cIdx + 1}`)
-                      : (displayedPlayers.length === 0 ? `(No Players in ${selectedCategory || 'Category'})` : `Player #${cIdx + 1}`)
-                    const pCat = p ? (p.category || p.tier || selectedCategory || 'Category') : (selectedCategory || 'Category')
-                    const pRole = p ? (p.role || p.player_skills || 'All-Rounder') : 'Role'
-                    const pPrice = p ? (p.base_price != null ? `₹${Number(p.base_price).toLocaleString('en-IN')}` : '₹0') : '₹0'
-                    const pLoc = p ? (p.location || '—') : '—'
-                    const pBat = p ? (p.batting_style || '—') : '—'
-                    const pBowl = p ? (p.bowling_style || '—') : '—'
-                    const pMob = p ? (p.mobile || '—') : '—'
-                    const pAge = p ? (p.age != null ? String(p.age) : '—') : '—'
-                    const pExp = p ? (p.custom_data?.experience || p.experience || '—') : '—'
-                    const pAppId = p ? (p.custom_data?.application_id || p.application_id || (p.id ? String(p.id).slice(0, 8) : `#${cIdx + 1}`)) : `#${cIdx + 1}`
-                    const pPhoto = p ? (p.photo_url || p.photo || '') : ''
-
-                    return (
-                      <div
-                        key={cIdx}
-                        ref={isTemplate ? templateCardRef : undefined}
-                        className="relative rounded-lg border overflow-hidden p-1 transition select-none"
-                        style={{
-                          backgroundColor: hexToRgba(cardFill, cardFillOpacity / 100),
-                          borderColor: accentColour,
-                          boxShadow: isTemplate ? '0 0 0 2px #4f46e5' : 'none',
-                        }}
-                      >
-                        {isTemplate && (
-                          <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-bl z-20 pointer-events-none">
-                            TEMPLATE
-                          </div>
-                        )}
-
-                        {/* Top accent bar */}
-                        <div
-                          className="absolute top-0 left-0 right-0 h-1 pointer-events-none"
-                          style={{ backgroundColor: accentColour }}
-                        />
-
-                        {/* Render Card Elements */}
-                        {Object.entries(elements).map(([key, el]) => {
-                          if (!el.selected) return null
-                          const isPhoto = key === 'player_photo'
-                          const isSelectedElement = isTemplate && selectedKey === key
-                          const isDraggingThis = isTemplate && draggingElementKey === key
-
-                          // Determine displayed text
-                          let valText = ''
-                          if (el.custom_text) {
-                            valText = el.custom_text
-                          } else if (key === 'player_number') valText = pNum
-                          else if (key === 'name') valText = pName
-                          else if (key === 'category') valText = pCat
-                          else if (key === 'role') valText = pRole
-                          else if (key === 'base_price') valText = pPrice
-                          else if (key === 'location') valText = pLoc
-                          else if (key === 'batting') valText = pBat
-                          else if (key === 'bowling') valText = pBowl
-                          else if (key === 'mobile') valText = pMob
-                          else if (key === 'age') valText = pAge
-                          else if (key === 'experience') valText = pExp
-                          else if (key === 'application_id') valText = pAppId
-                          else if (p && p.custom_data && p.custom_data[key]) valText = String(p.custom_data[key])
-                          else valText = el.label || ''
-
-                          const labelText = el.show_label && el.label ? `${el.label} ` : ''
-                          const displayText = isPhoto ? (el.show_label ? 'PHOTO' : '') : `${labelText}${valText}`
-
-                          const boxOpacity = el.bg_opacity !== undefined ? el.bg_opacity : elementBoxOpacity
-                          const boxBg = el.bg_colour || elementBoxBgColor || '#ffffff'
-
-                          return (
-                            <div
-                              key={key}
-                              onMouseDown={isTemplate ? (e) => handleElementMouseDown(e, key) : undefined}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedKey(key)
-                              }}
-                              className={`absolute flex items-center overflow-visible select-none transition-all ${
-                                isTemplate
-                                  ? 'cursor-move hover:ring-1 hover:ring-indigo-400 group'
-                                  : 'cursor-default pointer-events-none'
-                              } ${
-                                isSelectedElement
-                                  ? 'ring-2 ring-indigo-600 shadow-md z-30'
-                                  : ''
-                              } ${
-                                isDraggingThis ? 'opacity-90 scale-[1.02]' : ''
-                              } ${
-                                isPhoto
-                                  ? 'bg-slate-100 border border-slate-200 justify-center text-[7px] text-slate-500 font-bold'
-                                  : ''
-                              }`}
-                              style={{
-                                left: `${el.x}%`,
-                                top: `${el.y}%`,
-                                width: `${el.w}%`,
-                                height: `${el.h}%`,
-                                fontSize: `${Math.max(6, Math.round(el.font_size * 0.65))}px`,
-                                color: el.colour,
-                                fontWeight: el.bold ? 800 : 400,
-                                justifyContent:
-                                  el.align === 'center' ? 'center' : el.align === 'right' ? 'flex-end' : 'flex-start',
-                                zIndex: isSelectedElement ? 30 : el.z,
-                                backgroundColor: isPhoto
-                                  ? 'rgba(241, 245, 249, 0.95)'
-                                  : boxOpacity > 0
-                                  ? hexToRgba(boxBg, boxOpacity / 100)
-                                  : (isSelectedElement ? 'rgba(238, 242, 255, 0.25)' : 'transparent'),
-                                border: isPhoto
-                                  ? '1px solid rgba(203, 213, 225, 0.8)'
-                                  : boxOpacity > 0
-                                  ? `1px solid ${hexToRgba(el.colour || '#64748b', Math.min(0.4, 0.15 + (boxOpacity / 100) * 0.25))}`
-                                  : (isSelectedElement ? undefined : '1px solid transparent'),
-                                borderRadius: boxOpacity > 0 ? '4px' : undefined,
-                                padding: boxOpacity > 0 ? '0 4px' : undefined,
-                                boxShadow: boxOpacity > 15 ? '0 1px 2px rgba(0,0,0,0.05)' : undefined,
-                              }}
-                              title={
-                                isTemplate
-                                  ? `Drag to move ${FIELD_LABELS[key] || key} (X: ${el.x}%, Y: ${el.y}%, W: ${el.w}%, H: ${el.h}%)`
-                                  : undefined
-                              }
-                            >
-                              {isPhoto && pPhoto ? (
-                                <img
-                                  src={pPhoto}
-                                  alt={pName}
-                                  className="w-full h-full object-cover rounded pointer-events-none"
-                                />
-                              ) : (
-                                <span className="truncate w-full pointer-events-none" style={{ textAlign: el.align }}>
-                                  {displayText}
-                                </span>
-                              )}
-
-                              {/* Active selection badge with coordinates, top/bottom move & opacity control */}
-                              {isSelectedElement && (
-                                <>
-                                  <div
-                                    className="absolute -top-7 left-0 bg-indigo-950/95 text-white text-[8px] font-mono px-2 py-0.5 rounded-md shadow-xl whitespace-nowrap z-50 flex items-center gap-1 pointer-events-auto border border-indigo-400/50 backdrop-blur-xs select-none"
-                                    onClick={(e) => e.stopPropagation()}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                  >
-                                    <span className="flex items-center gap-0.5 text-indigo-200">
-                                      <Move className="w-2.5 h-2.5" />
-                                      {Math.round(el.x)}%, {Math.round(el.y)}%
-                                    </span>
-                                    <span className="text-indigo-400/60">|</span>
-                                    {/* Snap to Top / Bottom */}
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        snapElementToCardTop(key)
-                                      }}
-                                      className="px-1.5 py-0.5 rounded bg-indigo-700 hover:bg-indigo-600 active:scale-95 text-[8px] font-bold text-white transition flex items-center gap-0.5 border border-indigo-500/60"
-                                      title="Take box to top of card (Y: 6%)"
-                                    >
-                                      🔝 Top
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        snapElementToCardBottom(key)
-                                      }}
-                                      className="px-1.5 py-0.5 rounded bg-indigo-700 hover:bg-indigo-600 active:scale-95 text-[8px] font-bold text-white transition flex items-center gap-0.5 border border-indigo-500/60"
-                                      title="Take box to bottom of card"
-                                    >
-                                      ⬇ Bottom
-                                    </button>
-                                    <span className="text-indigo-400/60">|</span>
-                                    <span className="font-sans font-bold text-slate-200">Opacity:</span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        updateBoxOpacity(key, boxOpacity - 5)
-                                      }}
-                                      className="w-4 h-4 rounded bg-indigo-800 hover:bg-indigo-700 active:scale-95 text-white flex items-center justify-center font-bold text-[10px] transition border border-indigo-600/50"
-                                      title="Decrease box opacity (-5%)"
-                                    >
-                                      -
-                                    </button>
-                                    <span className="font-mono font-bold text-amber-300 min-w-[24px] text-center">
-                                      {boxOpacity}%
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        updateBoxOpacity(key, boxOpacity + 5)
-                                      }}
-                                      className="w-4 h-4 rounded bg-indigo-800 hover:bg-indigo-700 active:scale-95 text-white flex items-center justify-center font-bold text-[10px] transition border border-indigo-600/50"
-                                      title="Increase box opacity (+5%)"
-                                    >
-                                      +
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleApplyBoxOpacityToAll(boxOpacity, boxBg)
-                                      }}
-                                      className="bg-indigo-600 hover:bg-indigo-500 text-[8px] font-sans font-bold px-1.5 py-0.5 rounded text-white shadow-2xs hover:scale-105 active:scale-95 transition ml-0.5"
-                                      title="Apply this box's opacity to ALL boxes across every card"
-                                    >
-                                      All
-                                    </button>
-                                  </div>
-
-                                  {/* Resize Handle (Bottom-Right) */}
-                                  <div
-                                    onMouseDown={(e) => handleElementResizeMouseDown(e, key)}
-                                    className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-indigo-600 hover:bg-indigo-800 rounded-xs cursor-se-resize shadow-md hover:scale-125 transition-transform z-40"
-                                    title="Drag corner to resize box width and height"
-                                  />
-                                </>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  })}
+                  )}
                 </div>
 
-                {/* 5. Adjustable Sheet Footer Banner */}
-                {footerConfig.show && (
+                {/* A4 Paper Simulation Canvas */}
+                <div className="bg-slate-200/70 border border-slate-300 rounded-2xl p-6 overflow-hidden flex justify-center shadow-inner">
                   <div
-                    className="mt-3 px-3 rounded-lg flex items-center justify-between relative z-10 transition-all border border-slate-200/80 shadow-xs shrink-0 font-medium"
-                    style={{
-                      height: `${footerConfig.height}px`,
-                      backgroundColor: footerConfig.bg_colour,
-                      color: footerConfig.text_colour,
-                      borderTop: `1.5px solid ${accentColour}`,
-                      fontSize: `${footerConfig.font_size}px`,
-                    }}
+                    ref={canvasRef}
+                    className="w-full max-w-[720px] aspect-[1/1.414] bg-white text-slate-900 rounded-xl shadow-2xl p-4 flex flex-col relative select-none border border-slate-300 overflow-hidden"
                   >
-                    <span className="truncate flex-1 text-left">
-                      {footerConfig.left_text}
-                    </span>
-                    <span className="truncate font-semibold px-2 text-center">
-                      {(footerConfig.center_text || '').replace('{page}', '1').replace('{totalPages}', '1')}
-                    </span>
-                    <span className="truncate flex-1 text-right">
-                      {footerConfig.right_text}
-                    </span>
+                    {/* 1. Page Background Watermark Layer */}
+                    {pageBackgroundImage && (
+                      <div
+                        className="absolute inset-0 pointer-events-none z-0 bg-center bg-cover transition-opacity duration-150"
+                        style={{
+                          backgroundImage: `url(${pageBackgroundImage})`,
+                          opacity: pageBackgroundOpacity / 100,
+                        }}
+                      />
+                    )}
+
+                    {/* 2. Multiple Draggable Placed Logos */}
+                    {placedLogos.map((logo) => {
+                      const isSelected = selectedLogoId === logo.id || (!selectedLogoId && placedLogos[0]?.id === logo.id)
+                      const isDragging = draggingLogoId === logo.id
+                      return (
+                        <div
+                          key={logo.id}
+                          onMouseDown={(e) => handleLogoMouseDown(e, logo)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedLogoId(logo.id)
+                          }}
+                          className={`absolute z-30 cursor-grab active:cursor-grabbing select-none group p-0.5 rounded transition-all ${isDragging
+                            ? 'ring-2 ring-indigo-500 bg-white/40 shadow-xl scale-105'
+                            : isSelected
+                              ? 'ring-2 ring-indigo-400 bg-indigo-50/30 shadow-md'
+                              : 'hover:ring-1 hover:ring-indigo-300 hover:bg-white/20'
+                            }`}
+                          style={{
+                            left: `${logo.x}%`,
+                            top: `${logo.y}%`,
+                            width: `${logo.width}%`,
+                            touchAction: 'none',
+                          }}
+                          title={`Drag to reposition ${logo.name} (${Math.round(logo.x)}%, ${Math.round(logo.y)}%)`}
+                        >
+                          <img
+                            src={logo.url}
+                            alt={logo.name}
+                            className="w-full h-auto object-contain pointer-events-none drop-shadow-sm"
+                          />
+                          <div className="absolute -top-5 left-0 bg-indigo-950/90 text-white text-[8px] font-mono px-1 rounded shadow pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap flex items-center gap-1 z-40">
+                            <Move className="w-2.5 h-2.5" /> {logo.name}: {Math.round(logo.x)}%, {Math.round(logo.y)}%
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {/* 3. Adjustable Sheet Header Banner */}
+                    {headerConfig.show && (
+                      <div
+                        className="mb-3 px-3 rounded-lg flex items-center justify-between relative z-10 transition-all border border-slate-200/80 shadow-xs shrink-0"
+                        style={{
+                          height: `${headerConfig.height}px`,
+                          backgroundColor: headerConfig.bg_colour,
+                          color: headerConfig.text_colour,
+                          borderBottom: `2.5px solid ${accentColour}`,
+                        }}
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          {showTournamentLogo && placedLogos.length === 0 && (
+                            <div
+                              className="rounded flex items-center justify-center font-black text-white shrink-0"
+                              style={{
+                                width: `${Math.max(16, headerConfig.height * 0.7)}px`,
+                                height: `${Math.max(16, headerConfig.height * 0.7)}px`,
+                                fontSize: `${Math.max(8, headerConfig.font_size * 0.75)}px`,
+                                backgroundColor: accentColour,
+                              }}
+                            >
+                              T
+                            </div>
+                          )}
+                          <span
+                            className="font-extrabold uppercase tracking-wide truncate"
+                            style={{ fontSize: `${headerConfig.font_size}px` }}
+                          >
+                            {headerConfig.title || (activeTab === 'category' ? `Category: ${selectedCategory || 'Icon Players'}` : 'Auction Format Order')}
+                          </span>
+                        </div>
+
+                        <span
+                          className="font-semibold opacity-85 truncate ml-2 text-right shrink-0"
+                          style={{ fontSize: `${Math.max(7, headerConfig.font_size * 0.8)}px` }}
+                        >
+                          {headerConfig.right_text || (activeTab === 'category' ? 'Every category on new page' : 'Continuous order')}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* 4. Grid of Player Cards */}
+                    <div
+                      className="grid gap-2 flex-1 relative z-10"
+                      style={{
+                        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                        gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      {Array.from({ length: sampleCount }).map((_, cIdx) => {
+                        const isTemplate = cIdx === 0
+                        const categoryPlayers = realPlayers.filter(
+                          (p) => String(p.category || p.tier || '').trim().toLowerCase() === selectedCategory.trim().toLowerCase()
+                        )
+                        const displayedPlayers = activeTab === 'category' ? categoryPlayers : realPlayers
+                        const p = displayedPlayers[cIdx]
+
+                        // If not template and no player at this index, render an empty slot card:
+                        if (!p && !isTemplate) {
+                          return (
+                            <div
+                              key={cIdx}
+                              className="relative rounded-lg border border-dashed border-slate-300 bg-slate-50/50 p-2 flex flex-col items-center justify-center text-center select-none"
+                              style={{ borderColor: hexToRgba(accentColour, 0.3) }}
+                            >
+                              <div className="w-7 h-7 rounded-full bg-slate-200/80 text-slate-500 font-black text-xs flex items-center justify-center mb-1">
+                                #{cIdx + 1}
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-400">Card Slot #{cIdx + 1}</span>
+                              <span className="text-[9px] text-slate-400 font-medium">Available Slot</span>
+                            </div>
+                          )
+                        }
+
+                        // Dynamic values from real player
+                        const pNum = p ? (p.serial_no != null ? `#${p.serial_no}` : `#${cIdx + 1}`) : `#${cIdx + 1}`
+                        const pUser = p?.player
+                        const pName = p
+                          ? (p.player_name || p.name || pUser?.full_name || pUser?.first_name || pUser?.username || `Player #${p.serial_no || cIdx + 1}`)
+                          : (displayedPlayers.length === 0 ? `(No Players in ${selectedCategory || 'Category'})` : `Player #${cIdx + 1}`)
+                        const pCat = p ? (p.category || p.tier || selectedCategory || 'Category') : (selectedCategory || 'Category')
+                        const pRole = p ? (p.role || p.player_skills || 'All-Rounder') : 'Role'
+                        const pPrice = p ? (p.base_price != null ? `₹${Number(p.base_price).toLocaleString('en-IN')}` : '₹0') : '₹0'
+                        const pLoc = p ? (p.location || '—') : '—'
+                        const pBat = p ? (p.batting_style || '—') : '—'
+                        const pBowl = p ? (p.bowling_style || '—') : '—'
+                        const pMob = p ? (p.mobile || '—') : '—'
+                        const pAge = p ? (p.age != null ? String(p.age) : '—') : '—'
+                        const pExp = p ? String(p.custom_data?.experience ?? p.experience ?? '—') : '—'
+                        const pAppId = p ? String(p.custom_data?.application_id ?? p.application_id ?? (p.id ? String(p.id).slice(0, 8) : `#${cIdx + 1}`)) : `#${cIdx + 1}`
+                        const pPhoto = p ? (p.photo_url || p.photo || '') : ''
+
+                        return (
+                          <div
+                            key={cIdx}
+                            ref={isTemplate ? templateCardRef : undefined}
+                            className="relative rounded-lg border overflow-hidden p-1 transition select-none"
+                            style={{
+                              backgroundColor: hexToRgba(cardFill, cardFillOpacity / 100),
+                              borderColor: accentColour,
+                              boxShadow: isTemplate ? '0 0 0 2px #4f46e5' : 'none',
+                            }}
+                          >
+                            {isTemplate && (
+                              <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-bl z-20 pointer-events-none">
+                                TEMPLATE
+                              </div>
+                            )}
+
+                            {/* Top accent bar */}
+                            <div
+                              className="absolute top-0 left-0 right-0 h-1 pointer-events-none"
+                              style={{ backgroundColor: accentColour }}
+                            />
+
+                            {/* Render Card Elements */}
+                            {Object.entries(elements).map(([key, el]) => {
+                              if (!el.selected) return null
+                              const isPhoto = key === 'player_photo'
+                              const isSelectedElement = isTemplate && selectedKey === key
+                              const isDraggingThis = isTemplate && draggingElementKey === key
+
+                              // Determine displayed text
+                              let valText: string
+                              if (el.custom_text) {
+                                valText = el.custom_text
+                              } else if (key === 'player_number') valText = pNum
+                              else if (key === 'name') valText = pName
+                              else if (key === 'category') valText = pCat
+                              else if (key === 'role') valText = pRole
+                              else if (key === 'base_price') valText = pPrice
+                              else if (key === 'location') valText = pLoc
+                              else if (key === 'batting') valText = pBat
+                              else if (key === 'bowling') valText = pBowl
+                              else if (key === 'mobile') valText = pMob
+                              else if (key === 'age') valText = pAge
+                              else if (key === 'experience') valText = pExp
+                              else if (key === 'application_id') valText = pAppId
+                              else if (p && p.custom_data && p.custom_data[key]) valText = String(p.custom_data[key])
+                              else valText = el.label || ''
+
+                              const labelText = el.show_label && el.label ? `${el.label} ` : ''
+                              const displayText = isPhoto ? (el.show_label ? 'PHOTO' : '') : `${labelText}${valText}`
+
+                              const boxOpacity = el.bg_opacity !== undefined ? el.bg_opacity : elementBoxOpacity
+                              const boxBg = el.bg_colour || elementBoxBgColor || '#ffffff'
+
+                              return (
+                                <div
+                                  key={key}
+                                  onMouseDown={isTemplate ? (e) => handleElementMouseDown(e, key) : undefined}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedKey(key)
+                                  }}
+                                  className={`absolute flex items-center overflow-visible select-none transition-all ${isTemplate
+                                    ? 'cursor-move hover:ring-1 hover:ring-indigo-400 group'
+                                    : 'cursor-default pointer-events-none'
+                                    } ${isSelectedElement
+                                      ? 'ring-2 ring-indigo-600 shadow-md z-30'
+                                      : ''
+                                    } ${isDraggingThis ? 'opacity-90 scale-[1.02]' : ''
+                                    } ${isPhoto
+                                      ? 'bg-slate-100 border border-slate-200 justify-center text-[7px] text-slate-500 font-bold'
+                                      : ''
+                                    }`}
+                                  style={{
+                                    left: `${el.x}%`,
+                                    top: `${el.y}%`,
+                                    width: `${el.w}%`,
+                                    height: `${el.h}%`,
+                                    fontSize: `${Math.max(6, Math.round(el.font_size * 0.65))}px`,
+                                    fontFamily: el.font_family || 'Helvetica',
+                                    color: el.colour,
+                                    fontWeight: el.bold ? 800 : 400,
+                                    fontStyle: el.italic ? 'italic' : 'normal',
+                                    textDecoration: el.underline ? 'underline' : 'none',
+                                    justifyContent:
+                                      el.align === 'center' ? 'center' : el.align === 'right' ? 'flex-end' : 'flex-start',
+                                    zIndex: isSelectedElement ? 30 : el.z,
+                                    backgroundColor: isPhoto
+                                      ? 'rgba(241, 245, 249, 0.95)'
+                                      : boxOpacity > 0
+                                        ? hexToRgba(boxBg, boxOpacity / 100)
+                                        : (isSelectedElement ? 'rgba(238, 242, 255, 0.25)' : 'transparent'),
+                                    border: isPhoto
+                                      ? '1px solid rgba(203, 213, 225, 0.8)'
+                                      : boxOpacity > 0
+                                        ? `1px solid ${hexToRgba(el.colour || '#64748b', Math.min(0.4, 0.15 + (boxOpacity / 100) * 0.25))}`
+                                        : (isSelectedElement ? undefined : '1px solid transparent'),
+                                    borderRadius: boxOpacity > 0 ? '4px' : undefined,
+                                    padding: boxOpacity > 0 ? '0 4px' : undefined,
+                                    boxShadow: boxOpacity > 15 ? '0 1px 2px rgba(0,0,0,0.05)' : undefined,
+                                  }}
+                                  title={
+                                    isTemplate
+                                      ? `Drag to move ${FIELD_LABELS[key] || key} (X: ${el.x}%, Y: ${el.y}%, W: ${el.w}%, H: ${el.h}%)`
+                                      : undefined
+                                  }
+                                >
+                                  {isPhoto && pPhoto ? (
+                                    <img
+                                      src={pPhoto}
+                                      alt={pName}
+                                      style={{ objectFit: el.image_fit || 'cover' }}
+                                      className="w-full h-full rounded pointer-events-none"
+                                    />
+                                  ) : (
+                                    <span
+                                      className="truncate w-full pointer-events-none"
+                                      style={{
+                                        textAlign: el.align,
+                                        fontFamily: el.font_family || 'inherit',
+                                        fontWeight: el.bold ? 800 : 400,
+                                        fontStyle: el.italic ? 'italic' : 'normal',
+                                        textDecoration: el.underline ? 'underline' : 'none',
+                                      }}
+                                    >
+                                      {displayText}
+                                    </span>
+                                  )}
+
+                                  {/* Active selection badge with coordinates, top/bottom move & opacity control */}
+                                  {isSelectedElement && (
+                                    <>
+                                      <div
+                                        className="absolute -top-7 left-0 bg-indigo-950/95 text-white text-[8px] font-mono px-2 py-0.5 rounded-md shadow-xl whitespace-nowrap z-50 flex items-center gap-1 pointer-events-auto border border-indigo-400/50 backdrop-blur-xs select-none"
+                                        onClick={(e) => e.stopPropagation()}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                      >
+                                        <span className="flex items-center gap-0.5 text-indigo-200">
+                                          <Move className="w-2.5 h-2.5" />
+                                          {Math.round(el.x)}%, {Math.round(el.y)}%
+                                        </span>
+                                        <span className="text-indigo-400/60">|</span>
+                                        {/* Snap to Top / Bottom */}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            snapElementToCardTop(key)
+                                          }}
+                                          className="px-1.5 py-0.5 rounded bg-indigo-700 hover:bg-indigo-600 active:scale-95 text-[8px] font-bold text-white transition flex items-center gap-0.5 border border-indigo-500/60"
+                                          title="Take box to top of card (Y: 6%)"
+                                        >
+                                          🔝 Top
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            snapElementToCardBottom(key)
+                                          }}
+                                          className="px-1.5 py-0.5 rounded bg-indigo-700 hover:bg-indigo-600 active:scale-95 text-[8px] font-bold text-white transition flex items-center gap-0.5 border border-indigo-500/60"
+                                          title="Take box to bottom of card"
+                                        >
+                                          ⬇ Bottom
+                                        </button>
+                                        <span className="text-indigo-400/60">|</span>
+                                        <span className="font-sans font-bold text-slate-200">Opacity:</span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            updateBoxOpacity(key, boxOpacity - 5)
+                                          }}
+                                          className="w-4 h-4 rounded bg-indigo-800 hover:bg-indigo-700 active:scale-95 text-white flex items-center justify-center font-bold text-[10px] transition border border-indigo-600/50"
+                                          title="Decrease box opacity (-5%)"
+                                        >
+                                          -
+                                        </button>
+                                        <span className="font-mono font-bold text-amber-300 min-w-[24px] text-center">
+                                          {boxOpacity}%
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            updateBoxOpacity(key, boxOpacity + 5)
+                                          }}
+                                          className="w-4 h-4 rounded bg-indigo-800 hover:bg-indigo-700 active:scale-95 text-white flex items-center justify-center font-bold text-[10px] transition border border-indigo-600/50"
+                                          title="Increase box opacity (+5%)"
+                                        >
+                                          +
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleApplyBoxOpacityToAll(boxOpacity, boxBg)
+                                          }}
+                                          className="bg-indigo-600 hover:bg-indigo-500 text-[8px] font-sans font-bold px-1.5 py-0.5 rounded text-white shadow-2xs hover:scale-105 active:scale-95 transition ml-0.5"
+                                          title="Apply this box's opacity to ALL boxes across every card"
+                                        >
+                                          All
+                                        </button>
+                                      </div>
+
+                                      {/* Resize Handle (Bottom-Right) */}
+                                      <div
+                                        onMouseDown={(e) => handleElementResizeMouseDown(e, key)}
+                                        className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-indigo-600 hover:bg-indigo-800 rounded-xs cursor-se-resize shadow-md hover:scale-125 transition-transform z-40"
+                                        title="Drag corner to resize box width and height"
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* 5. Adjustable Sheet Footer Banner */}
+                    {footerConfig.show && (
+                      <div
+                        className="mt-3 px-3 rounded-lg flex items-center justify-between relative z-10 transition-all border border-slate-200/80 shadow-xs shrink-0 font-medium"
+                        style={{
+                          height: `${footerConfig.height}px`,
+                          backgroundColor: footerConfig.bg_colour,
+                          color: footerConfig.text_colour,
+                          borderTop: `1.5px solid ${accentColour}`,
+                          fontSize: `${footerConfig.font_size}px`,
+                        }}
+                      >
+                        <span className="truncate flex-1 text-left">
+                          {footerConfig.left_text}
+                        </span>
+                        <span className="truncate font-semibold px-2 text-center">
+                          {(footerConfig.center_text || '').replace('{page}', '1').replace('{totalPages}', '1')}
+                        </span>
+                        <span className="truncate flex-1 text-right">
+                          {footerConfig.right_text}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
   )
 }

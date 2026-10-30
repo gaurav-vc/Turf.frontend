@@ -42,10 +42,24 @@ export interface ElementConfig {
   colour?: string
   font_family?: string
   bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  fit_to_size?: boolean
+  show_team_logo?: boolean
+  show_short_name?: boolean
+  show_team_name?: boolean
+  show_bid_amount?: boolean
+  grid_rows?: number
+  grid_cols?: number
+  box_style?: 'solid' | 'outline'
+  gap_x?: number
+  gap_y?: number
+  show_number?: boolean
+  show_balance?: boolean
   align?: 'left' | 'center' | 'right'
   selected: boolean
   show_label?: boolean
-  type?: 'standard' | 'photo' | 'video' | 'text' | 'bid_history' | 'action_bar' | 'top_bar'
+  type?: 'standard' | 'photo' | 'video' | 'text' | 'bid_history' | 'action_bar' | 'top_bar' | 'franchise_stations'
   label?: string
   custom_label?: string
   title?: string
@@ -130,8 +144,9 @@ export const DEFAULT_PAGE_DESIGN: PageDesignState = {
     max_bid: { x: 68, y: 70, w: 28, h: 6, font_size: 14, colour: '#FFFFFF', bold: true, align: 'right', selected: true, show_label: true },
     base_price: { x: 4, y: 80, w: 28, h: 7, font_size: 20, colour: '#FFFFFF', bold: true, align: 'center', selected: true, show_label: true },
     top_bar: { x: 2, y: 1.5, w: 96, h: 6.5, font_size: 13, colour: '#FFFFFF', selected: true, show_label: false },
-    bid_history: { x: 74, y: 9.5, w: 24, h: 77, font_size: 12, colour: '#FFFFFF', selected: true, show_label: false },
+    bid_history: { x: 74, y: 9.5, w: 24, h: 77, font_size: 12, colour: '#FFFFFF', selected: true, show_label: false, show_short_name: true, show_team_name: true, show_bid_amount: true },
     action_bar: { x: 2, y: 88, w: 96, h: 10, font_size: 12, colour: '#FFFFFF', selected: true, show_label: false },
+    franchise_stations: { x: 2, y: 72, w: 96, h: 15, font_size: 14, colour: '#FFFFFF', selected: true, show_label: false, grid_rows: 2, grid_cols: 7, box_style: 'solid', gap_x: 6, gap_y: 6, show_number: true, show_short_name: true, show_balance: false },
   },
 }
 
@@ -247,13 +262,31 @@ const ELEMENT_LABELS: Record<string, { label: string; fieldNameDefault: boolean 
   bowling_style: { label: 'Bowling Style', fieldNameDefault: true },
   location: { label: 'Location', fieldNameDefault: true },
   current_bid: { label: 'Current Bid Amount', fieldNameDefault: true },
-  bidder_name: { label: 'Leading Franchise', fieldNameDefault: false },
+  bidder_name: { label: 'Bidder Team Name', fieldNameDefault: false },
   balance: { label: 'Kitty Balance', fieldNameDefault: true },
   max_bid: { label: 'Max Bid Allowed', fieldNameDefault: true },
   top_bar: { label: 'Top Arena Status Bar', fieldNameDefault: false },
   bid_history: { label: 'Bid History Stream Panel', fieldNameDefault: false },
   action_bar: { label: 'Live Action Controls (SOLD / UNSOLD)', fieldNameDefault: false },
+  franchise_stations: { label: 'Franchise Bidding Stations', fieldNameDefault: false },
 }
+
+const SAMPLE_FRANCHISE_TEAMS = [
+  { id: 1, name: 'Super Kings', code: 'SK', color: '#EAB308', balance: '₹1,25,00,000' },
+  { id: 2, name: 'Hyderabad Sun', code: 'HS', color: '#F97316', balance: '₹1,25,00,000' },
+  { id: 3, name: 'United Challengers', code: 'UC', color: '#EF4444', balance: '₹1,12,00,000' },
+  { id: 4, name: 'X-Warriors', code: 'XW', color: '#8B5CF6', balance: '₹1,25,00,000' },
+  { id: 5, name: '4 The Legends', code: '4TL', color: '#10B981', balance: '₹1,25,00,000' },
+  { id: 6, name: 'Undisputed', code: 'UND', color: '#F59E0B', balance: '₹1,25,00,000' },
+  { id: 7, name: 'Light Design', code: 'LDS', color: '#06B6D4', balance: '₹1,25,00,000' },
+  { id: 8, name: 'Farm Royals', code: 'FR', color: '#3B82F6', balance: '₹1,25,00,000' },
+  { id: 9, name: 'Invincible XI', code: 'IVW', color: '#6366F1', balance: '₹1,25,00,000' },
+  { id: 10, name: 'Mehta Mave', code: 'MM', color: '#14B8A6', balance: '₹1,25,00,000' },
+  { id: 11, name: 'Super All', code: 'SA', color: '#0EA5E9', balance: '₹1,10,00,000' },
+  { id: 12, name: 'Kings Bull', code: 'IK', color: '#EC4899', balance: '₹1,25,00,000' },
+  { id: 13, name: 'Titans Target', code: 'TT', color: '#A855F7', balance: '₹93,00,000' },
+  { id: 14, name: 'Striker Team', code: 'ST', color: '#F43F5E', balance: '₹77,00,000' },
+]
 
 export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDesignerProps) {
   const [design, setDesign] = useState<PageDesignState>(DEFAULT_PAGE_DESIGN)
@@ -2716,15 +2749,36 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       Typography & Style
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
-                      Font & Colour
+                      Font & Controls
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                    {/* Font Family Picker */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                        Font Family
+                      </label>
+                      <select
+                        value={design.elements[selectedKey].font_family || 'Inter'}
+                        onChange={(e) => updateElementProp(selectedKey, 'font_family', e.target.value)}
+                        className="h-7 px-2 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs cursor-pointer focus:outline-none focus:border-amber-400"
+                      >
+                        <option value="Inter">Inter</option>
+                        <option value="Roboto">Roboto</option>
+                        <option value="Montserrat">Montserrat</option>
+                        <option value="Oswald">Oswald</option>
+                        <option value="Impact">Impact</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="system-ui">System</option>
+                      </select>
+                    </div>
+
                     {/* Font Size (px) */}
                     <div>
                       <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Font Size (px)
+                        Size (px)
                       </label>
                       <div className="flex items-center">
                         <button
@@ -2747,7 +2801,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                           max={96}
                           value={design.elements[selectedKey].font_size || 20}
                           onChange={(e) => updateElementProp(selectedKey, 'font_size', Number(e.target.value))}
-                          className="w-12 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
+                          className="w-11 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
                         />
                         <button
                           type="button"
@@ -2766,10 +2820,68 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       </div>
                     </div>
 
+                    {/* Bold, Italic, Underline Toggles */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                        Style
+                      </label>
+                      <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
+                        <button
+                          type="button"
+                          onClick={() => updateElementProp(selectedKey, 'bold', !(design.elements[selectedKey].bold !== false))}
+                          className={`px-2 h-6 rounded text-xs font-black transition cursor-pointer ${
+                            design.elements[selectedKey].bold !== false ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Bold"
+                        >
+                          B
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateElementProp(selectedKey, 'italic', !design.elements[selectedKey].italic)}
+                          className={`px-2 h-6 rounded text-xs font-bold italic transition cursor-pointer ${
+                            design.elements[selectedKey].italic ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Italic"
+                        >
+                          I
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateElementProp(selectedKey, 'underline', !design.elements[selectedKey].underline)}
+                          className={`px-2 h-6 rounded text-xs font-bold underline transition cursor-pointer ${
+                            design.elements[selectedKey].underline ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Underline"
+                        >
+                          U
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Fit to Size Toggle */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                        Fit to Size
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => updateElementProp(selectedKey, 'fit_to_size', !design.elements[selectedKey].fit_to_size)}
+                        className={`h-7 px-2 rounded-lg border text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                          design.elements[selectedKey].fit_to_size
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                        }`}
+                        title="Auto-shrink font size to prevent overlapping or hiding text"
+                      >
+                        Fit {design.elements[selectedKey].fit_to_size ? '✓' : ''}
+                      </button>
+                    </div>
+
                     {/* Text Colour */}
                     <div>
                       <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Text Colour
+                        Colour
                       </label>
                       <div className="flex items-center gap-1.5 h-7">
                         <input
@@ -2786,7 +2898,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               type="button"
                               onClick={() => updateElementProp(selectedKey, 'colour', c)}
                               style={{ backgroundColor: c }}
-                              className={`w-4 h-4 rounded-full border border-slate-900 shadow-xs hover:scale-125 transition cursor-pointer ${
+                              className={`w-3.5 h-3.5 rounded-full border border-slate-900 shadow-xs hover:scale-125 transition cursor-pointer ${
                                 (design.elements[selectedKey].colour || '#FFFFFF').toUpperCase() === c.toUpperCase()
                                   ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-900'
                                   : ''
@@ -2803,7 +2915,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
                         Align
                       </label>
-                      <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5">
+                      <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
                         <button
                           type="button"
                           onClick={() => updateElementProp(selectedKey, 'align', 'left')}
@@ -2857,62 +2969,63 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                    {/* Show Label (Yes / No) */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Show Label
-                      </label>
-                      <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => updateElementProp(selectedKey, 'show_label', true)}
-                          className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
-                            design.elements[selectedKey].show_label
-                              ? 'bg-amber-500 text-slate-950 shadow-xs'
-                              : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateElementProp(selectedKey, 'show_label', false)}
-                          className={`px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
-                            !design.elements[selectedKey].show_label
-                              ? 'bg-amber-500 text-slate-950 shadow-xs'
-                              : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          No
-                        </button>
+                  <div className="space-y-2 pt-0.5">
+                    {/* Row 1: Show Label Toggle + Label Name */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="w-24 shrink-0">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Show Label
+                        </label>
+                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'show_label', true)}
+                            className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${
+                              design.elements[selectedKey].show_label
+                                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'show_label', false)}
+                            className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${
+                              !design.elements[selectedKey].show_label
+                                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-[130px]">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Label Name
+                        </label>
+                        <input
+                          type="text"
+                          value={design.elements[selectedKey].custom_label ?? (ELEMENT_LABELS[selectedKey]?.label || '')}
+                          onChange={(e) => updateElementProp(selectedKey, 'custom_label', e.target.value)}
+                          placeholder="Custom Label"
+                          className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
+                        />
                       </div>
                     </div>
 
-                    {/* Configurable Label Name */}
-                    <div className="flex-1 min-w-[120px]">
+                    {/* Row 2: Custom Content Override */}
+                    <div className="w-full">
                       <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Label Name
-                      </label>
-                      <input
-                        type="text"
-                        value={design.elements[selectedKey].custom_label ?? (ELEMENT_LABELS[selectedKey]?.label || '')}
-                        onChange={(e) => updateElementProp(selectedKey, 'custom_label', e.target.value)}
-                        placeholder="Custom Label"
-                        className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
-                      />
-                    </div>
-
-                    {/* Configurable Custom Text Content */}
-                    <div className="flex-1 min-w-[130px]">
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Custom Content
+                        Custom Content Override
                       </label>
                       <input
                         type="text"
                         value={design.elements[selectedKey].custom_text || ''}
                         onChange={(e) => updateElementProp(selectedKey, 'custom_text', e.target.value)}
-                        placeholder="Override text..."
+                        placeholder="Override default display text..."
                         className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
                       />
                     </div>
@@ -2930,13 +3043,17 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               />
 
               {/* Custom Box Content Configuration Sub-Panel */}
-              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history') && (
+              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history' || selectedKey === 'bidder_name' || selectedKey === 'franchise_stations') && (
                 <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/30 space-y-2.5 mt-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                         <Sliders className="w-3.5 h-3.5" />
                         {selectedKey === 'bid_history'
                           ? 'Bid History Stream Settings'
+                          : selectedKey === 'bidder_name'
+                          ? 'Bidder Team Name & Logo Settings'
+                          : selectedKey === 'franchise_stations'
+                          ? 'Franchise Bidding Stations (Option 4)'
                           : (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))
                           ? 'Photo Box Configuration'
                           : (design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video'))
@@ -2953,6 +3070,176 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         </button>
                       )}
                     </div>
+
+                    {/* If Bidder Team Name */}
+                    {selectedKey === 'bidder_name' && (
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+                        <span className="text-xs text-slate-300 font-semibold">
+                          Show Bidding Team Logo next to team name
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateElementProp(
+                              'bidder_name',
+                              'show_team_logo',
+                              !(design.elements.bidder_name?.show_team_logo !== false)
+                            )
+                          }
+                          className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                            design.elements.bidder_name?.show_team_logo !== false
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                          }`}
+                        >
+                          {design.elements.bidder_name?.show_team_logo !== false ? 'Team Logo: ON' : 'Team Logo: OFF'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* If Franchise Bidding Stations (Option 4) */}
+                    {selectedKey === 'franchise_stations' && (
+                      <div className="space-y-2.5 pt-1 border-t border-slate-800 text-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                              Grid Preset (Rows × Cols)
+                            </label>
+                            <div className="grid grid-cols-3 gap-1">
+                              {[
+                                { r: 2, c: 7, l: '2 × 7' },
+                                { r: 1, c: 14, l: '1 × 14' },
+                                { r: 14, c: 1, l: '14 × 1' },
+                              ].map((g) => (
+                                <button
+                                  key={g.l}
+                                  type="button"
+                                  onClick={() => {
+                                    updateElementProp('franchise_stations', 'grid_rows', g.r)
+                                    updateElementProp('franchise_stations', 'grid_cols', g.c)
+                                  }}
+                                  className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                                    design.elements.franchise_stations?.grid_rows === g.r &&
+                                    design.elements.franchise_stations?.grid_cols === g.c
+                                      ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                  }`}
+                                >
+                                  {g.l}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Box Color Style</label>
+                            <div className="grid grid-cols-2 gap-1">
+                              {[
+                                { id: 'solid', l: 'Full Solid' },
+                                { id: 'outline', l: 'Outline Only' },
+                              ].map((st) => (
+                                <button
+                                  key={st.id}
+                                  type="button"
+                                  onClick={() => updateElementProp('franchise_stations', 'box_style', st.id)}
+                                  className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                                    (design.elements.franchise_stations?.box_style || 'solid') === st.id
+                                      ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                  }`}
+                                >
+                                  {st.l}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                              Equidistant Box Spacing (Gap: px)
+                            </label>
+                            <div className="flex items-center gap-1">
+                              {[2, 4, 6, 8, 12].map((gp) => (
+                                <button
+                                  key={gp}
+                                  type="button"
+                                  onClick={() => {
+                                    updateElementProp('franchise_stations', 'gap_x', gp)
+                                    updateElementProp('franchise_stations', 'gap_y', gp)
+                                  }}
+                                  className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                                    (design.elements.franchise_stations?.gap_x || 6) === gp
+                                      ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                  }`}
+                                >
+                                  {gp}px
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-800">
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                            Content Inside Box (Strictly contained within boundaries • Horizontal orientation)
+                          </label>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateElementProp(
+                                  'franchise_stations',
+                                  'show_number',
+                                  !(design.elements.franchise_stations?.show_number !== false)
+                                )
+                              }
+                              className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                                design.elements.franchise_stations?.show_number !== false
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-700'
+                              }`}
+                            >
+                              Team Number: {design.elements.franchise_stations?.show_number !== false ? 'ON' : 'OFF'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateElementProp(
+                                  'franchise_stations',
+                                  'show_short_name',
+                                  !(design.elements.franchise_stations?.show_short_name !== false)
+                                )
+                              }
+                              className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                                design.elements.franchise_stations?.show_short_name !== false
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-700'
+                              }`}
+                            >
+                              Short Name: {design.elements.franchise_stations?.show_short_name !== false ? 'ON' : 'OFF'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateElementProp(
+                                  'franchise_stations',
+                                  'show_balance',
+                                  !design.elements.franchise_stations?.show_balance
+                                )
+                              }
+                              className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                                design.elements.franchise_stations?.show_balance
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-700'
+                              }`}
+                            >
+                              Purse Balance: {design.elements.franchise_stations?.show_balance ? 'ON' : 'OFF'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* If Photo Box */}
                     {(design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo')) && (
@@ -3174,6 +3461,63 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                   {t.label}
                                 </button>
                               ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Visible Columns</label>
+                            <div className="grid grid-cols-3 gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateElementProp(
+                                    'bid_history',
+                                    'show_short_name',
+                                    design.elements.bid_history?.show_short_name === false ? true : false
+                                  )
+                                }
+                                className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${
+                                  design.elements.bid_history?.show_short_name !== false
+                                    ? 'bg-purple-500 text-white border-purple-400'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                }`}
+                              >
+                                Short Name
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateElementProp(
+                                    'bid_history',
+                                    'show_team_name',
+                                    design.elements.bid_history?.show_team_name === false ? true : false
+                                  )
+                                }
+                                className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${
+                                  design.elements.bid_history?.show_team_name !== false
+                                    ? 'bg-purple-500 text-white border-purple-400'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                }`}
+                              >
+                                Team Name
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateElementProp(
+                                    'bid_history',
+                                    'show_bid_amount',
+                                    design.elements.bid_history?.show_bid_amount === false ? true : false
+                                  )
+                                }
+                                className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${
+                                  design.elements.bid_history?.show_bid_amount !== false
+                                    ? 'bg-purple-500 text-white border-purple-400'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                }`}
+                              >
+                                Bid Amount
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -3532,24 +3876,49 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       )}
 
                       {key === 'bidder_name' && (
-                        <div className="w-full" style={{ textAlign: el.align || 'right' }}>
-                          {el.show_label && (
-                            <span
-                              style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px` }}
-                              className="text-slate-400 block font-bold"
-                            >
-                              {el.custom_label || 'FRANCHISE'}
-                            </span>
+                        <div
+                          className="w-full flex items-center gap-2"
+                          style={{
+                            justifyContent:
+                              el.align === 'center'
+                                ? 'center'
+                                : el.align === 'left'
+                                ? 'flex-start'
+                                : 'flex-end',
+                            textAlign: el.align || 'right',
+                          }}
+                        >
+                          {el.show_team_logo !== false && (
+                            <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-400/50 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+                              <Shield className="w-4 h-4 text-sky-400" />
+                            </div>
                           )}
-                          <span
-                            style={{
-                              fontSize: `${el.font_size || 22}px`,
-                              color: el.colour || '#FFFFFF',
-                            }}
-                            className="font-black uppercase tracking-wide"
-                          >
-                            {el.custom_text || samplePlayerData.bidder_name}
-                          </span>
+                          <div className="min-w-0">
+                            {el.show_label && (
+                              <span
+                                style={{
+                                  fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px`,
+                                }}
+                                className="text-slate-400 block font-bold"
+                              >
+                                {el.custom_label || 'BIDDER TEAM'}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 22}px`,
+                                color: el.colour || '#FFFFFF',
+                                fontFamily: el.font_family || 'inherit',
+                                fontWeight: el.bold === false ? 500 : 900,
+                                fontStyle: el.italic ? 'italic' : 'normal',
+                                textDecoration: el.underline ? 'underline' : 'none',
+                                whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
+                              }}
+                              className="font-black uppercase tracking-wide truncate block"
+                            >
+                              {el.custom_text || samplePlayerData.bidder_name}
+                            </span>
+                          </div>
                         </div>
                       )}
 
@@ -3678,20 +4047,45 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             </span>
                             <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5">
                               <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/40 flex justify-between items-center text-xs">
-                                <span className="font-bold text-white truncate max-w-[110px]">
-                                  #{samplePlayerData.player_number} {samplePlayerData.bidder_name}
-                                </span>
-                                <span className="font-mono font-black text-amber-400 shrink-0 ml-1">
-                                  ₹{samplePlayerData.current_bid.toLocaleString('en-IN')}
-                                </span>
+                                <div className="flex items-center gap-1.5 truncate max-w-[140px]">
+                                  {el.show_short_name !== false && (
+                                    <span className="font-mono font-black text-amber-300 bg-amber-500/20 px-1 rounded text-[10px] shrink-0">CYC</span>
+                                  )}
+                                  {el.show_team_name !== false && (
+                                    <span className="font-bold text-white truncate">{samplePlayerData.bidder_name}</span>
+                                  )}
+                                </div>
+                                {el.show_bid_amount !== false && (
+                                  <span className="font-mono font-black text-amber-400 shrink-0 ml-1">
+                                    ₹{samplePlayerData.current_bid.toLocaleString('en-IN')}
+                                  </span>
+                                )}
                               </div>
                               <div className="p-2 rounded-xl bg-white/5 flex justify-between items-center text-slate-400 text-xs">
-                                <span className="truncate max-w-[110px]">#2 TITANS</span>
-                                <span className="font-mono text-slate-300 shrink-0 ml-1">₹3,50,000</span>
+                                <div className="flex items-center gap-1.5 truncate max-w-[140px]">
+                                  {el.show_short_name !== false && (
+                                    <span className="font-mono font-black text-slate-300 bg-white/10 px-1 rounded text-[10px] shrink-0">TT</span>
+                                  )}
+                                  {el.show_team_name !== false && (
+                                    <span className="truncate">TITANS</span>
+                                  )}
+                                </div>
+                                {el.show_bid_amount !== false && (
+                                  <span className="font-mono text-slate-300 shrink-0 ml-1">₹3,50,000</span>
+                                )}
                               </div>
                               <div className="p-2 rounded-xl bg-white/5 flex justify-between items-center text-slate-400 text-xs">
-                                <span className="truncate max-w-[110px]">#1 ROYALS</span>
-                                <span className="font-mono text-slate-300 shrink-0 ml-1">₹3,00,000</span>
+                                <div className="flex items-center gap-1.5 truncate max-w-[140px]">
+                                  {el.show_short_name !== false && (
+                                    <span className="font-mono font-black text-slate-300 bg-white/10 px-1 rounded text-[10px] shrink-0">RYL</span>
+                                  )}
+                                  {el.show_team_name !== false && (
+                                    <span className="truncate">ROYALS</span>
+                                  )}
+                                </div>
+                                {el.show_bid_amount !== false && (
+                                  <span className="font-mono text-slate-300 shrink-0 ml-1">₹3,00,000</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -3778,6 +4172,79 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             <span className="px-2.5 py-0.5 rounded-md bg-amber-500 font-black text-zinc-950 text-xs shadow-xs cursor-default">
                               SHOW
                             </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Franchise Bidding Stations Element (Configurable / Option 4 Geometry) */}
+                      {key === 'franchise_stations' && (
+                        <div
+                          className="w-full h-full p-1.5 rounded-xl bg-[#030f1e]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-hidden flex flex-col justify-center shadow-lg"
+                          style={{ borderRadius: `${el.border_radius ?? 12}px` }}
+                        >
+                          <div
+                            className="w-full h-full grid"
+                            style={{
+                              gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
+                              gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
+                              columnGap: `${el.gap_x || 6}px`,
+                              rowGap: `${el.gap_y || 6}px`,
+                            }}
+                          >
+                            {SAMPLE_FRANCHISE_TEAMS.slice(0, Math.min(14, (el.grid_cols || 7) * (el.grid_rows || 2))).map((t, idx) => {
+                              const isSolid = (el.box_style || 'solid') === 'solid'
+                              return (
+                                <div
+                                  key={t.id}
+                                  className="flex flex-col justify-between p-1 rounded-md overflow-hidden transition select-none min-w-0"
+                                  style={{
+                                    backgroundColor: isSolid ? `${t.color}25` : 'transparent',
+                                    borderColor: t.color,
+                                    borderWidth: isSolid ? '1px' : '2px',
+                                    borderStyle: 'solid',
+                                    boxShadow: isSolid ? `0 0 8px ${t.color}20` : 'none',
+                                    writingMode: 'horizontal-tb',
+                                  }}
+                                >
+                                  <div
+                                    className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0"
+                                    style={{ writingMode: 'horizontal-tb' }}
+                                  >
+                                    {el.show_number !== false && (
+                                      <span className="px-1 py-0.2 rounded bg-black/50 font-mono text-[8px] text-white">
+                                        #{idx + 1}
+                                      </span>
+                                    )}
+                                    <span className="font-mono text-[8px] text-slate-400 opacity-75">
+                                      [{idx + 1}]
+                                    </span>
+                                  </div>
+                                  <div
+                                    className="w-full text-center font-black truncate my-auto px-0.5"
+                                    style={{
+                                      fontSize: `${el.font_size || 13}px`,
+                                      color: el.colour || t.color,
+                                      fontFamily: el.font_family || 'inherit',
+                                      fontWeight: el.bold !== false ? 900 : 700,
+                                      fontStyle: el.italic ? 'italic' : 'normal',
+                                      writingMode: 'horizontal-tb',
+                                      whiteSpace: 'nowrap',
+                                      textOrientation: 'mixed',
+                                    }}
+                                  >
+                                    {t.code}
+                                  </div>
+                                  {el.show_balance !== false && (
+                                    <div
+                                      className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
+                                      style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
+                                    >
+                                      {t.balance}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
                           </div>
                         </div>
                       )}

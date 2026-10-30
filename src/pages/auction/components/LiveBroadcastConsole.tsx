@@ -52,6 +52,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
     searchParams.get('fullscreen') === 'true' || searchParams.get('fullscreen') === '1'
   )
   const [categories, setCategories] = useState<string[]>([])
+  const [categoriesData, setCategoriesData] = useState<any[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
   const [allowMultipleBids, setAllowMultipleBids] = useState(false)
   const [autoAdvanceQueue, setAutoAdvanceQueue] = useState(true)
@@ -61,6 +62,15 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const [teamKeyBuffer, setTeamKeyBuffer] = useState('')
   const keyBufferTimerRef = useRef<any>(null)
   const customBidInputId = useId()
+
+  const customMessages = {
+    msg_post_sold: state?.config?.custom_messages?.msg_post_sold || 'Getting Next player ready...',
+    msg_unsold_pool: state?.config?.custom_messages?.msg_unsold_pool || 'Unsold players available for re-auction round',
+    msg_category_complete: state?.config?.custom_messages?.msg_category_complete || 'All players in this category are sold, move on to next category',
+    msg_team_cat_quota: state?.config?.custom_messages?.msg_team_cat_quota || 'Team has completed required players for this category',
+    msg_team_all_complete: state?.config?.custom_messages?.msg_team_all_complete || 'Team has completed all required squad quotas across all categories',
+    msg_all_teams_complete: state?.config?.custom_messages?.msg_all_teams_complete || 'Auction Completed - All teams have completed their squad targets',
+  }
 
   const handleUpdateColumns = async (cols: number) => {
     const updated = {
@@ -85,20 +95,35 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
     setCustomBidTeamId(teamId)
     const isLeading = highestBid?.team_id === teamId
     const teamObj = state?.teams?.find((t) => t.team_id === teamId)
-    const isExceeded = teamObj ? currentBid > teamObj.max_bid : false
+    const playerCat = player?.category || selectedCategory
+    const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
+    const teamBoughtInCat = teamObj?.category_counts?.[playerCat] || 0
+    const isQuotaFull = (catTarget > 0 && teamBoughtInCat >= catTarget) || (teamObj?.pending === 0)
+    const isBudgetExceeded = (teamObj ? currentBid >= teamObj.max_bid : false) || (teamObj ? teamObj.max_bid <= 0 : false)
+
+    if (isQuotaFull) {
+      setFeedbackMessage({
+        text: `${teamObj?.short_name || teamObj?.team_name || 'Team'} has completed category quota for ${playerCat}!`,
+        type: 'error',
+      })
+      return
+    }
+
+    if (isBudgetExceeded) {
+      setFeedbackMessage({
+        text: `${teamObj?.short_name || teamObj?.team_name || 'Team'} cannot bid due to purse limit constraint (Max Bid: ₹${Number(teamObj?.max_bid || 0).toLocaleString('en-IN')}).`,
+        type: 'error',
+      })
+      return
+    }
 
     // Allow re-bidding if allowMultipleBids is enabled or if not currently leading
-    if (!actionLoading && player && (!isLeading || allowMultipleBids) && !isExceeded) {
+    if (!actionLoading && player && (!isLeading || allowMultipleBids) && !isBudgetExceeded) {
       handleQuickBid(teamId)
     } else if (isLeading && !allowMultipleBids) {
       setFeedbackMessage({
         text: `${teamObj?.short_name || teamObj?.team_name || 'Team'} is currently leading! Toggle 'Multiple Bid: YES' to permit re-bidding.`,
         type: 'success',
-      })
-    } else if (isExceeded) {
-      setFeedbackMessage({
-        text: `${teamObj?.short_name || teamObj?.team_name || 'Team'} has exceeded purse/max bid limit!`,
-        type: 'error',
       })
     }
   }
@@ -120,10 +145,17 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   }, [auctionId])
 
   useEffect(() => {
+    if (state?.config?.allow_multiple_bids !== undefined) {
+      setAllowMultipleBids(Boolean(state.config.allow_multiple_bids))
+    }
+  }, [state?.config?.allow_multiple_bids])
+
+  useEffect(() => {
     apiClient
       .get(`/v1/auction/categories/?auction=${auctionId}`)
       .then((res) => {
         const items = res.data.results || res.data || []
+        setCategoriesData(items)
         const names = items.map((c: any) => c.name).filter(Boolean)
         if (names.length > 0) {
           setCategories(names)
@@ -455,7 +487,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
   const handleQuickBid = async (teamId: string) => {
     setFeedbackMessage(null)
-    const res = await placeBid(teamId)
+    const res = await placeBid(teamId, undefined, false, allowMultipleBids)
     if (res?.success) {
       playSoundEffect('bid')
       setTimerSeconds(30)
@@ -532,13 +564,40 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
   const submitCustomBid = async () => {
     if (!customBidTeamId || !customBidAmount) return
-    const res = await placeBid(customBidTeamId, customBidAmount, true)
+    const res = await placeBid(customBidTeamId, customBidAmount, true, allowMultipleBids)
     if (res?.success) {
       setIsCustomBidModalOpen(false)
       setFeedbackMessage({ text: 'Custom bid placed successfully!', type: 'success' })
     } else {
       setFeedbackMessage({ text: res?.error || 'Invalid custom bid', type: 'error' })
     }
+  }
+
+  const rawBg =
+    pageDesign?.custom_background_url ||
+    auctionBackground ||
+    (state as any)?.tournament?.background_image ||
+    state?.config?.background_image ||
+    ''
+
+  const resolvedBgUrl =
+    rawBg === 'stadium'
+      ? 'https://images.unsplash.com/photo-1529900245534-47fbf822495d?w=1600&auto=format&fit=crop&q=80'
+      : rawBg === 'dark_neon'
+      ? 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&auto=format&fit=crop&q=80'
+      : rawBg === 'classic_turf'
+      ? 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=1600&auto=format&fit=crop&q=80'
+      : rawBg && rawBg !== 'default'
+      ? resolveMediaUrl(rawBg)
+      : ''
+
+  const getBidDisplayShort = (bid: { team_id?: string; team_name?: string; short_name?: string }) => {
+    const teamObj = state?.teams?.find(
+      (t) => (bid.team_id && String(t.team_id) === String(bid.team_id)) || (bid.team_name && t.team_name === bid.team_name)
+    )
+    return teamObj
+      ? getTeamShortcut(teamObj.team_name, teamObj.short_name)
+      : getTeamShortcut(bid.team_name, bid.short_name)
   }
 
   if (loading && !state) {
@@ -553,9 +612,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
     <div
       className="space-y-6 rounded-3xl p-2 sm:p-4 transition-all"
       style={
-        auctionBackground && auctionBackground !== 'stadium' && auctionBackground !== 'default'
+        resolvedBgUrl
           ? {
-              backgroundImage: `linear-gradient(rgba(7, 22, 43, 0.88), rgba(7, 22, 43, 0.94)), url(${resolveMediaUrl(auctionBackground)})`,
+              backgroundImage: `linear-gradient(rgba(3, 10, 24, 0.75), rgba(3, 10, 24, 0.88)), url(${resolvedBgUrl})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundAttachment: 'fixed',
@@ -799,8 +858,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         {/* Left Column: Player on the Block (8 Cols) */}
         <div className="lg:col-span-8 space-y-4">
           <div
-            className="relative overflow-hidden rounded-2xl border border-slate-800 p-6 shadow-2xl"
-            style={{ backgroundColor: '#020617' }}
+            className="relative overflow-hidden rounded-2xl border border-slate-800 p-6 shadow-2xl backdrop-blur-md"
+            style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617' }}
           >
             {/* Background Image / Preset Overlay from Page Designer */}
             {pageDesign?.custom_background_url ? (
@@ -1130,16 +1189,25 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         {highestBid && pageDesign?.elements?.bidder_name?.selected !== false && (
                           <div className="text-right">
                             <span className="text-xs uppercase tracking-wider text-slate-400">
-                              {pageDesign?.elements?.bidder_name?.show_label ? 'Leading Franchise' : 'Franchise'}
+                              {pageDesign?.elements?.bidder_name?.show_label ? 'Bidder Team Name' : 'Bidder'}
                             </span>
-                            <p
-                              style={{
-                                color: pageDesign?.elements?.bidder_name?.colour || '#FFFFFF',
-                              }}
-                              className="text-lg font-bold text-white"
-                            >
-                              {highestBid.team_name}
-                            </p>
+                            <div className="flex items-center gap-2 justify-end">
+                              {highestBid.team_logo && pageDesign?.elements?.bidder_name?.show_team_logo !== false && (
+                                <img
+                                  src={resolveMediaUrl(highestBid.team_logo)}
+                                  alt={highestBid.team_name}
+                                  className="w-6 h-6 rounded-full object-contain border border-amber-400/40"
+                                />
+                              )}
+                              <p
+                                style={{
+                                  color: pageDesign?.elements?.bidder_name?.colour || '#FFFFFF',
+                                }}
+                                className="text-lg font-bold text-white"
+                              >
+                                {highestBid.team_name}
+                              </p>
+                            </div>
                             <span className="text-xs text-emerald-400">({highestBid.bid_type})</span>
                           </div>
                         )}
@@ -1150,28 +1218,28 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
               </div>
             ) : upcomingQueue.length > 0 ? (
               <div className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/20 via-slate-900 to-slate-950 shadow-2xl space-y-4 my-2">
-                {autoAdvanceCountdown !== null && (
-                  <div className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs animate-pulse">
-                    <span className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      Auto-bringing next player in {autoAdvanceCountdown}s...
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleBringNextQueuedPlayer}
-                        className="px-2.5 py-1 rounded bg-amber-400 text-zinc-950 font-black text-xs hover:bg-amber-300 transition cursor-pointer"
-                      >
-                        Bring Now →
-                      </button>
+                <div className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs animate-pulse">
+                  <span className="flex items-center gap-2 font-black">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    {customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleBringNextQueuedPlayer}
+                      className="px-2.5 py-1 rounded bg-amber-400 text-zinc-950 font-black text-xs hover:bg-amber-300 transition cursor-pointer"
+                    >
+                      Bring Now →
+                    </button>
+                    {autoAdvanceCountdown !== null && (
                       <button
                         onClick={() => setAutoAdvanceCountdown(null)}
                         className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 cursor-pointer"
                       >
                         Cancel
                       </button>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
 
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-mono font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
@@ -1228,17 +1296,44 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 </div>
               </div>
             ) : (
-              <div className="flex h-56 flex-col items-center justify-center text-center">
-                <Gavel className="h-12 w-12 text-slate-600 mb-2" />
-                <h3 className="text-lg font-bold text-slate-300">No Player on the Block</h3>
-                <p className="text-xs text-slate-500 mt-1">Select a player from the roster, or click below to advance the queue.</p>
-                <Button
-                  onClick={handleBringNextQueuedPlayer}
-                  disabled={actionLoading}
-                  className="mt-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs rounded-xl"
-                >
-                  Fetch Next Available Player →
-                </Button>
+              <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-b from-emerald-950/20 via-slate-900 to-slate-950 shadow-2xl text-center space-y-4 my-2">
+                <div className="w-14 h-14 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto shadow-lg">
+                  <CheckCircle className="w-8 h-8 text-emerald-400" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-xl font-black text-white">
+                    {customMessages.msg_category_complete}
+                  </h3>
+                  <p className="text-xs text-slate-300 font-semibold max-w-md mx-auto">
+                    Category <span className="text-amber-400 uppercase font-bold">"{selectedCategory}"</span> lots have been completed.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  {(() => {
+                    const currentIdx = categories.indexOf(selectedCategory)
+                    const nextCat = currentIdx >= 0 && currentIdx < categories.length - 1 ? categories[currentIdx + 1] : null
+                    if (nextCat) {
+                      return (
+                        <Button
+                          onClick={() => handleCategoryChange(nextCat)}
+                          disabled={actionLoading}
+                          className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                        >
+                          <span>Move on to {nextCat} →</span>
+                        </Button>
+                      )
+                    }
+                    return null
+                  })()}
+                  <Button
+                    onClick={() => startReauction()}
+                    disabled={actionLoading}
+                    variant="outline"
+                    className="border-purple-500/50 bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 text-xs font-bold rounded-xl"
+                  >
+                    <span>{customMessages.msg_unsold_pool}</span>
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -1343,8 +1438,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
           {/* Franchise Quick Bid Grid with Dynamic Team Columns & Real-time Dropdown */}
           <div
-            className="rounded-2xl border border-slate-800 p-5 shadow-xl"
-            style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+            className="rounded-2xl border border-slate-800 p-5 shadow-xl backdrop-blur-md"
+            style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617', backgroundImage: 'none', boxShadow: 'none' }}
           >
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-white/10 pb-3">
               <div className="flex items-center gap-2.5">
@@ -1395,21 +1490,31 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
             >
               {state?.teams?.map((team, idx) => {
                 const isLeading = highestBid?.team_id === team.team_id
-                const isExceeded = currentBid > team.max_bid
+                const playerCat = player?.category || selectedCategory
+                const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
+                const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
+                const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
                 const isSelected = selectedTeamId === team.team_id
                 const theme = getTeamTheme(idx, state.teams.length)
                 const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
 
                 return (
                   <button
                     key={team.team_id}
                     onClick={() => handleTeamSelectAndBid(team.team_id)}
-                    disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isExceeded}
+                    disabled={isTeamDisabled}
                     style={{
                       background: isLeading
                         ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(30, 20, 5, 0.95) 100%)'
+                        : isQuotaFull || isBudgetExceeded
+                        ? 'rgba(15, 23, 42, 0.85)'
                         : 'rgba(2, 19, 46, 0.95)',
                       borderColor: isLeading
+                        ? '#F59E0B'
+                        : isQuotaFull
+                        ? '#EF4444'
+                        : isBudgetExceeded
                         ? '#F59E0B'
                         : isSelected
                         ? theme.accentHover
@@ -1419,40 +1524,65 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         : isSelected
                         ? `0 0 14px ${theme.glow}`
                         : `0 0 8px ${theme.glow}`,
+                      writingMode: 'horizontal-tb',
                     }}
-                    className={`group relative flex flex-col items-center justify-center rounded-xl border-2 p-2.5 transition-all cursor-pointer ${
+                    className={`group relative flex flex-col items-center justify-between rounded-xl border-2 p-2.5 transition-all select-none min-h-[88px] ${
                       isLeading
                         ? 'ring-2 ring-amber-400'
-                        : isExceeded
-                        ? 'opacity-40 cursor-not-allowed grayscale'
-                        : 'hover:scale-105 active:scale-95 hover:brightness-125'
+                        : isQuotaFull
+                        ? 'opacity-40 cursor-not-allowed border-rose-800'
+                        : isBudgetExceeded
+                        ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
+                        : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
                     }`}
-                    title={`Team #${theme.sequenceNo} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}`}
+                    title={`Team #${theme.sequenceNo} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
                   >
                     {/* Top Row: Sequence Badge & Key */}
-                    <div className="flex items-center justify-between w-full mb-1">
+                    <div className="flex items-center justify-between w-full mb-1" style={{ writingMode: 'horizontal-tb' }}>
                       <span
                         style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
-                        className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs"
+                        className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs shrink-0"
                       >
                         #{theme.sequenceNo}
                       </span>
-                      {theme.keyShortcut && (
-                        <span className="text-[9px] font-mono text-slate-300 font-bold bg-black/40 px-1 py-0.2 rounded border border-white/10">
+                      {isLeading ? (
+                        <span className="px-1.5 py-0.2 rounded bg-amber-400 text-black font-black text-[8px] animate-pulse">
+                          LEADING
+                        </span>
+                      ) : isQuotaFull ? (
+                        <span className="px-1.5 py-0.2 rounded bg-rose-500/30 text-rose-300 font-bold text-[8px] border border-rose-500/40">
+                          QUOTA FULL
+                        </span>
+                      ) : isBudgetExceeded ? (
+                        <span className="px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-300 font-bold text-[8px] border border-amber-500/40">
+                          PURSE LIMIT
+                        </span>
+                      ) : theme.keyShortcut ? (
+                        <span className="text-[9px] font-mono text-slate-300 font-bold bg-black/40 px-1 py-0.2 rounded border border-white/10 shrink-0">
                           [{theme.keyShortcut}]
                         </span>
-                      )}
-                      {isLeading && (
-                        <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-ping ml-auto" />
-                      )}
+                      ) : null}
                     </div>
 
-                    {/* Centered Shortcut Text (Matching User's Screenshot) */}
+                    {/* Centered Shortcut Text (Strictly Horizontal) */}
                     <span
-                      style={{ color: isLeading ? '#FDE047' : theme.pillText }}
+                      style={{
+                        color: isLeading ? '#FDE047' : isQuotaFull ? '#FDA4AF' : theme.pillText,
+                        writingMode: 'horizontal-tb',
+                        whiteSpace: 'nowrap',
+                        textOrientation: 'mixed',
+                      }}
                       className="text-lg font-black font-mono tracking-wider drop-shadow-md py-1"
                     >
                       {shortcut}
+                    </span>
+
+                    {/* Balance Subtitle */}
+                    <span
+                      className="text-[9px] font-mono text-slate-400 tracking-tight"
+                      style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
+                    >
+                      ₹{Number(team.balance || 0).toLocaleString('en-IN')}
                     </span>
                   </button>
                 )
@@ -1472,8 +1602,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         >
           {/* Bid History Feed */}
           <div
-            className="rounded-2xl border border-slate-800 p-5"
-            style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+            className="rounded-2xl border border-slate-800 p-5 backdrop-blur-md"
+            style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617', backgroundImage: 'none', boxShadow: 'none' }}
           >
             <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
               <Clock className="h-4 w-4 text-blue-400" />
@@ -1491,11 +1621,20 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         : 'bg-white/5 text-slate-300'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 truncate">
                       <span className="font-mono text-[10px] text-slate-500">#{state.bid_history.length - idx}</span>
-                      <span className="font-bold text-white">{bid.short_name}</span>
+                      {pageDesign?.elements?.bid_history?.show_short_name !== false && (
+                        <span className="font-mono font-black text-amber-400 bg-amber-500/20 px-1.5 py-0.2 rounded text-[10px] shrink-0">
+                          {getBidDisplayShort(bid)}
+                        </span>
+                      )}
+                      {pageDesign?.elements?.bid_history?.show_team_name !== false && (
+                        <span className="font-bold text-white truncate">{bid.team_name}</span>
+                      )}
                     </div>
-                    <span className="font-mono font-bold text-amber-400">₹{bid.amount.toLocaleString()}</span>
+                    {pageDesign?.elements?.bid_history?.show_bid_amount !== false && (
+                      <span className="font-mono font-bold text-amber-400 shrink-0 ml-1">₹{bid.amount.toLocaleString()}</span>
+                    )}
                   </div>
                 ))
               ) : (
@@ -1509,8 +1648,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
           {/* Quick Re-auction Trigger */}
           <div
-            className="rounded-2xl border border-slate-800 p-5"
-            style={{ backgroundColor: '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+            className="rounded-2xl border border-slate-800 p-5 backdrop-blur-md"
+            style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617', backgroundImage: 'none', boxShadow: 'none' }}
           >
             <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2 mb-2">
               <Sparkles className="h-4 w-4 text-purple-400" />
@@ -1535,7 +1674,17 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         const leadingTeam = state?.teams?.find((t) => t.team_id === highestBid?.team_id)
 
         return (
-          <div className="fixed inset-0 z-[100] bg-[#020b18] text-white flex flex-col h-screen w-screen overflow-hidden select-none">
+          <div
+            className="fixed inset-0 z-[100] text-white flex flex-col h-screen w-screen overflow-hidden select-none"
+            style={{
+              backgroundColor: '#020b18',
+              backgroundImage: resolvedBgUrl
+                ? `linear-gradient(rgba(2, 11, 24, 0.78), rgba(2, 11, 24, 0.90)), url(${resolvedBgUrl})`
+                : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
             {/* Top Bar */}
             <div className="flex items-center justify-between px-6 py-3 border-b border-blue-900/40 bg-[#031124] shrink-0">
               {/* Left: Exit Button */}
@@ -1614,29 +1763,31 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
               {/* Timer and Audio controls */}
               <div className="flex items-center gap-3">
-                <div
-                  className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-mono font-bold ${
-                    timerSeconds <= 5
-                      ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
-                      : 'bg-slate-900 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <Clock className="w-3 h-3 text-amber-400" />
-                  <span>{timerSeconds}s</span>
-                  <button
-                    onClick={() => setTimerActive(!timerActive)}
-                    className="hover:text-white p-0.5"
+                {!pageDesign?.elements?.top_bar?.selected && (
+                  <div
+                    className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-mono font-bold ${
+                      timerSeconds <= 5
+                        ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
+                        : 'bg-slate-900 border-slate-700 text-slate-200'
+                    }`}
                   >
-                    {timerActive ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
-                  </button>
-                  <button
-                    onClick={() => setTimerSeconds(30)}
-                    className="hover:text-white p-0.5 ml-0.5"
-                    title="Reset 30s"
-                  >
-                    <RotateCcw className="w-2 h-2" />
-                  </button>
-                </div>
+                    <Clock className="w-3 h-3 text-amber-400" />
+                    <span>{timerSeconds}s</span>
+                    <button
+                      onClick={() => setTimerActive(!timerActive)}
+                      className="hover:text-white p-0.5"
+                    >
+                      {timerActive ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
+                    </button>
+                    <button
+                      onClick={() => setTimerSeconds(30)}
+                      className="hover:text-white p-0.5 ml-0.5"
+                      title="Reset 30s"
+                    >
+                      <RotateCcw className="w-2 h-2" />
+                    </button>
+                  </div>
+                )}
 
                 <button
                   onClick={() => setSoundEnabled(!soundEnabled)}
@@ -1652,11 +1803,11 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
               {/* Left Stage: Dynamically Configured Live Broadcast Arena Stage */}
               <div className="flex-1 flex flex-col justify-center rounded-2xl border border-blue-900/40 bg-gradient-to-b from-[#07162b] via-[#051122] to-[#030c18] p-4 shadow-2xl relative overflow-hidden">
                 {/* Background Image / Preset if configured */}
-                {pageDesign?.custom_background_url ? (
+                {resolvedBgUrl ? (
                   <img
-                    src={pageDesign.custom_background_url}
+                    src={resolvedBgUrl}
                     alt="Stage Background"
-                    className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-40"
+                    className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-60"
                   />
                 ) : pageDesign?.background_mode === 'classic_turf' ? (
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-950 pointer-events-none opacity-60" />
@@ -1901,24 +2052,49 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                             )}
 
                             {key === 'bidder_name' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'right' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px` }}
-                                    className="text-slate-400 block font-bold"
-                                  >
-                                    FRANCHISE
-                                  </span>
+                              <div
+                                className="w-full flex items-center gap-2"
+                                style={{
+                                  justifyContent:
+                                    el.align === 'center'
+                                      ? 'center'
+                                      : el.align === 'left'
+                                      ? 'flex-start'
+                                      : 'flex-end',
+                                  textAlign: el.align || 'right',
+                                }}
+                              >
+                                {highestBid?.team_logo && el.show_team_logo !== false && (
+                                  <img
+                                    src={resolveMediaUrl(highestBid.team_logo)}
+                                    alt={highestBid.team_name}
+                                    className="w-8 h-8 rounded-full object-contain border border-amber-400/50 shrink-0 shadow-xs"
+                                  />
                                 )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 22}px`,
-                                    color: el.colour || '#FFFFFF',
-                                  }}
-                                  className="font-black uppercase tracking-wide truncate block"
-                                >
-                                  {highestBid ? highestBid.team_name : 'Awaiting first bid'}
-                                </span>
+                                <div className="min-w-0">
+                                  {el.show_label && (
+                                    <span
+                                      style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px` }}
+                                      className="text-slate-400 block font-bold"
+                                    >
+                                      {el.custom_label || 'BIDDER TEAM'}
+                                    </span>
+                                  )}
+                                  <span
+                                    style={{
+                                      fontSize: `${el.font_size || 22}px`,
+                                      color: el.colour || '#FFFFFF',
+                                      fontFamily: el.font_family || 'inherit',
+                                      fontWeight: el.bold === false ? 500 : 900,
+                                      fontStyle: el.italic ? 'italic' : 'normal',
+                                      textDecoration: el.underline ? 'underline' : 'none',
+                                      whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
+                                    }}
+                                    className="font-black uppercase tracking-wide truncate block"
+                                  >
+                                    {highestBid ? highestBid.team_name : 'Awaiting first bid'}
+                                  </span>
+                                </div>
                               </div>
                             )}
 
@@ -2026,13 +2202,15 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                       <RotateCcw className="w-2 h-2" />
                                     </button>
                                   </div>
-                                  <button
-                                    onClick={toggleBrowserFullscreen}
-                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition cursor-pointer"
-                                  >
-                                    <Maximize2 className="w-3 h-3 text-sky-400" />
-                                    <span>Full Screen</span>
-                                  </button>
+                                  {!isFullScreen && (
+                                    <button
+                                      onClick={toggleBrowserFullscreen}
+                                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition cursor-pointer"
+                                    >
+                                      <Maximize2 className="w-3 h-3 text-sky-400" />
+                                      <span>Full Screen</span>
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -2078,15 +2256,23 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                               : 'bg-white/5 text-slate-300'
                                           }`}
                                         >
-                                          <div className="flex items-center gap-1.5 truncate max-w-[110px]">
-                                            <span className="font-mono text-[10px] text-slate-400 font-bold">
-                                              #{state.bid_history.length - idx}
-                                            </span>
-                                            <span className="font-bold text-white truncate">{bid.short_name || bid.team_name}</span>
+                                          <div className="flex items-center gap-1.5 truncate max-w-[140px]">
+                                            {el.show_short_name !== false && (
+                                              <span className="font-mono text-[10px] text-slate-400 font-bold shrink-0">
+                                                #{state.bid_history.length - idx}
+                                              </span>
+                                            )}
+                                            {el.show_team_name !== false && (
+                                              <span className="font-bold text-white truncate">
+                                                {getBidDisplayShort(bid)}
+                                              </span>
+                                            )}
                                           </div>
-                                          <span className="font-mono font-black text-amber-400 shrink-0 ml-1">
-                                            ₹{Number(bid.amount || 0).toLocaleString('en-IN')}
-                                          </span>
+                                          {el.show_bid_amount !== false && (
+                                            <span className="font-mono font-black text-amber-400 shrink-0 ml-1">
+                                              ₹{Number(bid.amount || 0).toLocaleString('en-IN')}
+                                            </span>
+                                          )}
                                         </div>
                                       ))
                                     ) : (
@@ -2211,6 +2397,110 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                 </div>
                               </div>
                             )}
+
+                            {/* Franchise Bidding Stations Element (Option 4 Geometry) */}
+                            {key === 'franchise_stations' && (
+                              <div
+                                className="w-full h-full p-1.5 rounded-xl bg-[#030f1e]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-hidden flex flex-col justify-center shadow-lg"
+                                style={{ borderRadius: `${el.border_radius ?? 12}px` }}
+                              >
+                                <div
+                                  className="w-full h-full grid"
+                                  style={{
+                                    gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
+                                    gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
+                                    columnGap: `${el.gap_x || 6}px`,
+                                    rowGap: `${el.gap_y || 6}px`,
+                                  }}
+                                >
+                                  {state?.teams?.slice(0, Math.min(state.teams.length, (el.grid_cols || 7) * (el.grid_rows || 2))).map((team, idx) => {
+                                    const isLeading = highestBid?.team_id === team.team_id
+                                    const playerCat = player?.category || selectedCategory
+                                    const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
+                                    const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
+                                    const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
+                                    const isSolid = (el.box_style || 'solid') === 'solid'
+                                    const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                                    const theme = getTeamTheme(idx, state.teams.length)
+                                    const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
+
+                                    return (
+                                      <button
+                                        key={team.team_id}
+                                        onClick={() => handleTeamSelectAndBid(team.team_id)}
+                                        disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull}
+                                        className={`flex flex-col justify-between p-1 rounded-md overflow-hidden transition select-none min-w-0 ${
+                                          isLeading
+                                            ? 'ring-2 ring-amber-400'
+                                            : isQuotaFull || isBudgetExceeded
+                                            ? 'opacity-40 cursor-not-allowed'
+                                            : 'cursor-pointer hover:scale-105 active:scale-95'
+                                        }`}
+                                        style={{
+                                          backgroundColor: isSolid ? (isLeading ? 'rgba(245, 158, 11, 0.4)' : `${teamColor}25`) : 'transparent',
+                                          borderColor: isLeading ? '#F59E0B' : teamColor,
+                                          borderWidth: isSolid ? '1px' : '2px',
+                                          borderStyle: 'solid',
+                                          boxShadow: isSolid ? `0 0 8px ${teamColor}20` : 'none',
+                                          writingMode: 'horizontal-tb',
+                                        }}
+                                      >
+                                        <div
+                                          className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
+                                          style={{ writingMode: 'horizontal-tb' }}
+                                        >
+                                          {el.show_number !== false && (
+                                            <span className="px-1 py-0.2 rounded bg-black/50 font-mono text-[8px] text-white">
+                                              #{idx + 1}
+                                            </span>
+                                          )}
+                                          {isLeading ? (
+                                            <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
+                                              LEADING
+                                            </span>
+                                          ) : isQuotaFull ? (
+                                            <span className="px-1 py-0.2 rounded bg-rose-500/30 text-rose-300 font-bold text-[7px]">
+                                              FULL
+                                            </span>
+                                          ) : isBudgetExceeded ? (
+                                            <span className="px-1 py-0.2 rounded bg-amber-500/30 text-amber-300 font-bold text-[7px]">
+                                              LIMIT
+                                            </span>
+                                          ) : (
+                                            <span className="font-mono text-[8px] text-slate-400 opacity-75">
+                                              [{idx + 1}]
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div
+                                          className="w-full text-center font-black truncate my-auto px-0.5"
+                                          style={{
+                                            fontSize: `${el.font_size || 13}px`,
+                                            color: isLeading ? '#FDE047' : (el.colour || teamColor),
+                                            fontFamily: el.font_family || 'inherit',
+                                            fontWeight: el.bold !== false ? 900 : 700,
+                                            fontStyle: el.italic ? 'italic' : 'normal',
+                                            writingMode: 'horizontal-tb',
+                                            whiteSpace: 'nowrap',
+                                            textOrientation: 'mixed',
+                                          }}
+                                        >
+                                          {shortcut}
+                                        </div>
+                                        {el.show_balance !== false && (
+                                          <div
+                                            className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
+                                            style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
+                                          >
+                                            ₹{Number(team.balance || 0).toLocaleString('en-IN')}
+                                          </div>
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
                             {/* Custom Photo Box Element */}
                             {(el.type === 'photo' || key.startsWith('custom_photo')) && (
                               <div
@@ -2281,24 +2571,24 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                   </div>
                 ) : upcomingQueue.length > 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
-                    {autoAdvanceCountdown !== null && (
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs animate-pulse">
-                        <Sparkles className="w-4 h-4 text-amber-400" />
-                        <span>Auto-loading next player from queue in {autoAdvanceCountdown}s...</span>
-                        <button
-                          onClick={handleBringNextQueuedPlayer}
-                          className="px-2.5 py-1 rounded bg-amber-400 text-zinc-950 font-black text-xs hover:bg-amber-300 transition cursor-pointer"
-                        >
-                          Bring Now →
-                        </button>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs animate-pulse">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      <span>{customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}</span>
+                      <button
+                        onClick={handleBringNextQueuedPlayer}
+                        className="px-2.5 py-1 rounded bg-amber-400 text-zinc-950 font-black text-xs hover:bg-amber-300 transition cursor-pointer"
+                      >
+                        Bring Now →
+                      </button>
+                      {autoAdvanceCountdown !== null && (
                         <button
                           onClick={() => setAutoAdvanceCountdown(null)}
                           className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 cursor-pointer"
                         >
                           Cancel
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
@@ -2351,19 +2641,44 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                     </div>
                   </div>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-6">
-                    <Gavel className="h-16 w-16 text-slate-600 mb-3" />
-                    <h2 className="text-2xl font-black text-white">No Player on the Block</h2>
-                    <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                      Enter a Player Number below and tap SHOW, or click below to advance the queue.
-                    </p>
-                    <Button
-                      onClick={handleBringNextQueuedPlayer}
-                      disabled={actionLoading}
-                      className="mt-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs rounded-xl"
-                    >
-                      Fetch Next Available Player →
-                    </Button>
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto shadow-xl">
+                      <CheckCircle className="w-10 h-10 text-emerald-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-2xl font-black text-white">
+                        {customMessages.msg_category_complete}
+                      </h2>
+                      <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
+                        Category <span className="text-amber-400 uppercase font-bold">"{selectedCategory}"</span> lots have been completed.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                      {(() => {
+                        const currentIdx = categories.indexOf(selectedCategory)
+                        const nextCat = currentIdx >= 0 && currentIdx < categories.length - 1 ? categories[currentIdx + 1] : null
+                        if (nextCat) {
+                          return (
+                            <Button
+                              onClick={() => handleCategoryChange(nextCat)}
+                              disabled={actionLoading}
+                              className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                            >
+                              <span>Move on to {nextCat} →</span>
+                            </Button>
+                          )
+                        }
+                        return null
+                      })()}
+                      <Button
+                        onClick={() => startReauction()}
+                        disabled={actionLoading}
+                        variant="outline"
+                        className="border-purple-500/50 bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 text-xs font-bold rounded-xl"
+                      >
+                        <span>{customMessages.msg_unsold_pool}</span>
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2404,7 +2719,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           <span className="font-mono text-[10px] text-slate-400 font-bold">
                             #{state.bid_history.length - idx}
                           </span>
-                          <span className="font-bold text-white">{bid.short_name || bid.team_name}</span>
+                          <span className="font-bold text-white">{getBidDisplayShort(bid)}</span>
                         </div>
                         <span className="font-mono font-black text-amber-400">
                           ₹{Number(bid.amount || 0).toLocaleString('en-IN')}
@@ -2430,21 +2745,31 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 </span>
                 {state?.teams?.map((team, idx) => {
                   const isLeading = highestBid?.team_id === team.team_id
-                  const isExceeded = currentBid > team.max_bid
+                  const playerCat = player?.category || selectedCategory
+                  const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
+                  const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
+                  const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
                   const isSelected = selectedTeamId === team.team_id
                   const theme = getTeamTheme(idx, state.teams.length)
                   const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                  const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
 
                   return (
                     <button
                       key={team.team_id}
                       onClick={() => handleTeamSelectAndBid(team.team_id)}
-                      disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isExceeded}
+                      disabled={isTeamDisabled}
                       style={{
                         background: isLeading
                           ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(30, 20, 5, 0.95) 100%)'
+                          : isQuotaFull || isBudgetExceeded
+                          ? 'rgba(15, 23, 42, 0.85)'
                           : 'rgba(2, 19, 46, 0.95)',
                         borderColor: isLeading
+                          ? '#F59E0B'
+                          : isQuotaFull
+                          ? '#EF4444'
+                          : isBudgetExceeded
                           ? '#F59E0B'
                           : isSelected
                           ? theme.accentHover
@@ -2454,37 +2779,54 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           : isSelected
                           ? `0 0 14px ${theme.glow}`
                           : `0 0 8px ${theme.glow}`,
+                        writingMode: 'horizontal-tb',
                       }}
-                      className={`group relative flex flex-col items-center justify-center rounded-xl border-2 px-3 py-1.5 transition-all cursor-pointer shrink-0 min-w-[76px] ${
+                      className={`group relative flex flex-col items-center justify-between rounded-xl border-2 px-3 py-1.5 transition-all select-none shrink-0 min-w-[80px] min-h-[68px] ${
                         isLeading
                           ? 'ring-2 ring-amber-400'
-                          : isExceeded
-                          ? 'opacity-40 cursor-not-allowed grayscale'
-                          : 'hover:scale-105 active:scale-95 hover:brightness-125'
+                          : isQuotaFull
+                          ? 'opacity-40 cursor-not-allowed border-rose-800'
+                          : isBudgetExceeded
+                          ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
+                          : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
                       }`}
-                      title={`Team #${theme.sequenceNo} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}`}
+                      title={`Team #${theme.sequenceNo} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
                     >
                       {/* Top Row: Sequence Badge & Key */}
-                      <div className="flex items-center justify-between w-full mb-0.5 gap-2">
+                      <div className="flex items-center justify-between w-full mb-0.5 gap-2" style={{ writingMode: 'horizontal-tb' }}>
                         <span
                           style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
                           className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs shrink-0"
                         >
                           #{theme.sequenceNo}
                         </span>
-                        {theme.keyShortcut && (
+                        {isLeading ? (
+                          <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
+                            LEADING
+                          </span>
+                        ) : isQuotaFull ? (
+                          <span className="px-1 py-0.2 rounded bg-rose-500/30 text-rose-300 font-bold text-[7px] border border-rose-500/40">
+                            FULL
+                          </span>
+                        ) : isBudgetExceeded ? (
+                          <span className="px-1 py-0.2 rounded bg-amber-500/30 text-amber-300 font-bold text-[7px] border border-amber-500/40">
+                            LIMIT
+                          </span>
+                        ) : theme.keyShortcut ? (
                           <span className="text-[9px] font-mono text-slate-300 font-bold bg-black/40 px-1 py-0.2 rounded border border-white/10 shrink-0">
                             [{theme.keyShortcut}]
                           </span>
-                        )}
-                        {isLeading && (
-                          <span className="flex h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping ml-auto" />
-                        )}
+                        ) : null}
                       </div>
 
-                      {/* Centered Shortcut Text (Matching User's Screenshot) */}
+                      {/* Centered Shortcut Text (Strictly Horizontal) */}
                       <span
-                        style={{ color: isLeading ? '#FDE047' : theme.pillText }}
+                        style={{
+                          color: isLeading ? '#FDE047' : isQuotaFull ? '#FDA4AF' : theme.pillText,
+                          writingMode: 'horizontal-tb',
+                          whiteSpace: 'nowrap',
+                          textOrientation: 'mixed',
+                        }}
                         className="text-base font-black font-mono tracking-wider drop-shadow-md py-0.5"
                       >
                         {shortcut}
@@ -2495,7 +2837,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
               </div>
 
               {/* Actions Row (SOLD, UNSOLD, CUSTOM BID, PLAYER NO. + SHOW) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-white/5">
+              {!pageDesign?.elements?.action_bar?.selected && (
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-white/5">
                 <div className="flex items-center gap-2 flex-wrap">
                   {actionButtons
                     .filter((btn) => btn.visible !== false)
@@ -2596,6 +2939,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                   </button>
                 </div>
               </div>
+              )}
             </div>
           </div>
         )

@@ -7,6 +7,7 @@ export interface BidHistoryItem {
   team_id: string
   team_name: string
   short_name: string
+  team_logo?: string
   bid_type: string
   created_at: string
 }
@@ -30,6 +31,8 @@ export interface TeamFinancial {
   team_id: string
   team_name: string
   short_name: string
+  team_color?: string
+  team_logo?: string
   kitty: number
   spent: number
   balance: number
@@ -85,7 +88,7 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
     }
   }, [auctionId, pollIntervalMs, fetchState])
 
-  const placeBid = async (teamId: string, amount?: number, isCustom = false) => {
+  const placeBid = async (teamId: string, amount?: number, isCustom = false, allowMultiple = false) => {
     if (!auctionId) return
     setActionLoading(true)
     try {
@@ -93,6 +96,7 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
         team_id: teamId,
         amount,
         is_custom: isCustom,
+        allow_multiple: allowMultiple,
       })
       setState(res.data)
       return { success: true }

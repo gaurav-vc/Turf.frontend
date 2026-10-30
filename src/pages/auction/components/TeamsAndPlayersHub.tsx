@@ -22,11 +22,7 @@ function TeamLogoBadge({ team }: { team: any }) {
 
   if (resolved && !hasError) {
     return (
-      <div
-        className={`w-12 h-12 rounded-2xl p-1 flex items-center justify-center border border-border shadow-xs overflow-hidden ${
-          team.remove_logo_background ? 'bg-transparent' : 'bg-muted/40'
-        }`}
-      >
+      <div className="w-14 h-14 rounded-2xl p-1.5 flex items-center justify-center bg-[#0d2238] border-2 border-slate-700 shadow-md overflow-hidden shrink-0">
         <img
           src={resolved}
           alt={team.name}
@@ -38,11 +34,8 @@ function TeamLogoBadge({ team }: { team: any }) {
   }
 
   return (
-    <div
-      className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-md"
-      style={{ backgroundColor: team.color || '#2563EB' }}
-    >
-      {team.short_name || team.name?.slice(0, 3).toUpperCase() || 'TM'}
+    <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[#0d2238] border-2 border-slate-700 text-amber-300 font-black text-xs uppercase tracking-wider shadow-md shrink-0">
+      LOGO
     </div>
   )
 }
@@ -304,11 +297,11 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
       {/* Top Switcher: Franchise Teams vs Players Sub-Page */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
-          <h2 className="text-xl font-black text-foreground flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-500" />
+          <h2 className="text-xl font-black flex items-center gap-2" style={{ color: '#000000' }}>
+            <Users className="w-5 h-5 text-emerald-600" />
             Franchise Teams & Players Management
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs font-semibold mt-0.5" style={{ color: '#1e293b' }}>
             Manage franchise registrations, player intake, CSV bulk import, and public online forms.
           </p>
         </div>
@@ -463,9 +456,9 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
                           <TeamLogoBadge team={t} />
 
                           <div>
-                            <div className="flex items-center gap-1.5">
-                              <h3 className="font-extrabold text-base text-foreground line-clamp-1">{t.name}</h3>
-                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-muted text-foreground/80 font-mono">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-black text-base text-foreground uppercase tracking-wide line-clamp-1">{t.name}</h3>
+                              <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-md bg-[#facc15] text-slate-950 font-mono shadow-xs">
                                 {t.short_name}
                               </span>
                             </div>
@@ -500,48 +493,85 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
                       </div>
 
                       {/* Contacts Box */}
-                      <div className="bg-muted/30 p-3 rounded-2xl border border-border/40 text-xs space-y-1.5">
+                      <div className="bg-muted/30 p-3 rounded-2xl border border-border/40 text-xs space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground font-medium">Owner:</span>
-                          <span className="font-bold text-foreground">{t.owner_name || 'Not assigned'}</span>
+                          <span className="text-muted-foreground font-semibold">Owner:</span>
+                          <span className="font-black uppercase text-foreground">{t.owner_name || 'Not assigned'}</span>
                         </div>
                         {t.owner_email && (
                           <div className="flex items-center justify-between text-[11px]">
                             <span className="text-muted-foreground">Email:</span>
-                            <span className="font-mono text-muted-foreground">{t.owner_email}</span>
+                            <span className="font-mono text-foreground font-bold uppercase">{t.owner_email}</span>
                           </div>
                         )}
                         {t.owner_mobile && (
                           <div className="flex items-center justify-between text-[11px]">
                             <span className="text-muted-foreground">Mobile:</span>
-                            <span className="font-mono text-muted-foreground">{t.owner_mobile}</span>
+                            <span className="font-mono text-foreground font-bold">{t.owner_mobile}</span>
                           </div>
                         )}
                         {t.manager_name && (
                           <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[11px]">
                             <span className="text-muted-foreground">Manager:</span>
-                            <span className="font-semibold">{t.manager_name}</span>
+                            <span className="font-semibold text-foreground">{t.manager_name}</span>
                           </div>
                         )}
                       </div>
 
-                      {/* Financials & Kitty Grid */}
+                      {/* Financials & Squads Two-Column Hub */}
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="p-2.5 rounded-xl bg-muted/40 border border-border/40">
-                          <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                            Purse Balance
-                          </span>
-                          <span className="text-sm font-black font-mono text-emerald-600">
-                            ₹{(t.remaining_budget || 0).toLocaleString()}
-                          </span>
+                        {/* Financials Column */}
+                        <div className="flex flex-col gap-2">
+                          <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
+                            <span className="text-[11px] font-bold text-muted-foreground block">
+                              Team Balance
+                            </span>
+                            <span className="text-base font-black font-mono text-emerald-600 block mt-0.5">
+                              ₹{(t.remaining_budget || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
+                            <span className="text-[11px] font-bold text-muted-foreground block">
+                              Max. Bid
+                            </span>
+                            <span className="text-base font-black font-mono text-blue-600 block mt-0.5">
+                              ₹{Math.max(0, Math.floor(t.max_bid !== undefined ? t.max_bid : (t.remaining_budget || 0))).toLocaleString()}
+                            </span>
+                          </div>
                         </div>
-                        <div className="p-2.5 rounded-xl bg-muted/40 border border-border/40">
-                          <span className="text-[10px] uppercase font-bold text-muted-foreground block">
-                            Squad Players
-                          </span>
-                          <span className="text-sm font-black font-mono text-foreground">
-                            {t.players_count || 0} Acquired
-                          </span>
+
+                        {/* SQUADS Breakdown Column */}
+                        <div className="p-3 rounded-2xl bg-muted/40 border border-border/40 flex flex-col justify-between">
+                          <div>
+                            <span className="text-xs font-black uppercase text-foreground tracking-wider block text-center mb-1.5">
+                              SQUADS
+                            </span>
+                            <div className="space-y-1 text-xs font-bold">
+                              {t.categories_meta && t.categories_meta.length > 0 ? (
+                                t.categories_meta.map((cm: any) => {
+                                  const acquired = t.category_counts?.[cm.name] || 0
+                                  const req = cm.target_count || cm.min_players || cm.max_players || 0
+                                  return (
+                                    <div key={cm.name} className="flex items-center justify-between text-foreground">
+                                      <span className="capitalize">{cm.name}</span>
+                                      <span className="font-mono font-black">{acquired}/{req > 0 ? req : (t.max_squad || 11)}</span>
+                                    </div>
+                                  )
+                                })
+                              ) : (
+                                <div className="flex items-center justify-between text-foreground">
+                                  <span>Open</span>
+                                  <span className="font-mono font-black">{t.players_count || 0}/{t.max_squad || 11}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="pt-2 border-t border-border/80 mt-2">
+                            <div className="flex items-center justify-between text-xs font-black text-foreground">
+                              <span>Total</span>
+                              <span className="font-mono">{t.players_count || 0}/{t.max_squad || 11}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
