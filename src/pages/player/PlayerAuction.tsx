@@ -25,14 +25,17 @@ export default function PlayerAuction() {
     }
   }, [searchParams])
 
-  const handleTabChange = (tabId: TabType) => {
+  const handleTabChange = (tabId: TabType, extraParams?: Record<string, string>) => {
     setActiveTab(tabId)
     const currentTournament = searchParams.get('tournament')
+    const params: Record<string, string> = { tab: tabId }
     if (currentTournament) {
-      setSearchParams({ tab: tabId, tournament: currentTournament })
-    } else {
-      setSearchParams({ tab: tabId })
+      params.tournament = currentTournament
     }
+    if (extraParams) {
+      Object.assign(params, extraParams)
+    }
+    setSearchParams(params)
   }
 
   const fetchAuctions = async () => {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Users, Shield, Plus, Download, Upload, Link2, Search,
   Edit2, Trash2, RefreshCw, Check, Copy, ExternalLink,
-  Trophy, Award, Gavel
+  Trophy, Award, Gavel, List, LayoutGrid
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,11 +18,14 @@ interface TeamsAndPlayersHubProps {
 
 function TeamLogoBadge({ team }: { team: any }) {
   const [hasError, setHasError] = useState(false)
-  const resolved = resolveMediaUrl(team.logo || team.logo_url)
+  const rawUrl = team.logo || team.logo_url
+  const resolved = rawUrl ? resolveMediaUrl(rawUrl) : ''
+  const teamColor = team.color || '#2563EB'
+  const shortName = (team.short_name || team.name?.substring(0, 3) || 'TM').toUpperCase()
 
   if (resolved && !hasError) {
     return (
-      <div className="w-14 h-14 rounded-2xl p-1.5 flex items-center justify-center bg-[#0d2238] border-2 border-slate-700 shadow-md overflow-hidden shrink-0">
+      <div className="w-14 h-14 rounded-2xl p-1.5 flex items-center justify-center bg-slate-900 border-2 border-slate-700/80 shadow-md overflow-hidden shrink-0">
         <img
           src={resolved}
           alt={team.name}
@@ -34,8 +37,16 @@ function TeamLogoBadge({ team }: { team: any }) {
   }
 
   return (
-    <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[#0d2238] border-2 border-slate-700 text-amber-300 font-black text-xs uppercase tracking-wider shadow-md shrink-0">
-      LOGO
+    <div
+      className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center border-2 border-white/20 text-white font-black text-xs uppercase tracking-wider shadow-md shrink-0 relative overflow-hidden"
+      style={{
+        background: `linear-gradient(135deg, ${teamColor} 0%, #0f172a 100%)`,
+      }}
+      title={team.name}
+    >
+      <Shield className="w-4 h-4 opacity-30 absolute top-1 right-1" />
+      <span className="relative z-10 text-[13px] font-black tracking-tight">{shortName}</span>
+      <span className="relative z-10 text-[8px] font-bold opacity-80 uppercase tracking-widest -mt-0.5">TEAM</span>
     </div>
   )
 }
@@ -62,6 +73,9 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
   const [playerToEdit, setPlayerToEdit] = useState<any | null>(null)
   const [importingPlayers, setImportingPlayers] = useState(false)
   const playerFileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
+  const [viewMode, setViewMode] = useState<'list' | 'cards'>('list')
+  const [deletingBulk, setDeletingBulk] = useState(false)
 
   // Registration Link Modal State
   const [showRegModal, setShowRegModal] = useState(false)
@@ -98,6 +112,18 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
       await loadTeams()
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to remove team.')
+    }
+  }
+
+  const handleDeleteAllTeams = async () => {
+    if (teams.length === 0) return
+    if (!confirm(`Are you sure you want to delete ALL ${teams.length} franchise teams? This will release all assigned players back to the available pool. This cannot be undone.`)) return
+    try {
+      await apiClient.post(`/v1/auction/console/${auctionId}/delete_all_teams/`)
+      await loadTeams()
+      await loadPlayers()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete all teams.')
     }
   }
 
@@ -174,16 +200,6 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
     }
   }
 
-  const handleDeletePlayer = async (playerId: string, playerName: string) => {
-    if (!confirm(`Are you sure you want to remove player "${playerName}"?`)) return
-    try {
-      await apiClient.delete(`/v1/auction/players/${playerId}/`)
-      await loadPlayers()
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to delete player.')
-    }
-  }
-
   const handleDownloadPlayerTemplate = async () => {
     try {
       const res = await apiClient.get(`/v1/auction/console/${auctionId}/players_template/`, {
@@ -220,6 +236,49 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
     } finally {
       setImportingPlayers(false)
       if (playerFileInputRef.current) playerFileInputRef.current.value = ''
+    }
+  }
+
+  const handleDeletePlayer = async (playerId: string, playerName: string) => {
+    if (!confirm(`Are you sure you want to remove player "${playerName}" from this tournament?`)) return
+    try {
+      await apiClient.delete(`/v1/auction/console/${auctionId}/players/${playerId}/`)
+      setSelectedPlayerIds(prev => prev.filter(id => id !== playerId))
+      await loadPlayers()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to remove player.')
+    }
+  }
+
+  const handleDeleteAllPlayers = async () => {
+    if (players.length === 0) return
+    if (!confirm(`Are you sure you want to delete ALL ${players.length} players from this tournament? This cannot be undone.`)) return
+    setDeletingBulk(true)
+    try {
+      await apiClient.post(`/v1/auction/console/${auctionId}/delete_all_players/`)
+      setSelectedPlayerIds([])
+      await loadPlayers()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete all players.')
+    } finally {
+      setDeletingBulk(false)
+    }
+  }
+
+  const handleBulkDeletePlayers = async () => {
+    if (selectedPlayerIds.length === 0) return
+    if (!confirm(`Are you sure you want to delete ${selectedPlayerIds.length} selected player(s)? This cannot be undone.`)) return
+    setDeletingBulk(true)
+    try {
+      await apiClient.post(`/v1/auction/console/${auctionId}/bulk_delete_players/`, {
+        player_ids: selectedPlayerIds
+      })
+      setSelectedPlayerIds([])
+      await loadPlayers()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete selected players.')
+    } finally {
+      setDeletingBulk(false)
     }
   }
 
@@ -291,6 +350,21 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
 
     return matchesSearch && matchesStatus && matchesCategory
   })
+
+  const isAllSelected = filteredPlayers.length > 0 && filteredPlayers.every((p) => selectedPlayerIds.includes(p.id))
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedPlayerIds([])
+    } else {
+      setSelectedPlayerIds(filteredPlayers.map((p) => p.id))
+    }
+  }
+
+  const toggleSelectPlayer = (id: string) => {
+    setSelectedPlayerIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -399,6 +473,18 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
               >
                 <Plus className="w-4 h-4" /> Add Team
               </Button>
+
+              {teams.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeleteAllTeams}
+                  className="rounded-xl border-rose-200 dark:border-rose-900/50 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                  title="Delete all franchise teams and reset squad allocations"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete All Teams
+                </Button>
+              )}
             </div>
           </div>
 
@@ -652,6 +738,63 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {/* View Mode Switcher */}
+              <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-card text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Tabular Master List View"
+                >
+                  <List className="w-3.5 h-3.5" /> List View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('cards')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === 'cards'
+                      ? 'bg-card text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Visual Cards View styled like PDF Designer"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" /> Card View
+                </button>
+              </div>
+
+              {/* Bulk Deletion Actions */}
+              {selectedPlayerIds.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleBulkDeletePlayers}
+                  disabled={deletingBulk}
+                  className="rounded-xl text-xs font-bold border-rose-300 dark:border-rose-800 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 h-9 flex items-center gap-1.5 shadow-xs"
+                  title="Delete selected players"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                  Delete Selected ({selectedPlayerIds.length})
+                </Button>
+              )}
+
+              {players.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDeleteAllPlayers}
+                  disabled={deletingBulk}
+                  className="rounded-xl text-xs font-bold border-rose-200 dark:border-rose-900/50 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 h-9 flex items-center gap-1.5 shadow-xs"
+                  title="Delete all players from this tournament"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete All Players
+                </Button>
+              )}
+
               <Button
                 variant="outline"
                 size="sm"
@@ -730,12 +873,174 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
                 </Button>
               </div>
             </div>
+          ) : viewMode === 'cards' ? (
+            /* Visual Card Grid View */
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredPlayers.map((p) => {
+                const isSelected = selectedPlayerIds.includes(p.id)
+                const isSold = p.status === 'SOLD'
+                const isUnsold = p.status === 'UNSOLD'
+                const rawPhoto = p.photo_url || p.photo
+                const photoSrc = rawPhoto ? resolveMediaUrl(rawPhoto) : ''
+                const playerName = p.player_name || p.name || 'Unknown Player'
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`group relative rounded-2xl border bg-card transition-all duration-200 overflow-hidden flex flex-col justify-between shadow-xs hover:shadow-md ${
+                      isSelected
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+                        : 'border-border hover:border-indigo-500/40'
+                    }`}
+                  >
+                    {/* Top Strip (Lot #, Category, Checkbox) */}
+                    <div className="p-3 pb-2 flex items-center justify-between gap-2 border-b border-border/70 bg-muted/30">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectPlayer(p.id)}
+                          className="rounded border-border text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span className="font-mono text-[11px] font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                          #{p.serial_no || '-'}
+                        </span>
+                      </div>
+
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border truncate max-w-[110px]">
+                        {p.category || 'General'}
+                      </span>
+                    </div>
+
+                    {/* Photo & Player Details */}
+                    <div className="p-4 flex flex-col items-center text-center space-y-2.5">
+                      <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-muted border-2 border-border shadow-2xs flex items-center justify-center">
+                        {photoSrc ? (
+                          <img
+                            src={photoSrc}
+                            alt={playerName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                              const fb = e.currentTarget.nextElementSibling
+                              if (fb) (fb as HTMLElement).style.display = 'flex'
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className="w-full h-full flex flex-col items-center justify-center text-muted-foreground font-black text-2xl uppercase bg-gradient-to-br from-indigo-500/10 to-purple-500/10"
+                          style={{ display: photoSrc ? 'none' : 'flex' }}
+                        >
+                          <Users className="w-8 h-8 opacity-40 mb-1" />
+                          <span className="text-xs font-bold">{playerName.charAt(0)}</span>
+                        </div>
+
+                        {/* Status Badge */}
+                        <span
+                          className={`absolute bottom-1 right-1 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md shadow-xs ${
+                            isSold
+                              ? 'bg-emerald-600 text-white'
+                              : isUnsold
+                              ? 'bg-rose-600 text-white'
+                              : 'bg-blue-600 text-white'
+                          }`}
+                        >
+                          {p.status}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="font-black text-sm text-foreground line-clamp-1 leading-snug">
+                          {playerName}
+                        </h4>
+                        <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 line-clamp-1">
+                          {p.role || p.player_skills || 'All-Rounder'}
+                        </p>
+                      </div>
+
+                      {/* Style & Details */}
+                      <div className="flex flex-wrap items-center justify-center gap-1">
+                        {p.batting_style && (
+                          <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">
+                            🏏 {p.batting_style}
+                          </span>
+                        )}
+                        {p.bowling_style && (
+                          <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">
+                            ⚡ {p.bowling_style}
+                          </span>
+                        )}
+                        {p.location && (
+                          <span className="text-[10px] font-semibold text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-md">
+                            📍 {p.location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom Pricing & Actions */}
+                    <div className="p-3 pt-2 bg-muted/20 border-t border-border space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground">Base Price</span>
+                        <span className="font-mono font-black text-foreground">
+                          ₹{parseFloat(p.base_price || 0).toLocaleString()}
+                        </span>
+                      </div>
+
+                      {isSold && (
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-border/60">
+                          <span className="text-[10px] uppercase font-bold text-emerald-600">Hammer Price</span>
+                          <span className="font-mono font-black text-emerald-600">
+                            ₹{parseFloat(p.sold_price || 0).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+
+                      {p.sold_to_name && (
+                        <div className="text-[11px] font-bold text-foreground truncate pt-1">
+                          🏆 {p.sold_to_name}
+                        </div>
+                      )}
+
+                      <div className="pt-2 flex items-center justify-end gap-1 border-t border-border/60">
+                        <button
+                          onClick={() => {
+                            setPlayerToEdit(p)
+                            setShowPlayerModal(true)
+                          }}
+                          className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition"
+                          title="Edit Profile"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlayer(p.id, playerName)}
+                          className="p-1 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                          title="Delete Player"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           ) : (
             <div className="bg-card rounded-3xl border border-border shadow-md overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-border bg-muted/40 text-muted-foreground uppercase tracking-wider text-[10px]">
+                      <th className="py-3.5 px-3 font-bold w-10">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          onChange={toggleSelectAll}
+                          className="rounded border-border text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          title="Select all players"
+                        />
+                      </th>
                       <th className="py-3.5 px-4 font-bold">No.</th>
                       <th className="py-3.5 px-4 font-bold">Player</th>
                       <th className="py-3.5 px-4 font-bold">Category</th>
@@ -747,103 +1052,125 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    {filteredPlayers.map((p) => (
-                      <tr key={p.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3 px-4 font-mono font-black text-muted-foreground">
-                          #{p.serial_no || '-'}
-                        </td>
+                    {filteredPlayers.map((p) => {
+                      const rawPhoto = p.photo_url || p.photo
+                      const photoSrc = rawPhoto ? resolveMediaUrl(rawPhoto) : ''
+                      const playerName = p.player_name || p.name || 'Unknown'
+                      const isSelected = selectedPlayerIds.includes(p.id)
 
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            {p.photo_url ? (
-                              <img
-                                src={p.photo_url}
-                                alt={p.player_name || p.name}
-                                className="w-9 h-9 rounded-xl object-cover border border-border shadow-2xs"
-                              />
+                      return (
+                        <tr key={p.id} className={`hover:bg-muted/30 transition-colors ${isSelected ? 'bg-indigo-500/5' : ''}`}>
+                          <td className="py-3 px-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectPlayer(p.id)}
+                              className="rounded border-border text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                            />
+                          </td>
+                          <td className="py-3 px-4 font-mono font-black text-muted-foreground">
+                            #{p.serial_no || '-'}
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              {photoSrc ? (
+                                <img
+                                  src={photoSrc}
+                                  alt={playerName}
+                                  className="w-9 h-9 rounded-xl object-cover border border-border shadow-2xs"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none'
+                                    const fb = e.currentTarget.nextElementSibling
+                                    if (fb) (fb as HTMLElement).style.display = 'flex'
+                                  }}
+                                />
+                              ) : null}
+                              <div
+                                className="w-9 h-9 rounded-xl bg-muted border border-border flex items-center justify-center font-bold text-muted-foreground text-xs"
+                                style={{ display: photoSrc ? 'none' : 'flex' }}
+                              >
+                                {playerName.charAt(0)}
+                              </div>
+                              <div>
+                                <p className="font-bold text-foreground text-xs">{playerName}</p>
+                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                  {p.age && <span>{p.age} yrs</span>}
+                                  {p.location && <span>• {p.location}</span>}
+                                  {p.mobile && <span>• {p.mobile}</span>}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <span className="font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[10px]">
+                              {p.category || 'General'}
+                            </span>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <p className="font-semibold text-foreground text-xs">{p.role || p.player_skills || 'All-Rounder'}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {p.batting_style || 'Right Hand'} • {p.bowling_style || 'Right Arm'}
+                            </p>
+                          </td>
+
+                          <td className="py-3 px-4 font-mono font-bold text-foreground">
+                            ₹{parseFloat(p.base_price || 0).toLocaleString()}
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <span
+                              className={`font-black uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-full border ${
+                                p.status === 'SOLD'
+                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                  : p.status === 'UNSOLD'
+                                  ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                  : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                              }`}
+                            >
+                              {p.status}
+                            </span>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            {p.sold_to_name ? (
+                              <div>
+                                <span className="font-bold text-emerald-600">{p.sold_to_name}</span>
+                                <p className="font-mono text-[10px] text-muted-foreground">
+                                  ₹{parseFloat(p.sold_price || 0).toLocaleString()}
+                                </p>
+                              </div>
                             ) : (
-                              <div className="w-9 h-9 rounded-xl bg-muted border border-border flex items-center justify-center font-bold text-muted-foreground text-xs">
-                                {(p.player_name || p.name || 'P')[0]}
-                              </div>
+                              <span className="text-muted-foreground">-</span>
                             )}
-                            <div>
-                              <p className="font-bold text-foreground text-xs">{p.player_name || p.name}</p>
-                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                                {p.age && <span>{p.age} yrs</span>}
-                                {p.location && <span>• {p.location}</span>}
-                                {p.mobile && <span>• {p.mobile}</span>}
-                              </div>
+                          </td>
+
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  setPlayerToEdit(p)
+                                  setShowPlayerModal(true)
+                                }}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition"
+                                title="Edit Player"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePlayer(p.id, playerName)}
+                                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                                title="Delete Player"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <span className="font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[10px]">
-                            {p.category || 'General'}
-                          </span>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <p className="font-semibold text-foreground text-xs">{p.role || p.player_skills || 'All-Rounder'}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {p.batting_style || 'Right Hand'} • {p.bowling_style || 'Right Arm'}
-                          </p>
-                        </td>
-
-                        <td className="py-3 px-4 font-mono font-bold text-foreground">
-                          ₹{parseFloat(p.base_price || 0).toLocaleString()}
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <span
-                            className={`font-black uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-full border ${
-                              p.status === 'SOLD'
-                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                : p.status === 'UNSOLD'
-                                ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                                : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                            }`}
-                          >
-                            {p.status}
-                          </span>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          {p.sold_to_name ? (
-                            <div>
-                              <span className="font-bold text-emerald-600">{p.sold_to_name}</span>
-                              <p className="font-mono text-[10px] text-muted-foreground">
-                                ₹{parseFloat(p.sold_price || 0).toLocaleString()}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </td>
-
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => {
-                                setPlayerToEdit(p)
-                                setShowPlayerModal(true)
-                              }}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition"
-                              title="Edit Player"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeletePlayer(p.id, p.player_name || p.name)}
-                              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
-                              title="Delete Player"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

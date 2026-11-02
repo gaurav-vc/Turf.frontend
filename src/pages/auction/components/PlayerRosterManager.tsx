@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Upload,
   Link2,
@@ -20,6 +21,12 @@ import {
   CheckCircle,
   HelpCircle,
   Clock,
+  Trash2,
+  LayoutGrid,
+  List,
+  CheckSquare,
+  Square,
+  Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,6 +63,7 @@ const BOWLING_STYLES = [
 const TAGGING_OPTIONS = ['Player', 'Captain', 'Icon', 'Marquee', 'Overseas']
 
 export default function PlayerRosterManager({ auctionId, onPlayerSelected }: PlayerRosterManagerProps) {
+  const [searchParams] = useSearchParams()
   const [players, setPlayers] = useState<any[]>([])
   const [teams, setTeams] = useState<any[]>([])
   const [categories, setCategories] = useState<string[]>([])
@@ -72,6 +80,9 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
   const [taggingFilter, setTaggingFilter] = useState<string>('ALL')
   const [showFilterBar, setShowFilterBar] = useState(true)
   const [showPhotos, setShowPhotos] = useState<boolean>(true)
+  const [viewMode, setViewMode] = useState<'list' | 'cards'>('list')
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
+  const [deletingBulk, setDeletingBulk] = useState(false)
 
   // Real-time Roster Metrics (Sold, Unsold, Pending, In Auction, Total Spend)
   const metrics = useMemo(() => {
@@ -329,6 +340,75 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
     }
   }
 
+  // Sync filters from URL parameters (e.g. from Dashboard "PENDING ON BLOCK" click)
+  useEffect(() => {
+    const filterParam = searchParams.get('filter') || searchParams.get('status')
+    if (filterParam) {
+      const up = filterParam.toUpperCase()
+      if (up === 'PENDING' || up === 'AVAILABLE') {
+        setAuctionStatusFilter('PENDING')
+      } else if (up === 'SOLD' || up === 'UNSOLD' || up === 'BIDDING') {
+        setAuctionStatusFilter(up)
+      }
+    }
+    const viewParam = searchParams.get('view')
+    if (viewParam === 'cards' || viewParam === 'card') {
+      setViewMode('cards')
+    } else if (viewParam === 'list') {
+      setViewMode('list')
+    }
+  }, [searchParams])
+
+  // Player Deletion & Selection Handlers
+  const handleDeletePlayer = async (playerId: string, playerName: string) => {
+    if (!confirm(`Are you sure you want to delete player "${playerName}" from this auction?`)) return
+    try {
+      await apiClient.delete(`/v1/auction/console/${auctionId}/players/${playerId}/`)
+      setSelectedPlayerIds((prev) => prev.filter((id) => id !== playerId))
+      await loadPlayers()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete player.')
+    }
+  }
+
+  const handleDeleteSelectedPlayers = async () => {
+    if (selectedPlayerIds.length === 0) return
+    if (!confirm(`Are you sure you want to delete ${selectedPlayerIds.length} selected player(s)? This cannot be undone.`)) return
+    setDeletingBulk(true)
+    try {
+      await apiClient.post(`/v1/auction/console/${auctionId}/bulk_delete_players/`, {
+        player_ids: selectedPlayerIds,
+      })
+      setSelectedPlayerIds([])
+      await loadPlayers()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete selected players.')
+    } finally {
+      setDeletingBulk(false)
+    }
+  }
+
+  const handleDeleteAllPlayers = async () => {
+    if (players.length === 0) return
+    if (!confirm(`Are you sure you want to delete ALL ${players.length} players from this tournament roster? This cannot be undone.`)) return
+    setDeletingBulk(true)
+    try {
+      await apiClient.post(`/v1/auction/console/${auctionId}/delete_all_players/`)
+      setSelectedPlayerIds([])
+      await loadPlayers()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete all players.')
+    } finally {
+      setDeletingBulk(false)
+    }
+  }
+
+  const toggleSelectPlayer = (id: string) => {
+    setSelectedPlayerIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
   const clearAllFilters = () => {
     setSearch('')
     setCategoryFilter('ALL')
@@ -368,10 +448,11 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
     const matchesCat = categoryFilter === 'ALL' || (p.category || '').toLowerCase() === categoryFilter.toLowerCase()
     const matchesRole = roleFilter === 'ALL' || (p.role || p.player_skills || '').toLowerCase() === roleFilter.toLowerCase()
 
+    const pStatus = String(p.status || '').toUpperCase()
     const matchesAuctionStatus =
       auctionStatusFilter === 'ALL' ||
-      (auctionStatusFilter === 'PENDING' && (p.status === 'AVAILABLE' || p.status === 'PENDING' || !p.status)) ||
-      p.status === auctionStatusFilter
+      (auctionStatusFilter === 'PENDING' && (pStatus === 'AVAILABLE' || pStatus === 'PENDING' || !p.status)) ||
+      pStatus === auctionStatusFilter
 
     const matchesTeam =
       teamFilter === 'ALL' ||
@@ -396,6 +477,15 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
       matchesTagging
     )
   })
+
+  const isAllSelected = filteredPlayers.length > 0 && filteredPlayers.every((p) => selectedPlayerIds.includes(p.id))
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedPlayerIds([])
+    } else {
+      setSelectedPlayerIds(filteredPlayers.map((p) => p.id))
+    }
+  }
 
   // Inline Status Change Handler (PENDING, SOLD, UNSOLD)
   const handleInlineStatusChange = async (player: any, newStatus: string) => {
@@ -506,6 +596,236 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
     setTimeout(() => setCopiedLink(false), 2000)
   }
 
+  const renderCardView = () => {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground">
+              Showing {filteredPlayers.length} visual player card(s)
+            </span>
+            {selectedPlayerIds.length > 0 && (
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md">
+                {selectedPlayerIds.length} selected
+              </span>
+            )}
+          </div>
+          <button
+            onClick={toggleSelectAll}
+            className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+          >
+            {isAllSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+            <span>{isAllSelected ? 'Deselect All' : 'Select All On Screen'}</span>
+          </button>
+        </div>
+
+        {filteredPlayers.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center space-y-3">
+            <Users className="w-10 h-10 text-muted-foreground mx-auto opacity-40" />
+            <p className="text-sm font-bold text-foreground">No players match the current filters</p>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              Try adjusting your search keywords, role selection, or status filters.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearAllFilters}
+              className="rounded-xl text-xs font-bold"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset All Filters
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredPlayers.map((p) => {
+              const name = p.player_name || p.name || 'Unnamed Player'
+              const serial = p.serial_no != null ? p.serial_no : '—'
+              const isSold = p.status === 'SOLD'
+              const isBidding = p.status === 'BIDDING'
+              const isUnsold = p.status === 'UNSOLD'
+              const isSelected = selectedPlayerIds.includes(p.id)
+
+              const teamObj = teams.find(
+                (t: any) =>
+                  t.id === p.sold_to ||
+                  t.team_id === p.sold_to ||
+                  t.name?.toLowerCase() === (p.sold_to_name || '').toLowerCase()
+              )
+              const teamName = p.sold_to_name || teamObj?.name || (isSold ? 'Assigned' : null)
+              const teamColor = teamObj?.color || '#2563eb'
+              const photoUrl = p.photo_url || p.photo
+
+              return (
+                <div
+                  key={p.id}
+                  className={`group relative rounded-2xl border-2 transition-all duration-200 bg-card shadow-xs hover:shadow-md overflow-hidden flex flex-col justify-between ${
+                    isSelected
+                      ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+                      : 'border-border hover:border-indigo-500/40'
+                  }`}
+                >
+                  {/* Top Strip (Lot #, Category, Checkbox) */}
+                  <div className="p-3 pb-2 flex items-center justify-between gap-2 border-b border-border/70 bg-muted/30">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectPlayer(p.id)}
+                        className="rounded border-border text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                      />
+                      <span className="font-mono text-[11px] font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        LOT #{serial}
+                      </span>
+                    </div>
+
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border truncate max-w-[110px]">
+                      {p.category || 'General'}
+                    </span>
+                  </div>
+
+                  {/* Photo & Player Info */}
+                  <div className="p-4 flex flex-col items-center text-center space-y-2.5">
+                    <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-muted border-2 border-border shadow-2xs flex items-center justify-center">
+                      {photoUrl ? (
+                        <img
+                          src={resolveMediaUrl(photoUrl)}
+                          alt={name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                            const fallback = e.currentTarget.nextElementSibling
+                            if (fallback) (fallback as HTMLElement).style.display = 'flex'
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="w-full h-full flex flex-col items-center justify-center text-muted-foreground font-black text-2xl uppercase bg-gradient-to-br from-indigo-500/10 to-purple-500/10"
+                        style={{ display: photoUrl ? 'none' : 'flex' }}
+                      >
+                        <Users className="w-8 h-8 opacity-40 mb-1" />
+                        <span className="text-xs font-bold">{name.charAt(0)}</span>
+                      </div>
+
+                      {/* Status Badge */}
+                      <span
+                        className={`absolute bottom-1 right-1 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md shadow-xs ${
+                          isSold
+                            ? 'bg-emerald-600 text-white'
+                            : isUnsold
+                            ? 'bg-rose-600 text-white'
+                            : isBidding
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-blue-600 text-white'
+                        }`}
+                      >
+                        {isSold ? 'SOLD' : isUnsold ? 'UNSOLD' : isBidding ? 'LIVE' : 'AVAILABLE'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-black text-sm text-foreground line-clamp-1 leading-snug">
+                        {name}
+                      </h4>
+                      <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 line-clamp-1">
+                        {p.role || p.player_skills || 'All-Rounder'}
+                      </p>
+                    </div>
+
+                    {/* Skills Tags */}
+                    <div className="flex flex-wrap items-center justify-center gap-1">
+                      {p.batting_style && (
+                        <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">
+                          🏏 {p.batting_style}
+                        </span>
+                      )}
+                      {p.bowling_style && (
+                        <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">
+                          ⚡ {p.bowling_style}
+                        </span>
+                      )}
+                      {p.location && (
+                        <span className="text-[10px] font-semibold text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-md">
+                          📍 {p.location}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Pricing & Actions */}
+                  <div className="p-3 pt-2 bg-muted/20 border-t border-border space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Base Price</span>
+                      <span className="font-mono font-black text-foreground">
+                        ₹{parseFloat(p.base_price || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+
+                    {isSold && (
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-border/60">
+                        <span className="text-[10px] uppercase font-bold text-emerald-600">Hammer Price</span>
+                        <span className="font-mono font-black text-emerald-600">
+                          ₹{parseFloat(p.sold_price || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    )}
+
+                    {teamName && (
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: teamColor }} />
+                        <span className="text-[11px] font-bold text-foreground truncate">
+                          {teamName}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="pt-2 flex items-center justify-between gap-1 border-t border-border/60">
+                      <button
+                        onClick={() => openOutcomeModal(p)}
+                        className="px-2 py-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg flex items-center gap-1 transition"
+                        title="Assign Winning Team & Price"
+                      >
+                        <Gavel className="w-3 h-3" /> Outcome
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {onPlayerSelected && p.serial_no && (
+                          <button
+                            onClick={() => onPlayerSelected(p.serial_no)}
+                            className="px-2 py-1 text-[11px] font-bold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition"
+                            title="Send to live auction block"
+                          >
+                            Block →
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setEditingPlayer(p)
+                            setShowPlayerModal(true)
+                          }}
+                          className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition"
+                          title="Edit Profile"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlayer(p.id, name)}
+                          className="p-1 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                          title="Delete Player"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* ================= TOP COMMAND TOOLBAR ================= */}
@@ -583,6 +903,63 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
               <UserPlus className="h-3.5 w-3.5" />
               + Add Player
             </Button>
+
+            {/* View Mode Switcher (List vs Card View) */}
+            <div className="flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'list'
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Tabular Master List View"
+              >
+                <List className="w-3.5 h-3.5" /> List View
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'cards'
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Visual Cards View styled like PDF Designer"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" /> Card View
+              </button>
+            </div>
+
+            {/* Bulk Deletion Actions */}
+            {selectedPlayerIds.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDeleteSelectedPlayers}
+                disabled={deletingBulk}
+                className="rounded-xl text-xs font-bold border-rose-300 dark:border-rose-800 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 h-9 flex items-center gap-1.5 shadow-xs"
+                title="Delete selected players"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                Delete Selected ({selectedPlayerIds.length})
+              </Button>
+            )}
+
+            {players.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDeleteAllPlayers}
+                disabled={deletingBulk}
+                className="rounded-xl text-xs font-bold border-rose-200 dark:border-rose-900/50 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 h-9 flex items-center gap-1.5 shadow-xs"
+                title="Delete all players from roster"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete All Players
+              </Button>
+            )}
           </div>
         </div>
 
@@ -967,12 +1344,41 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
         </div>
       )}
 
-      {/* ================= ROSTER TABLE (Freeze Panes / Sticky Headers) ================= */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+      {/* ================= ROSTER TABLE OR CARDS VIEW ================= */}
+      {auctionStatusFilter === 'PENDING' && (
+        <div className="flex items-center justify-between p-3 px-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 text-xs font-bold shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+            <span>Showing Pending Players on Block ({filteredPlayers.length} remaining)</span>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setAuctionStatusFilter('ALL')}
+            className="h-7 text-xs font-bold text-blue-700 hover:text-blue-900 hover:bg-blue-100 dark:text-blue-300"
+          >
+            Show All Players
+          </Button>
+        </div>
+      )}
+
+      {viewMode === 'cards' ? (
+        renderCardView()
+      ) : (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
         <div className="max-h-[72vh] overflow-y-auto overflow-x-auto relative">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 z-20 border-b border-border bg-slate-100 dark:bg-zinc-800 font-black uppercase tracking-wider text-[11px] shadow-xs" style={{ color: '#334155' }}>
               <tr>
+                <th className="py-3.5 px-3 w-10 text-center sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                    title={isAllSelected ? 'Deselect all' : 'Select all'}
+                  />
+                </th>
                 <th className="py-3.5 px-3.5 w-12 text-center whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#d97706' }}>#</th>
                 <th className="py-3.5 px-3.5 min-w-[200px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Player Name</th>
                 <th className="py-3.5 px-3.5 min-w-[140px] whitespace-nowrap sticky top-0 bg-slate-100 dark:bg-zinc-800 z-20" style={{ color: '#334155' }}>Category</th>
@@ -991,6 +1397,7 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
                 const isSold = p.status === 'SOLD'
                 const isBidding = p.status === 'BIDDING'
                 const isUnsold = p.status === 'UNSOLD'
+                const isSelected = selectedPlayerIds.includes(p.id)
 
                 // Team resolution
                 const teamObj = teams.find(
@@ -1003,7 +1410,17 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
                 const teamColor = teamObj?.color || '#2563eb'
 
                 return (
-                  <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={p.id} className={`transition-colors ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : 'hover:bg-muted/30'}`}>
+                    {/* Checkbox */}
+                    <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectPlayer(p.id)}
+                        className="rounded border-border text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                      />
+                    </td>
+
                     {/* # Player Serial */}
                     <td className="py-3 px-3.5 font-mono font-black text-amber-600 dark:text-amber-400 text-center align-middle whitespace-nowrap">
                       #{serial}
@@ -1174,6 +1591,17 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
                           <Edit2 className="w-3 h-3" /> Edit
                         </Button>
 
+                        {/* Delete Single Player */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeletePlayer(p.id, name)}
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg shrink-0"
+                          title="Delete Player"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                        </Button>
+
                         {/* Send to Block (Always Visible) */}
                         {onPlayerSelected && p.serial_no && (
                           <Button
@@ -1198,7 +1626,7 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
 
               {filteredPlayers.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={9} className="py-12 px-4 text-center">
+                  <td colSpan={10} className="py-12 px-4 text-center">
                     <div className="max-w-xs mx-auto space-y-2">
                       <p className="text-xs font-bold text-foreground">No players match the current filters</p>
                       <p className="text-[11px] text-muted-foreground">
@@ -1220,6 +1648,7 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
           </table>
         </div>
       </div>
+      )}
 
       {/* ================= HOST / ORGANIZER OUTCOME MODAL ================= */}
       {outcomePlayer && (

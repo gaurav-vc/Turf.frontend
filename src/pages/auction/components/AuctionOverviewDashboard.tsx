@@ -3,7 +3,12 @@ import {
   RotateCcw,
   ExternalLink,
   Flame,
-  AlertTriangle
+  AlertTriangle,
+  List,
+  LayoutGrid,
+  Users,
+  ArrowRight,
+  X
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiClient } from '@/api/apiClient'
@@ -11,7 +16,7 @@ import { apiClient } from '@/api/apiClient'
 interface AuctionOverviewDashboardProps {
   auctionId: string
   auctionName?: string
-  onNavigateTab: (tabId: string) => void
+  onNavigateTab: (tabId: string, extraParams?: Record<string, string>) => void
 }
 
 export default function AuctionOverviewDashboard({
@@ -23,6 +28,7 @@ export default function AuctionOverviewDashboard({
   const [loading, setLoading] = useState(true)
   const [resetting, setResetting] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showPendingModal, setShowPendingModal] = useState(false)
 
   // Real-time dynamic category selection & player source
   const [categories, setCategories] = useState<string[]>([])
@@ -400,15 +406,49 @@ export default function AuctionOverviewDashboard({
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <span className="text-[11px] uppercase tracking-wider text-slate-500 font-bold block mb-1">
-                PENDING ON BLOCK
-              </span>
+            <div
+              onClick={() => setShowPendingModal(true)}
+              className="bg-white border-2 border-slate-200 hover:border-blue-500 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] uppercase tracking-wider text-slate-500 group-hover:text-blue-600 font-bold flex items-center gap-1.5 transition-colors">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                  PENDING ON BLOCK
+                </span>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/60 opacity-90 group-hover:opacity-100 transition">
+                  Click to Explore ↗
+                </span>
+              </div>
               <div className="flex items-baseline justify-between">
                 <span className="text-3xl font-black text-blue-600 font-mono">
                   {data?.pending_count ?? 0}
                 </span>
-                <span className="text-xs text-slate-400 font-semibold">remaining</span>
+                <span className="text-xs text-slate-400 font-semibold">remaining in pool</span>
+              </div>
+              {/* Quick View Shortcut Buttons */}
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onNavigateTab('roster', { filter: 'PENDING', view: 'list' })
+                  }}
+                  className="flex-1 py-1 px-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold flex items-center justify-center gap-1 transition"
+                  title="Open Player Setup page redirected with pending players list"
+                >
+                  <List className="w-3 h-3" /> List View
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onNavigateTab('card_view', { filter: 'PENDING' })
+                  }}
+                  className="flex-1 py-1 px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold flex items-center justify-center gap-1 transition"
+                  title="Open cards sheet view styled like PDF Page Designer"
+                >
+                  <LayoutGrid className="w-3 h-3" /> Card View
+                </button>
               </div>
             </div>
 
@@ -536,6 +576,96 @@ export default function AuctionOverviewDashboard({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal for Pending on Block Exploration */}
+      {showPendingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-zinc-900">
+                    Pending on Block Pool ({data?.pending_count ?? 0} Players)
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Choose how you would like to inspect and manage remaining auction candidates.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPendingModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Option 1: List View */}
+              <div
+                onClick={() => {
+                  setShowPendingModal(false)
+                  onNavigateTab('roster', { filter: 'PENDING', view: 'list' })
+                }}
+                className="p-5 rounded-2xl border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all cursor-pointer group flex flex-col justify-between space-y-3"
+              >
+                <div className="space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <List className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-black text-zinc-900 group-hover:text-blue-700 transition-colors">
+                    Master List View
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Open Player Setup redirected to the pending pool master roster with table columns, quick filters, and edit tools.
+                  </p>
+                </div>
+                <div className="flex items-center text-xs font-bold text-blue-600 group-hover:translate-x-1 transition-transform">
+                  Open Master Roster <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </div>
+              </div>
+
+              {/* Option 2: Card View */}
+              <div
+                onClick={() => {
+                  setShowPendingModal(false)
+                  onNavigateTab('card_view', { filter: 'PENDING' })
+                }}
+                className="p-5 rounded-2xl border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all cursor-pointer group flex flex-col justify-between space-y-3"
+              >
+                <div className="space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <LayoutGrid className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-black text-zinc-900 group-hover:text-indigo-700 transition-colors">
+                    Designer Card View
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Display pending players on full visual cards matching the PDF Page Designer with portrait photos, skill badges & lot numbers.
+                  </p>
+                </div>
+                <div className="flex items-center text-xs font-bold text-indigo-600 group-hover:translate-x-1 transition-transform">
+                  Open Card Studio <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 text-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPendingModal(false)}
+                className="text-xs text-slate-400 font-semibold"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
