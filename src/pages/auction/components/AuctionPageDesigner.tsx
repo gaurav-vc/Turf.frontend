@@ -33,6 +33,43 @@ export const DEFAULT_ACTION_BUTTONS: ActionButtonConfig[] = [
   { id: 'reset_bid', label: 'Reset Bid', visible: true },
 ]
 
+export const PHOTO_SHAPES = [
+  { id: 'rectangle', label: 'Rectangle', icon: '▢' },
+  { id: 'rounded', label: 'Rounded', icon: '▢' },
+  { id: 'squircle', label: 'Squircle', icon: '◯' },
+  { id: 'circle', label: 'Circle', icon: '●' },
+  { id: 'oval', label: 'Oval', icon: '⬯' },
+  { id: 'shield', label: 'Shield', icon: '🛡' },
+  { id: 'hexagon', label: 'Hexagon', icon: '⬡' },
+  { id: 'diamond', label: 'Diamond', icon: '◆' },
+  { id: 'badge', label: 'Badge', icon: '🎖' },
+] as const
+
+export function getPhotoShapeStyle(shape?: string, borderRadius?: number): React.CSSProperties {
+  const s = (shape || 'rounded').toLowerCase()
+  switch (s) {
+    case 'rectangle':
+      return { borderRadius: '0px', overflow: 'hidden' }
+    case 'circle':
+      return { borderRadius: '50%', aspectRatio: '1 / 1', overflow: 'hidden' }
+    case 'oval':
+      return { borderRadius: '50%', overflow: 'hidden' }
+    case 'squircle':
+      return { borderRadius: '28%', overflow: 'hidden' }
+    case 'shield':
+      return { clipPath: 'polygon(0 0, 100% 0, 100% 75%, 50% 100%, 0 75%)', overflow: 'hidden' }
+    case 'hexagon':
+      return { clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)', overflow: 'hidden' }
+    case 'diamond':
+      return { clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)', overflow: 'hidden' }
+    case 'badge':
+      return { clipPath: 'polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%)', overflow: 'hidden' }
+    case 'rounded':
+    default:
+      return { borderRadius: `${borderRadius !== undefined ? borderRadius : 16}px`, overflow: 'hidden' }
+  }
+}
+
 export interface ElementConfig {
   x: number
   y: number
@@ -66,6 +103,8 @@ export interface ElementConfig {
   media_url?: string
   video_url?: string
   custom_text?: string
+  shape?: string
+  photo_shape?: string
   object_fit?: 'cover' | 'contain' | 'fill'
   border_radius?: number
   border_color?: string
@@ -1545,11 +1584,60 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
 
                     {/* Inline Config Drawer for Player Photo */}
                     {key === 'player_photo' && isSelected && (
-                      <div className="p-3 rounded-xl bg-slate-950/90 border border-amber-500/40 space-y-2 text-xs">
-                        <span className="font-bold text-amber-400 flex items-center gap-1.5 text-[11px]">
-                          <ImageIcon className="w-3 h-3" /> Player Photo Attachment Options
-                        </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="p-3 rounded-xl bg-slate-950/90 border border-amber-500/40 space-y-2.5 text-xs">
+                        <div className="flex items-center justify-between border-b border-amber-500/20 pb-1.5">
+                          <span className="font-bold text-amber-400 flex items-center gap-1.5 text-[11px]">
+                            <ImageIcon className="w-3 h-3" /> Showcase Photo Shape & Frame
+                          </span>
+                          <span className="text-[10px] text-amber-300 font-mono uppercase font-bold">
+                            {el?.shape || 'Rounded'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                            Photo Shape (Any Shape)
+                          </label>
+                          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                            {PHOTO_SHAPES.map((shp) => {
+                              const isCur = (el?.shape || 'rounded').toLowerCase() === shp.id
+                              return (
+                                <button
+                                  key={shp.id}
+                                  type="button"
+                                  onClick={() => updateElementProp('player_photo', 'shape', shp.id)}
+                                  className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 border cursor-pointer ${
+                                    isCur
+                                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                                      : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                                  }`}
+                                >
+                                  <span>{shp.icon}</span>
+                                  <span>{shp.label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {(!el?.shape || el?.shape === 'rounded') && (
+                          <div className="flex items-center justify-between gap-3 pt-0.5">
+                            <label className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">
+                              Corner Radius: {el?.border_radius !== undefined ? el?.border_radius : 16}px
+                            </label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="48"
+                              step="2"
+                              value={el?.border_radius !== undefined ? el?.border_radius : 16}
+                              onChange={(e) => updateElementProp('player_photo', 'border_radius', Number(e.target.value))}
+                              className="w-32 accent-amber-500 cursor-pointer"
+                            />
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                           <button
                             type="button"
                             onClick={() => triggerBoxMediaUpload('player_photo', 'image')}
@@ -2741,7 +2829,66 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                   </div>
                 </div>
 
-                {/* Pod 2: Typography & Appearance */}
+                {/* Pod 2: Typography & Appearance OR Photo Shape & Mask */}
+                {selectedKey === 'player_photo' ? (
+                  <div className="bg-slate-950/70 border border-amber-500/30 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-amber-500/10">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        Showcase Photo Shape & Frame
+                      </span>
+                      <span className="text-[10px] text-amber-300 font-mono uppercase font-bold">
+                        {design.elements.player_photo?.shape || 'Rounded'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 pt-0.5">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                          Select Photo Shape (Any Shape)
+                        </label>
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                          {PHOTO_SHAPES.map((shp) => {
+                            const isCur = (design.elements.player_photo?.shape || 'rounded').toLowerCase() === shp.id
+                            return (
+                              <button
+                                key={shp.id}
+                                type="button"
+                                onClick={() => updateElementProp('player_photo', 'shape', shp.id)}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 border cursor-pointer ${
+                                  isCur
+                                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                                }`}
+                              >
+                                <span>{shp.icon}</span>
+                                <span>{shp.label}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Corner Curve / Radius slider */}
+                      {(!design.elements.player_photo?.shape || design.elements.player_photo?.shape === 'rounded') && (
+                        <div className="flex items-center justify-between gap-3 pt-1">
+                          <label className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">
+                            Corner Radius: {design.elements.player_photo?.border_radius !== undefined ? design.elements.player_photo?.border_radius : 16}px
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="48"
+                            step="2"
+                            value={design.elements.player_photo?.border_radius !== undefined ? design.elements.player_photo?.border_radius : 16}
+                            onChange={(e) => updateElementProp('player_photo', 'border_radius', Number(e.target.value))}
+                            className="w-32 accent-amber-500 cursor-pointer"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
                 <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
                   <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
                     <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -2956,6 +3103,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Pod 3: Labels & Content Override */}
                 <div className="md:col-span-2 xl:col-span-1 bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">

@@ -603,26 +603,6 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
         </div>
       </div>
 
-      {/* 1. Auction Completion */}
-      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
-        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
-          <Trophy className="h-5 w-5 text-amber-500" />
-          Auction Completion
-        </h2>
-        <div className="space-y-2 mt-4 max-w-2xl">
-          <Label className="text-xs font-bold text-muted-foreground">All Teams Completed Message</Label>
-          <Input
-            value={completionMessage}
-            onChange={(e) => setCompletionMessage(e.target.value)}
-            placeholder="Auction Completed - All team are now completed"
-            className="text-xs font-medium rounded-xl border-border bg-background"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            Shown automatically when every active team has fulfilled all category requirements.
-          </p>
-        </div>
-      </section>
-
       {/* 2. Auction Type & Player Selection */}
       <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
         <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">

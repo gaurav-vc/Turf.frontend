@@ -543,7 +543,7 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
 
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="font-black text-base text-foreground uppercase tracking-wide line-clamp-1">{t.name}</h3>
+                              <h3 className="font-black text-base text-foreground uppercase tracking-wide break-words whitespace-normal leading-snug">{t.name}</h3>
                               <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-md bg-[#facc15] text-slate-950 font-mono shadow-xs">
                                 {t.short_name}
                               </span>

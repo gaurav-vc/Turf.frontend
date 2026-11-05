@@ -131,30 +131,55 @@ export default function PublicViewerPage() {
 
         {/* Franchise Table */}
         <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-xl">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-4">
-            <Shield className="h-4 w-4 text-emerald-400" /> Franchise Purse & Squad Leaderboard
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-4 flex-wrap whitespace-normal break-words">
+            <Shield className="h-4 w-4 text-emerald-400 shrink-0" /> Franchise Purse & Squad Leaderboard
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-            {data?.teams?.map((t: any) => (
-              <div key={t.team_id} className="rounded-xl border border-white/10 bg-white/5 p-4">
-                <span className="font-bold text-white text-sm">{t.team_name}</span>
-                <div className="mt-3 space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Balance:</span>
-                    <span className="font-mono font-bold text-emerald-400">₹{t.balance.toLocaleString()}</span>
+            {data?.teams?.map((t: any) => {
+              const teamColor = t.team_color || t.color || '#3b82f6'
+              const maxSquad = t.max_squad || data?.config?.max_squad || data?.max_squad || 12
+              return (
+                <div
+                  key={t.team_id}
+                  style={{ borderTop: `4px solid ${teamColor}` }}
+                  className="rounded-xl border border-white/10 bg-white/5 p-4 shadow-sm hover:border-white/20 transition-all flex flex-col justify-between"
+                >
+                  <div className="flex items-start gap-2.5 mb-2">
+                    <span
+                      className="w-3.5 h-3.5 rounded-full shrink-0 mt-0.5 shadow-xs border border-white/30"
+                      style={{ backgroundColor: teamColor }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="font-black text-white text-sm block break-words whitespace-normal leading-snug">
+                        {t.team_name}
+                      </span>
+                      {t.short_name && (
+                        <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.2 rounded bg-white/10 text-slate-300 mt-0.5 inline-block">
+                          {t.short_name}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Max Bid:</span>
-                    <span className="font-mono font-bold text-amber-300">₹{t.max_bid.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Players Bought:</span>
-                    <span className="font-semibold text-white">{t.bought}</span>
+                  <div className="mt-2 space-y-1 text-xs border-t border-white/10 pt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Balance:</span>
+                      <span className="font-mono font-bold text-emerald-400">₹{Number(t.balance || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Max Bid:</span>
+                      <span className="font-mono font-bold text-amber-300">₹{Number(t.max_bid || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 font-medium">Players Bought:</span>
+                      <span className="font-bold text-white font-mono bg-white/10 px-1.5 py-0.5 rounded text-[11px]">
+                        {t.bought || 0} / {maxSquad}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>

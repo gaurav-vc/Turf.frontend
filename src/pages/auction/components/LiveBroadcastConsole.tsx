@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import { useLiveAuctionState } from '../hooks/useLiveAuctionState'
-import { type ActionButtonConfig, DEFAULT_ACTION_BUTTONS, DEFAULT_PAGE_DESIGN } from './AuctionPageDesigner'
+import { type ActionButtonConfig, DEFAULT_ACTION_BUTTONS, DEFAULT_PAGE_DESIGN, getPhotoShapeStyle } from './AuctionPageDesigner'
 import { getTeamTheme, getTeamShortcut } from './teamThemeUtils'
 
 interface LiveBroadcastConsoleProps {
@@ -58,15 +58,22 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const [autoAdvanceQueue, setAutoAdvanceQueue] = useState(true)
   const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null)
   const [upcomingQueue, setUpcomingQueue] = useState<any[]>([])
+  const [totalRemainingInCategory, setTotalRemainingInCategory] = useState<number>(0)
+  const [totalRemainingInAuction, setTotalRemainingInAuction] = useState<number>(0)
+  const [queueLoading, setQueueLoading] = useState(false)
   const [showQueueDrawer, setShowQueueDrawer] = useState(false)
   const [teamKeyBuffer, setTeamKeyBuffer] = useState('')
   const keyBufferTimerRef = useRef<any>(null)
   const customBidInputId = useId()
 
+  const categoryDisplayName = selectedCategory === 'ALL' ? 'All Categories' : selectedCategory
+  const rawCatCompleteMsg = state?.config?.custom_messages?.msg_category_complete || 'All players in {category} are sold! Moving on to next category.'
+  const formattedCategoryCompleteMsg = rawCatCompleteMsg.replace(/\{category\}/gi, categoryDisplayName)
+
   const customMessages = {
     msg_post_sold: state?.config?.custom_messages?.msg_post_sold || 'Getting Next player ready...',
-    msg_unsold_pool: state?.config?.custom_messages?.msg_unsold_pool || 'Unsold players available for re-auction round',
-    msg_category_complete: state?.config?.custom_messages?.msg_category_complete || 'All players in this category are sold, move on to next category',
+    msg_unsold_pool: state?.config?.custom_messages?.msg_unsold_pool || 'Unsold players available in pool. Ready for Re-Auction round.',
+    msg_category_complete: formattedCategoryCompleteMsg,
     msg_team_cat_quota: state?.config?.custom_messages?.msg_team_cat_quota || 'Team has completed required players for this category',
     msg_team_all_complete: state?.config?.custom_messages?.msg_team_all_complete || 'Team has completed all required squad quotas across all categories',
     msg_all_teams_complete: state?.config?.custom_messages?.msg_all_teams_complete || 'Auction Completed - All teams have completed their squad targets',
@@ -169,14 +176,19 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
   // Load queue and config
   const fetchQueue = () => {
+    setQueueLoading(true)
     apiClient
       .get(`/v1/auction/console/${auctionId}/player_queue/?category=${encodeURIComponent(selectedCategory)}`)
       .then((res) => {
         if (res.data?.queue) setUpcomingQueue(res.data.queue)
+        if (res.data?.total_remaining_in_category !== undefined) setTotalRemainingInCategory(res.data.total_remaining_in_category)
+        else if (res.data?.total_pending !== undefined) setTotalRemainingInCategory(res.data.total_pending)
+        if (res.data?.total_remaining_in_auction !== undefined) setTotalRemainingInAuction(res.data.total_remaining_in_auction)
         if (res.data?.auto_advance_queue !== undefined) setAutoAdvanceQueue(Boolean(res.data.auto_advance_queue))
         if (res.data?.allow_multiple_bids !== undefined) setAllowMultipleBids(Boolean(res.data.allow_multiple_bids))
       })
       .catch(() => {})
+      .finally(() => setQueueLoading(false))
   }
 
   useEffect(() => {
@@ -1053,12 +1065,16 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 {/* Photo & Base price */}
                 {pageDesign?.elements?.player_photo?.selected !== false && (
                   <div className="md:col-span-4 flex flex-col items-center">
-                    <div className="relative h-48 w-44 overflow-hidden rounded-2xl border-2 border-amber-500/40 bg-slate-800 shadow-xl">
+                    <div
+                      className="relative h-48 w-44 border-2 border-amber-500/40 bg-slate-800 shadow-xl"
+                      style={getPhotoShapeStyle(pageDesign?.elements?.player_photo?.shape || pageDesign?.elements?.player_photo?.photo_shape, pageDesign?.elements?.player_photo?.border_radius)}
+                    >
                       {player.photo_url ? (
                         <img
                           src={player.photo_url}
                           alt={player.player_name}
                           className="h-full w-full object-cover"
+                          style={getPhotoShapeStyle(pageDesign?.elements?.player_photo?.shape || pageDesign?.elements?.player_photo?.photo_shape, pageDesign?.elements?.player_photo?.border_radius)}
                         />
                       ) : (
                         <div className="flex h-full w-full flex-col items-center justify-center text-slate-500">
@@ -1295,6 +1311,54 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                   </Button>
                 </div>
               </div>
+            ) : autoAdvanceCountdown !== null || queueLoading ? (
+              <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/20 via-slate-900 to-slate-950 shadow-2xl text-center space-y-4 my-2">
+                <div className="w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-lg animate-pulse">
+                  <Sparkles className="w-8 h-8 text-amber-400" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-xl font-black text-white">
+                    {customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
+                  </h3>
+                  <p className="text-xs text-slate-300 font-semibold max-w-md mx-auto">
+                    Preparing next player for the auction floor...
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <Button
+                    onClick={handleBringNextQueuedPlayer}
+                    disabled={actionLoading}
+                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>Bring Next Player Now →</span>
+                  </Button>
+                </div>
+              </div>
+            ) : totalRemainingInCategory > 0 || totalRemainingInAuction > 0 ? (
+              <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/20 via-slate-900 to-slate-950 shadow-2xl text-center space-y-4 my-2">
+                <div className="w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-lg">
+                  <Sparkles className="w-8 h-8 text-amber-400" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-xl font-black text-white">
+                    Ready for Next Player
+                  </h3>
+                  <p className="text-xs text-slate-300 font-semibold max-w-md mx-auto">
+                    {totalRemainingInCategory > 0
+                      ? `${totalRemainingInCategory} player${totalRemainingInCategory > 1 ? 's' : ''} available in "${categoryDisplayName}".`
+                      : `${totalRemainingInAuction} player${totalRemainingInAuction > 1 ? 's' : ''} available in tournament pool.`}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <Button
+                    onClick={handleBringNextQueuedPlayer}
+                    disabled={actionLoading}
+                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>Bring Next Player to Floor →</span>
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-b from-emerald-950/20 via-slate-900 to-slate-950 shadow-2xl text-center space-y-4 my-2">
                 <div className="w-14 h-14 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto shadow-lg">
@@ -1305,7 +1369,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                     {customMessages.msg_category_complete}
                   </h3>
                   <p className="text-xs text-slate-300 font-semibold max-w-md mx-auto">
-                    Category <span className="text-amber-400 uppercase font-bold">"{selectedCategory}"</span> lots have been completed.
+                    Category <span className="text-amber-400 uppercase font-bold">"{categoryDisplayName}"</span> lots have been completed.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -1909,12 +1973,16 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                             )}
 
                             {key === 'player_photo' && (
-                              <div className="relative w-full h-full rounded-2xl border-2 border-slate-700 bg-slate-900/90 shadow-2xl flex items-center justify-center overflow-hidden">
+                              <div
+                                className="relative w-full h-full border-2 border-slate-700 bg-slate-900/90 shadow-2xl flex items-center justify-center"
+                                style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius)}
+                              >
                                 {player.photo_url ? (
                                   <img
                                     src={player.photo_url}
                                     alt={player.player_name}
                                     className="h-full w-full object-cover"
+                                    style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius)}
                                   />
                                 ) : (
                                   <div className="flex flex-col items-center justify-center text-slate-500">
@@ -2640,6 +2708,54 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                       </Button>
                     </div>
                   </div>
+                ) : autoAdvanceCountdown !== null || queueLoading ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-xl animate-pulse">
+                      <Sparkles className="w-10 h-10 text-amber-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-2xl font-black text-white">
+                        {customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
+                      </h2>
+                      <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
+                        Preparing next player for the auction floor...
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-3 pt-2">
+                      <Button
+                        onClick={handleBringNextQueuedPlayer}
+                        disabled={actionLoading}
+                        className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                      >
+                        <span>Bring Next Player Now →</span>
+                      </Button>
+                    </div>
+                  </div>
+                ) : totalRemainingInCategory > 0 || totalRemainingInAuction > 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-xl">
+                      <Sparkles className="w-10 h-10 text-amber-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-2xl font-black text-white">
+                        Ready for Next Player
+                      </h2>
+                      <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
+                        {totalRemainingInCategory > 0
+                          ? `${totalRemainingInCategory} player${totalRemainingInCategory > 1 ? 's' : ''} available in "${categoryDisplayName}".`
+                          : `${totalRemainingInAuction} player${totalRemainingInAuction > 1 ? 's' : ''} available in tournament pool.`}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-3 pt-2">
+                      <Button
+                        onClick={handleBringNextQueuedPlayer}
+                        disabled={actionLoading}
+                        className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                      >
+                        <span>Bring Next Player to Floor →</span>
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
                     <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto shadow-xl">
@@ -2650,7 +2766,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         {customMessages.msg_category_complete}
                       </h2>
                       <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
-                        Category <span className="text-amber-400 uppercase font-bold">"{selectedCategory}"</span> lots have been completed.
+                        Category <span className="text-amber-400 uppercase font-bold">"{categoryDisplayName}"</span> lots have been completed.
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-3 pt-2">

@@ -634,7 +634,7 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
                             style={{ backgroundColor: teamColor }}
                           />
                         )}
-                        <span className="text-xs font-bold text-zinc-900 truncate" title={teamName}>
+                        <span className="text-xs font-bold text-zinc-900 break-words whitespace-normal leading-snug" title={teamName}>
                           {teamName}
                         </span>
                       </div>
@@ -839,7 +839,7 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
                             {c.group_name}
                           </p>
                           <div className="inline-block bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-xl border border-slate-300 shadow-2xs max-w-full">
-                            <p className="text-xs font-black text-zinc-900 truncate">
+                            <p className="text-xs font-black text-zinc-900 break-words whitespace-normal leading-tight">
                               {c.team_name || 'Team Assigned'}
                             </p>
                           </div>
@@ -868,7 +868,7 @@ export default function GroupDrawStage({ auctionId }: GroupDrawStageProps) {
                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                             Assigned Team
                           </p>
-                          <p className="text-xs font-black text-zinc-900 truncate px-1">
+                          <p className="text-xs font-black text-zinc-900 break-words whitespace-normal leading-tight px-1">
                             {c.team_name}
                           </p>
                         </div>
