@@ -161,9 +161,11 @@ export default function PlayerAuction() {
                     </div>
 
                     {/* Tournament Name Badge right next to dropdown to emit any confusion */}
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-400 font-bold text-xs shadow-xs">
-                      <span className="text-[10px] uppercase font-black text-amber-600/80 tracking-wider">Tournament:</span>
-                      <span className="font-extrabold truncate max-w-[200px] md:max-w-[320px] text-zinc-900 dark:text-amber-300">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 font-black text-xs shadow-xs">
+                      <span className="text-[10px] uppercase font-black tracking-wider text-black" style={{ color: '#000000' }}>
+                        Tournament:
+                      </span>
+                      <span className="font-black truncate max-w-[200px] md:max-w-[320px] text-black" style={{ color: '#000000' }}>
                         {selectedAuction.name}
                       </span>
                     </div>

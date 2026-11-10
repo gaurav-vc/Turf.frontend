@@ -1,4 +1,4 @@
-import { useState, useId, useEffect, useRef } from 'react'
+import { useState, useId, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
@@ -64,6 +64,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const [showQueueDrawer, setShowQueueDrawer] = useState(false)
   const [teamKeyBuffer, setTeamKeyBuffer] = useState('')
   const keyBufferTimerRef = useRef<any>(null)
+  const [numKeyBuffer, setNumKeyBuffer] = useState('')
+  const numKeyBufferRef = useRef('')
+  const numKeyTimerRef = useRef<any>(null)
   const customBidInputId = useId()
 
   const categoryDisplayName = selectedCategory === 'ALL' ? 'All Categories' : selectedCategory
@@ -135,6 +138,28 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
     }
   }
 
+  const executeNumKeyBid = useCallback((numStr: string) => {
+    numKeyBufferRef.current = ''
+    setNumKeyBuffer('')
+    if (numKeyTimerRef.current) {
+      clearTimeout(numKeyTimerRef.current)
+      numKeyTimerRef.current = null
+    }
+    const teamNum = parseInt(numStr, 10)
+    if (isNaN(teamNum) || teamNum <= 0) return
+    const teams = state?.teams || []
+    const teamIndex = teamNum - 1
+    if (teamIndex >= 0 && teamIndex < teams.length) {
+      const targetTeam = teams[teamIndex]
+      handleTeamSelectAndBid(targetTeam.team_id)
+    } else {
+      setFeedbackMessage({
+        text: `Team #${teamNum} does not exist (${teams.length} teams available).`,
+        type: 'error',
+      })
+    }
+  }, [state?.teams, handleTeamSelectAndBid])
+
   const actionButtons: ActionButtonConfig[] =
     pageDesign?.zones?.action_buttons && Array.isArray(pageDesign.zones.action_buttons)
       ? pageDesign.zones.action_buttons
@@ -204,6 +229,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
       fetchQueue()
     } else {
       setFeedbackMessage({ text: res?.error || 'No more players in queue', type: 'error' })
+      fetchQueue()
     }
   }
 
@@ -230,6 +256,16 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (numKeyBufferRef.current) {
+          e.preventDefault()
+          if (numKeyTimerRef.current) {
+            clearTimeout(numKeyTimerRef.current)
+            numKeyTimerRef.current = null
+          }
+          numKeyBufferRef.current = ''
+          setNumKeyBuffer('')
+          return
+        }
         if (isCustomBidModalOpen) {
           e.preventDefault()
           setIsCustomBidModalOpen(false)
@@ -251,19 +287,47 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
           target.isContentEditable)
       if (isInput) return
 
-      // 1. Sequential Numeric Shortcut Keys: 1..9, 0 (Key 1 -> Team 1, Key 2 -> Team 2, etc.)
+      // Enter key: immediately submit buffered team number
+      if (e.key === 'Enter' && numKeyBufferRef.current) {
+        e.preventDefault()
+        executeNumKeyBid(numKeyBufferRef.current)
+        return
+      }
+
+      // Backspace: remove last digit from buffer
+      if (e.key === 'Backspace' && numKeyBufferRef.current) {
+        e.preventDefault()
+        const newBuf = numKeyBufferRef.current.slice(0, -1)
+        numKeyBufferRef.current = newBuf
+        setNumKeyBuffer(newBuf)
+        if (numKeyTimerRef.current) {
+          clearTimeout(numKeyTimerRef.current)
+          numKeyTimerRef.current = null
+        }
+        if (newBuf) {
+          numKeyTimerRef.current = setTimeout(() => {
+            executeNumKeyBid(numKeyBufferRef.current)
+          }, 2000)
+        }
+        return
+      }
+
+      // 1. Multi-digit Sequential Numeric Shortcut Keys (e.g. 1..N with 2-second timeout window or Enter)
       const numKeyMatch = e.code?.match(/^(?:Digit|Numpad)([0-9])$/) || e.key.match(/^([0-9])$/)
       if (numKeyMatch && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        const rawNum = parseInt(numKeyMatch[1], 10)
-        // '1'..'9' maps to index 0..8, '0' maps to index 9 (10th team)
-        const teamIndex = rawNum === 0 ? 9 : rawNum - 1
-        const teams = state?.teams || []
-        if (teamIndex >= 0 && teamIndex < teams.length) {
-          e.preventDefault()
-          const targetTeam = teams[teamIndex]
-          handleTeamSelectAndBid(targetTeam.team_id)
-          return
+        e.preventDefault()
+        const digit = numKeyMatch[1]
+        const newBuf = numKeyBufferRef.current + digit
+        numKeyBufferRef.current = newBuf
+        setNumKeyBuffer(newBuf)
+
+        if (numKeyTimerRef.current) {
+          clearTimeout(numKeyTimerRef.current)
         }
+        numKeyTimerRef.current = setTimeout(() => {
+          executeNumKeyBid(numKeyBufferRef.current)
+        }, 2000)
+        return
       }
 
       // 2. Hammer Sold Action (Spacebar OR Shift+S)
@@ -344,7 +408,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isFullScreen, isCustomBidModalOpen, actionLoading, state?.active_player, state?.highest_bid, state?.teams, allowMultipleBids, teamKeyBuffer])
+  }, [isFullScreen, isCustomBidModalOpen, actionLoading, state?.active_player, state?.highest_bid, state?.teams, allowMultipleBids, teamKeyBuffer, executeNumKeyBid])
 
   const toggleBrowserFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -367,16 +431,19 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   }
 
   const handleCategoryChange = async (cat: string) => {
+    setAutoAdvanceCountdown(null)
     setSelectedCategory(cat)
     setFeedbackMessage(null)
     const res = await selectNextPlayer(cat)
     if (res?.success) {
       setFeedbackMessage({ text: `Brought in next player from category "${cat}".`, type: 'success' })
+      fetchQueue()
     } else {
       setFeedbackMessage({
         text: res?.error || `No available players found in category "${cat}".`,
         type: 'error',
       })
+      fetchQueue()
     }
   }
 
@@ -1311,14 +1378,14 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                   </Button>
                 </div>
               </div>
-            ) : autoAdvanceCountdown !== null || queueLoading ? (
+            ) : autoAdvanceCountdown !== null || queueLoading || actionLoading ? (
               <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/20 via-slate-900 to-slate-950 shadow-2xl text-center space-y-4 my-2">
                 <div className="w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-lg animate-pulse">
                   <Sparkles className="w-8 h-8 text-amber-400" />
                 </div>
                 <div className="space-y-1">
                   <h3 className="text-xl font-black text-white">
-                    {customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
+                    {actionLoading ? 'Loading next player...' : customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
                   </h3>
                   <p className="text-xs text-slate-300 font-semibold max-w-md mx-auto">
                     Preparing next player for the auction floor...
@@ -1334,7 +1401,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                   </Button>
                 </div>
               </div>
-            ) : totalRemainingInCategory > 0 || totalRemainingInAuction > 0 ? (
+            ) : totalRemainingInCategory > 0 || totalRemainingInAuction > 0 || upcomingQueue.length > 0 || ((state?.stats?.remaining_count ?? 0) > 0) ? (
               <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/20 via-slate-900 to-slate-950 shadow-2xl text-center space-y-4 my-2">
                 <div className="w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-lg">
                   <Sparkles className="w-8 h-8 text-amber-400" />
@@ -1346,7 +1413,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                   <p className="text-xs text-slate-300 font-semibold max-w-md mx-auto">
                     {totalRemainingInCategory > 0
                       ? `${totalRemainingInCategory} player${totalRemainingInCategory > 1 ? 's' : ''} available in "${categoryDisplayName}".`
-                      : `${totalRemainingInAuction} player${totalRemainingInAuction > 1 ? 's' : ''} available in tournament pool.`}
+                      : `${totalRemainingInAuction || state?.stats?.remaining_count || upcomingQueue.length} player(s) available in tournament pool.`}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -1538,7 +1605,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                   </select>
                 </div>
                 <span className="text-xs text-slate-300 font-medium hidden sm:inline">
-                  Tap shortcut/card or press Key 1-9 to bid
+                  Tap card or press Key 1–{state?.teams?.length || 9} to bid (2s timeout or Enter)
                 </span>
               </div>
             </div>
@@ -1561,6 +1628,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 const isSelected = selectedTeamId === team.team_id
                 const theme = getTeamTheme(idx, state.teams.length)
                 const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                const isNumBuffered = Boolean(numKeyBuffer && parseInt(numKeyBuffer, 10) === theme.sequenceNo)
                 const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
 
                 return (
@@ -1570,12 +1638,16 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                     disabled={isTeamDisabled}
                     style={{
                       background: isLeading
-                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(30, 20, 5, 0.95) 100%)'
+                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(180, 83, 9, 0.5) 100%)'
+                        : isNumBuffered
+                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.4) 100%)'
                         : isQuotaFull || isBudgetExceeded
                         ? 'rgba(15, 23, 42, 0.85)'
                         : 'rgba(2, 19, 46, 0.95)',
                       borderColor: isLeading
                         ? '#F59E0B'
+                        : isNumBuffered
+                        ? '#FBBF24'
                         : isQuotaFull
                         ? '#EF4444'
                         : isBudgetExceeded
@@ -1585,47 +1657,39 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         : theme.border,
                       boxShadow: isLeading
                         ? '0 0 18px rgba(245, 158, 11, 0.5)'
+                        : isNumBuffered
+                        ? '0 0 20px rgba(251, 191, 36, 0.6)'
                         : isSelected
                         ? `0 0 14px ${theme.glow}`
                         : `0 0 8px ${theme.glow}`,
                       writingMode: 'horizontal-tb',
                     }}
-                    className={`group relative flex flex-col items-center justify-between rounded-xl border-2 p-2.5 transition-all select-none min-h-[88px] ${
+                    className={`group relative flex flex-col items-center justify-between rounded-xl border-2 p-2.5 transition-all select-none min-h-[76px] ${
                       isLeading
                         ? 'ring-2 ring-amber-400'
+                        : isNumBuffered
+                        ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
                         : isQuotaFull
                         ? 'opacity-40 cursor-not-allowed border-rose-800'
                         : isBudgetExceeded
                         ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
                         : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
                     }`}
-                    title={`Team #${theme.sequenceNo} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
+                    title={`Team #${theme.sequenceNo} (${team.team_name || team.short_name})${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
                   >
-                    {/* Top Row: Sequence Badge & Key */}
+                    {/* Top Row: Sequence Badge & Leading Indicator */}
                     <div className="flex items-center justify-between w-full mb-1" style={{ writingMode: 'horizontal-tb' }}>
                       <span
                         style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
-                        className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs shrink-0"
+                        className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black shadow-xs shrink-0"
                       >
                         #{theme.sequenceNo}
                       </span>
-                      {isLeading ? (
+                      {isLeading && (
                         <span className="px-1.5 py-0.2 rounded bg-amber-400 text-black font-black text-[8px] animate-pulse">
                           LEADING
                         </span>
-                      ) : isQuotaFull ? (
-                        <span className="px-1.5 py-0.2 rounded bg-rose-500/30 text-rose-300 font-bold text-[8px] border border-rose-500/40">
-                          QUOTA FULL
-                        </span>
-                      ) : isBudgetExceeded ? (
-                        <span className="px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-300 font-bold text-[8px] border border-amber-500/40">
-                          PURSE LIMIT
-                        </span>
-                      ) : theme.keyShortcut ? (
-                        <span className="text-[9px] font-mono text-slate-300 font-bold bg-black/40 px-1 py-0.2 rounded border border-white/10 shrink-0">
-                          [{theme.keyShortcut}]
-                        </span>
-                      ) : null}
+                      )}
                     </div>
 
                     {/* Centered Shortcut Text (Strictly Horizontal) */}
@@ -1636,17 +1700,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         whiteSpace: 'nowrap',
                         textOrientation: 'mixed',
                       }}
-                      className="text-lg font-black font-mono tracking-wider drop-shadow-md py-1"
+                      className="text-xl font-black font-mono tracking-wider drop-shadow-md my-auto py-1"
                     >
                       {shortcut}
-                    </span>
-
-                    {/* Balance Subtitle */}
-                    <span
-                      className="text-[9px] font-mono text-slate-400 tracking-tight"
-                      style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
-                    >
-                      ₹{Number(team.balance || 0).toLocaleString('en-IN')}
                     </span>
                   </button>
                 )
@@ -2522,21 +2578,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                               #{idx + 1}
                                             </span>
                                           )}
-                                          {isLeading ? (
+                                          {isLeading && (
                                             <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
                                               LEADING
-                                            </span>
-                                          ) : isQuotaFull ? (
-                                            <span className="px-1 py-0.2 rounded bg-rose-500/30 text-rose-300 font-bold text-[7px]">
-                                              FULL
-                                            </span>
-                                          ) : isBudgetExceeded ? (
-                                            <span className="px-1 py-0.2 rounded bg-amber-500/30 text-amber-300 font-bold text-[7px]">
-                                              LIMIT
-                                            </span>
-                                          ) : (
-                                            <span className="font-mono text-[8px] text-slate-400 opacity-75">
-                                              [{idx + 1}]
                                             </span>
                                           )}
                                         </div>
@@ -2555,7 +2599,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                         >
                                           {shortcut}
                                         </div>
-                                        {el.show_balance !== false && (
+                                        {el.show_balance === true && (
                                           <div
                                             className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
                                             style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
@@ -2708,14 +2752,14 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                       </Button>
                     </div>
                   </div>
-                ) : autoAdvanceCountdown !== null || queueLoading ? (
+                ) : autoAdvanceCountdown !== null || queueLoading || actionLoading ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
                     <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-xl animate-pulse">
                       <Sparkles className="w-10 h-10 text-amber-400" />
                     </div>
                     <div className="space-y-1">
                       <h2 className="text-2xl font-black text-white">
-                        {customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
+                        {actionLoading ? 'Loading next player...' : customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
                       </h2>
                       <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
                         Preparing next player for the auction floor...
@@ -2731,7 +2775,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                       </Button>
                     </div>
                   </div>
-                ) : totalRemainingInCategory > 0 || totalRemainingInAuction > 0 ? (
+                ) : totalRemainingInCategory > 0 || totalRemainingInAuction > 0 || upcomingQueue.length > 0 || ((state?.stats?.remaining_count ?? 0) > 0) ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
                     <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-xl">
                       <Sparkles className="w-10 h-10 text-amber-400" />
@@ -2743,7 +2787,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                       <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
                         {totalRemainingInCategory > 0
                           ? `${totalRemainingInCategory} player${totalRemainingInCategory > 1 ? 's' : ''} available in "${categoryDisplayName}".`
-                          : `${totalRemainingInAuction} player${totalRemainingInAuction > 1 ? 's' : ''} available in tournament pool.`}
+                          : `${totalRemainingInAuction || state?.stats?.remaining_count || upcomingQueue.length} player(s) available in tournament pool.`}
                       </p>
                     </div>
                     <div className="flex items-center justify-center gap-3 pt-2">
@@ -2857,7 +2901,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
               {/* Franchise Bidding Stations Row */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 px-1">
-                  TEAMS (TAP OR PRESS 1-{Math.min(9, state?.teams?.length || 9)}):
+                  TEAMS (TAP OR PRESS 1–{state?.teams?.length || 9} • 2s timeout / Enter):
                 </span>
                 {state?.teams?.map((team, idx) => {
                   const isLeading = highestBid?.team_id === team.team_id
@@ -2868,6 +2912,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                   const isSelected = selectedTeamId === team.team_id
                   const theme = getTeamTheme(idx, state.teams.length)
                   const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                  const isNumBuffered = Boolean(numKeyBuffer && parseInt(numKeyBuffer, 10) === theme.sequenceNo)
                   const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
 
                   return (
@@ -2878,11 +2923,15 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                       style={{
                         background: isLeading
                           ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(30, 20, 5, 0.95) 100%)'
+                          : isNumBuffered
+                          ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.4) 100%)'
                           : isQuotaFull || isBudgetExceeded
                           ? 'rgba(15, 23, 42, 0.85)'
                           : 'rgba(2, 19, 46, 0.95)',
                         borderColor: isLeading
                           ? '#F59E0B'
+                          : isNumBuffered
+                          ? '#FBBF24'
                           : isQuotaFull
                           ? '#EF4444'
                           : isBudgetExceeded
@@ -2892,23 +2941,27 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           : theme.border,
                         boxShadow: isLeading
                           ? '0 0 16px rgba(245, 158, 11, 0.5)'
+                          : isNumBuffered
+                          ? '0 0 20px rgba(251, 191, 36, 0.6)'
                           : isSelected
                           ? `0 0 14px ${theme.glow}`
                           : `0 0 8px ${theme.glow}`,
                         writingMode: 'horizontal-tb',
                       }}
-                      className={`group relative flex flex-col items-center justify-between rounded-xl border-2 px-3 py-1.5 transition-all select-none shrink-0 min-w-[80px] min-h-[68px] ${
+                      className={`group relative flex flex-col items-center justify-between rounded-xl border-2 px-3 py-1.5 transition-all select-none shrink-0 min-w-[76px] min-h-[60px] ${
                         isLeading
                           ? 'ring-2 ring-amber-400'
+                          : isNumBuffered
+                          ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
                           : isQuotaFull
                           ? 'opacity-40 cursor-not-allowed border-rose-800'
                           : isBudgetExceeded
                           ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
                           : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
                       }`}
-                      title={`Team #${theme.sequenceNo} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
+                      title={`Team #${theme.sequenceNo} (${team.team_name || team.short_name})${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
                     >
-                      {/* Top Row: Sequence Badge & Key */}
+                      {/* Top Row: Sequence Badge & Leading Indicator */}
                       <div className="flex items-center justify-between w-full mb-0.5 gap-2" style={{ writingMode: 'horizontal-tb' }}>
                         <span
                           style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
@@ -2916,34 +2969,22 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         >
                           #{theme.sequenceNo}
                         </span>
-                        {isLeading ? (
+                        {isLeading && (
                           <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
                             LEADING
                           </span>
-                        ) : isQuotaFull ? (
-                          <span className="px-1 py-0.2 rounded bg-rose-500/30 text-rose-300 font-bold text-[7px] border border-rose-500/40">
-                            FULL
-                          </span>
-                        ) : isBudgetExceeded ? (
-                          <span className="px-1 py-0.2 rounded bg-amber-500/30 text-amber-300 font-bold text-[7px] border border-amber-500/40">
-                            LIMIT
-                          </span>
-                        ) : theme.keyShortcut ? (
-                          <span className="text-[9px] font-mono text-slate-300 font-bold bg-black/40 px-1 py-0.2 rounded border border-white/10 shrink-0">
-                            [{theme.keyShortcut}]
-                          </span>
-                        ) : null}
+                        )}
                       </div>
 
                       {/* Centered Shortcut Text (Strictly Horizontal) */}
                       <span
                         style={{
-                          color: isLeading ? '#FDE047' : isQuotaFull ? '#FDA4AF' : theme.pillText,
+                          color: isLeading ? '#FDE047' : theme.pillText,
                           writingMode: 'horizontal-tb',
                           whiteSpace: 'nowrap',
                           textOrientation: 'mixed',
                         }}
-                        className="text-base font-black font-mono tracking-wider drop-shadow-md py-0.5"
+                        className="text-base font-black font-mono tracking-wider drop-shadow-md my-auto py-0.5"
                       >
                         {shortcut}
                       </span>
@@ -3158,6 +3199,34 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
               )}
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Multi-Digit Key Buffer Toast */}
+      <AnimatePresence>
+        {numKeyBuffer && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-2.5 rounded-full bg-slate-900/95 border-2 border-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.55)] text-white backdrop-blur-md"
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+            <span className="font-mono text-sm font-bold flex items-center gap-1.5">
+              <span>Selecting Team</span>
+              <strong className="text-amber-400 text-base font-black px-1.5 py-0.5 rounded bg-amber-400/20 border border-amber-400/40">
+                #{numKeyBuffer}
+              </strong>
+              {state?.teams && parseInt(numKeyBuffer, 10) > 0 && parseInt(numKeyBuffer, 10) <= state.teams.length && (
+                <span className="text-slate-300 font-semibold">
+                  ({getTeamShortcut(state.teams[parseInt(numKeyBuffer, 10) - 1].team_name, state.teams[parseInt(numKeyBuffer, 10) - 1].short_name)})
+                </span>
+              )}
+            </span>
+            <span className="text-[11px] text-amber-200/90 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/30 font-medium">
+              Auto-bidding in 2s • Enter to bid • Esc to clear
+            </span>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

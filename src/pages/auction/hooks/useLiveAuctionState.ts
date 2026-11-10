@@ -55,6 +55,13 @@ export interface LiveAuctionState {
   teams: TeamFinancial[]
   config: Record<string, any>
   design: Record<string, any>
+  stats?: {
+    total_players: number
+    sold_count: number
+    unsold_count: number
+    remaining_count: number
+    total_teams: number
+  }
 }
 
 export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1200) {

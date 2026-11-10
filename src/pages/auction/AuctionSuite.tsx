@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import {
   Gavel, Users, Layout, Sliders, Tag, Shuffle, Eye,
-  Sparkles, MessageSquare, FileText, Tv, BarChart3, Shield, Trophy, LayoutGrid
+  Sparkles, MessageSquare, FileText, Tv, BarChart3, Shield, LayoutGrid
 } from 'lucide-react'
 import AuctionOverviewDashboard from './components/AuctionOverviewDashboard'
 import LiveBroadcastConsole from './components/LiveBroadcastConsole'
@@ -61,32 +61,6 @@ interface AuctionSuiteProps {
   activeTab?: TabType
   onTabChange?: (tab: TabType, extraParams?: Record<string, string>) => void
   onBack?: () => void
-}
-
-function TournamentLogoBadge({ logoUrl, auctionName }: { logoUrl?: string; auctionName?: string }) {
-  const [error, setError] = useState(false)
-  const resolved = logoUrl ? resolveMediaUrl(logoUrl) : ''
-
-  useEffect(() => {
-    setError(false)
-  }, [logoUrl])
-
-  if (resolved && !error) {
-    return (
-      <img
-        src={resolved}
-        alt={auctionName || 'Tournament Logo'}
-        className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1 border border-border/60 shadow-2xs"
-        onError={() => setError(true)}
-      />
-    )
-  }
-
-  return (
-    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-slate-950 font-black flex items-center justify-center text-sm shadow-xs border border-amber-400/40 shrink-0">
-      <Trophy className="w-5 h-5 text-slate-900" />
-    </div>
-  )
 }
 
 export default function AuctionSuite({ auctionId, auctionName, activeTab: propActiveTab, onTabChange: propOnTabChange }: AuctionSuiteProps) {
@@ -163,29 +137,6 @@ export default function AuctionSuite({ auctionId, auctionName, activeTab: propAc
           : undefined
       }
     >
-      {/* Tournament Branding Bar (Logo + Name) */}
-      <div className="flex items-center justify-between gap-4 bg-card/90 backdrop-blur-md border border-border/80 px-4 py-2.5 rounded-2xl shadow-xs">
-        <div className="flex items-center gap-3">
-          <TournamentLogoBadge logoUrl={branding.tournament_logo} auctionName={auctionName} />
-          <div>
-            <h2 className="text-sm font-black text-foreground flex items-center gap-2">
-              {auctionName || 'Turf Premier League'}
-              <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
-                Official Tournament
-              </span>
-            </h2>
-            <p className="text-[10px] text-muted-foreground font-semibold">
-              Live Auction & Tournament Management
-            </p>
-          </div>
-        </div>
-        {hasOverallBg && (
-          <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl hidden sm:inline-flex items-center gap-1">
-            ✨ Custom Theme Active
-          </span>
-        )}
-      </div>
-
       {/* Tab Panels */}
       <div>
         {activeTab === 'overview' && (
