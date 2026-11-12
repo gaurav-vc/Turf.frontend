@@ -542,11 +542,16 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
                           <TeamLogoBadge team={t} />
 
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-black text-base text-foreground uppercase tracking-wide break-words whitespace-normal leading-snug">{t.name}</h3>
                               <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-md bg-[#facc15] text-slate-950 font-mono shadow-xs">
                                 {t.short_name}
                               </span>
+                              {t.shortcut_key && (
+                                <span className="text-xs font-black uppercase px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 font-mono shadow-xs" title={`Bidding Shortcut Key: [${t.shortcut_key}]`}>
+                                  Key [{t.shortcut_key}]
+                                </span>
+                              )}
                             </div>
                             {t.sponsor_name && (
                               <p className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-0.5">
@@ -1192,6 +1197,7 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
         onSuccess={loadTeams}
         teamToEdit={teamToEdit}
         existingTeamsCount={teams.length}
+        existingTeams={teams}
       />
 
       {/* PLAYER ENTRY FORM MODAL */}

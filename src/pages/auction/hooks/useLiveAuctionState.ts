@@ -31,6 +31,8 @@ export interface TeamFinancial {
   team_id: string
   team_name: string
   short_name: string
+  shortcut_key?: string
+  custom_data?: any
   team_color?: string
   team_logo?: string
   kitty: number
@@ -97,7 +99,30 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
 
   const placeBid = async (teamId: string, amount?: number, isCustom = false, allowMultiple = false) => {
     if (!auctionId) return
-    setActionLoading(true)
+    // Instant optimistic UI update
+    setState((prev) => {
+      if (!prev) return prev
+      const teamObj = prev.teams?.find((t) => String(t.team_id) === String(teamId))
+      const slabIncrement = 10000
+      const nextAmount = amount || (prev.highest_bid ? prev.highest_bid.amount + slabIncrement : (prev.active_player?.base_price || 10000))
+      const optBid: BidHistoryItem = {
+        id: 'opt-' + Date.now(),
+        amount: nextAmount,
+        team_id: teamId,
+        team_name: teamObj?.team_name || 'Team',
+        short_name: teamObj?.short_name || 'Team',
+        team_logo: teamObj?.team_logo || '',
+        bid_type: isCustom ? 'Custom Bid' : 'Team Button',
+        created_at: new Date().toISOString(),
+      }
+      return {
+        ...prev,
+        current_bid: nextAmount,
+        highest_bid: optBid,
+        bid_history: [optBid, ...(prev.bid_history || [])],
+      }
+    })
+
     try {
       const res = await apiClient.post(`/v1/auction/console/${auctionId}/bid/`, {
         team_id: teamId,
@@ -108,10 +133,9 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
       setState(res.data)
       return { success: true }
     } catch (err: any) {
+      fetchState()
       const msg = err.response?.data?.error || err.message || 'Bid failed'
       return { success: false, error: msg }
-    } finally {
-      setActionLoading(false)
     }
   }
 

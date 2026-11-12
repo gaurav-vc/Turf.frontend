@@ -312,7 +312,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         return
       }
 
-      // 1. Multi-digit Sequential Numeric Shortcut Keys (e.g. 1..N with 2-second timeout window or Enter)
+      // 1. Multi-digit Sequential Numeric Shortcut Keys (e.g. 1..N with fraction-of-second smart buffer or Enter)
       const numKeyMatch = e.code?.match(/^(?:Digit|Numpad)([0-9])$/) || e.key.match(/^([0-9])$/)
       if (numKeyMatch && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault()
@@ -323,10 +323,23 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
         if (numKeyTimerRef.current) {
           clearTimeout(numKeyTimerRef.current)
+          numKeyTimerRef.current = null
         }
+
+        const teams = state?.teams || []
+        const currentVal = parseInt(newBuf, 10)
+        // If currentVal cannot be extended to another team (e.g. 14 teams, typed 2 -> 20 > 14):
+        // execute IMMEDIATELY with zero delay!
+        const canExtend = !isNaN(currentVal) && currentVal > 0 && (currentVal * 10 <= teams.length)
+        if (!canExtend && currentVal > 0 && currentVal <= teams.length) {
+          executeNumKeyBid(newBuf)
+          return
+        }
+
+        // If it could be a multi-digit prefix (e.g. '1' with >= 10 teams), wait fraction of a second (450ms)
         numKeyTimerRef.current = setTimeout(() => {
           executeNumKeyBid(numKeyBufferRef.current)
-        }, 2000)
+        }, 450)
         return
       }
 
@@ -366,9 +379,23 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         }
       }
 
-      // 6. Multi-character Team Shortname Typing Buffer (Letters A-Z)
+      // 6. Multi-character Team Shortname Typing Buffer (Letters A-Z) or Single Shortcut Key
       if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
         const char = e.key.toUpperCase()
+        const teams = state?.teams || []
+
+        // Check if a team has explicitly been assigned this shortcut key (instant bid, zero delay!)
+        const explicitKeyMatch = teams.find((t) => {
+          const sk = (t.shortcut_key || t.custom_data?.shortcut_key || '').toUpperCase()
+          return sk && sk === char
+        })
+        if (explicitKeyMatch) {
+          e.preventDefault()
+          setTeamKeyBuffer('')
+          handleTeamSelectAndBid(explicitKeyMatch.team_id)
+          return
+        }
+
         const newBuf = (teamKeyBuffer + char).slice(-4)
         setTeamKeyBuffer(newBuf)
 
@@ -377,7 +404,6 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
           setTeamKeyBuffer('')
         }, 800)
 
-        const teams = state?.teams || []
         // Check exact match on buffer first (e.g. "MI", "CSK", "SRH")
         const exactMatch = teams.find((t) => {
           const sc = getTeamShortcut(t.team_name, t.short_name).toUpperCase()
@@ -654,6 +680,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
   const rawBg =
     pageDesign?.custom_background_url ||
+    state?.config?.auction_background ||
+    state?.config?.overall_background ||
     auctionBackground ||
     (state as any)?.tournament?.background_image ||
     state?.config?.background_image ||
@@ -1883,7 +1911,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
               {/* Timer and Audio controls */}
               <div className="flex items-center gap-3">
-                {!pageDesign?.elements?.top_bar?.selected && (
+                {!pageDesign?.elements?.top_bar?.selected && Boolean(state?.config?.online_timer_enabled) && (
                   <div
                     className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-mono font-bold ${
                       timerSeconds <= 5
@@ -2303,29 +2331,31 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
-                                  <div
-                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-mono font-bold ${
-                                      timerSeconds <= 5
-                                        ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
-                                        : 'bg-slate-900 border-slate-700 text-slate-200'
-                                    }`}
-                                  >
-                                    <Clock className="w-3 h-3 text-amber-400" />
-                                    <span>{timerSeconds}s</span>
-                                    <button
-                                      onClick={() => setTimerActive(!timerActive)}
-                                      className="hover:text-white p-0.5 cursor-pointer"
+                                  {Boolean(state?.config?.online_timer_enabled) && (
+                                    <div
+                                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-mono font-bold ${
+                                        timerSeconds <= 5
+                                          ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
+                                          : 'bg-slate-900 border-slate-700 text-slate-200'
+                                      }`}
                                     >
-                                      {timerActive ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
-                                    </button>
-                                    <button
-                                      onClick={() => setTimerSeconds(30)}
-                                      className="hover:text-white p-0.5 ml-0.5 cursor-pointer"
-                                      title="Reset 30s"
-                                    >
-                                      <RotateCcw className="w-2 h-2" />
-                                    </button>
-                                  </div>
+                                      <Clock className="w-3 h-3 text-amber-400" />
+                                      <span>{timerSeconds}s</span>
+                                      <button
+                                        onClick={() => setTimerActive(!timerActive)}
+                                        className="hover:text-white p-0.5 cursor-pointer"
+                                      >
+                                        {timerActive ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
+                                      </button>
+                                      <button
+                                        onClick={() => setTimerSeconds(30)}
+                                        className="hover:text-white p-0.5 ml-0.5 cursor-pointer"
+                                        title="Reset 30s"
+                                      >
+                                        <RotateCcw className="w-2 h-2" />
+                                      </button>
+                                    </div>
+                                  )}
                                   {!isFullScreen && (
                                     <button
                                       onClick={toggleBrowserFullscreen}
@@ -2493,6 +2523,19 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                               <span>{btn.label}</span>
                                             </button>
                                           )
+                                        case 'next_player':
+                                          return (
+                                            <button
+                                              key={btn.id}
+                                              onClick={handleBringNextQueuedPlayer}
+                                              disabled={actionLoading}
+                                              className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[10px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+                                              title="Bring Next Queued Player"
+                                            >
+                                              <ChevronRight className="w-3 h-3" />
+                                              <span>{btn.label || 'Next Player'}</span>
+                                            </button>
+                                          )
                                         default:
                                           return null
                                       }
@@ -2547,12 +2590,16 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                     const shortcut = getTeamShortcut(team.team_name, team.short_name)
                                     const theme = getTeamTheme(idx, state.teams.length)
                                     const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
+                                    const assignedShortcut = ((team as any).shortcut_key || (team as any).custom_data?.shortcut_key || '').toUpperCase()
+                                    const badgeKey = assignedShortcut ? `${idx + 1} - ${assignedShortcut}` : `${idx + 1}`
+                                    const teamLogo = (team as any).team_logo || (team as any).logo
 
                                     return (
                                       <button
                                         key={team.team_id}
                                         onClick={() => handleTeamSelectAndBid(team.team_id)}
                                         disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull}
+                                        title={`Team #${idx + 1}: ${team.team_name}\nShort Name: ${shortcut}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}\nPurse Balance: ₹${Number(team.balance || 0).toLocaleString('en-IN')}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
                                         className={`flex flex-col justify-between p-1 rounded-md overflow-hidden transition select-none min-w-0 ${
                                           isLeading
                                             ? 'ring-2 ring-amber-400'
@@ -2573,11 +2620,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                           className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
                                           style={{ writingMode: 'horizontal-tb' }}
                                         >
-                                          {el.show_number !== false && (
-                                            <span className="px-1 py-0.2 rounded bg-black/50 font-mono text-[8px] text-white">
-                                              #{idx + 1}
-                                            </span>
-                                          )}
+                                          <span className="px-1.5 py-0.5 rounded-sm bg-black/70 font-mono text-[8px] font-extrabold text-white border border-white/15 shadow-2xs">
+                                            {badgeKey}
+                                          </span>
                                           {isLeading && (
                                             <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
                                               LEADING
@@ -2585,7 +2630,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                           )}
                                         </div>
                                         <div
-                                          className="w-full text-center font-black truncate my-auto px-0.5"
+                                          className="w-full flex items-center justify-center gap-1 font-black truncate my-auto px-0.5"
                                           style={{
                                             fontSize: `${el.font_size || 13}px`,
                                             color: isLeading ? '#FDE047' : (el.colour || teamColor),
@@ -2597,7 +2642,14 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                             textOrientation: 'mixed',
                                           }}
                                         >
-                                          {shortcut}
+                                          {teamLogo && (
+                                            <img
+                                              src={resolveMediaUrl(teamLogo)}
+                                              alt=""
+                                              className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
+                                            />
+                                          )}
+                                          <span className="truncate">{shortcut}</span>
                                         </div>
                                         {el.show_balance === true && (
                                           <div
@@ -3066,6 +3118,19 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                               className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {btn.label}
+                            </button>
+                          )
+                        case 'next_player':
+                          return (
+                            <button
+                              key={btn.id}
+                              onClick={handleBringNextQueuedPlayer}
+                              disabled={actionLoading}
+                              className="bg-sky-600 hover:bg-sky-500 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Bring Next Queued Player"
+                            >
+                              <ChevronRight className="w-3.5 h-3.5" />
+                              <span>{btn.label || 'Next Player'}</span>
                             </button>
                           )
                         default:

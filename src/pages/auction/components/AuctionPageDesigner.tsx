@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { apiClient } from '@/api/apiClient'
-import { getTeamTheme, getTeamShortcut } from './teamThemeUtils'
+import { getTeamShortcut } from './teamThemeUtils'
 
 interface AuctionPageDesignerProps {
   auctionId: string
@@ -19,7 +19,7 @@ interface AuctionPageDesignerProps {
 }
 
 export interface ActionButtonConfig {
-  id: 'sold' | 'unsold' | 'custom_bid' | 'undo_sale' | 'undo_bid' | 'reset_bid'
+  id: 'sold' | 'unsold' | 'custom_bid' | 'undo_sale' | 'undo_bid' | 'reset_bid' | 'next_player'
   label: string
   visible: boolean
 }
@@ -27,6 +27,7 @@ export interface ActionButtonConfig {
 export const DEFAULT_ACTION_BUTTONS: ActionButtonConfig[] = [
   { id: 'sold', label: 'SOLD (Hammer Down)', visible: true },
   { id: 'unsold', label: 'UNSOLD', visible: true },
+  { id: 'next_player', label: 'Next Player', visible: true },
   { id: 'custom_bid', label: 'Custom Bid', visible: true },
   { id: 'undo_sale', label: 'Undo Sale', visible: true },
   { id: 'undo_bid', label: 'Undo Bid', visible: true },
@@ -631,7 +632,6 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
   // Templates Management State
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('default-arena')
   const [liveTeams, setLiveTeams] = useState<any[]>([])
-  const [previewStationFeedback, setPreviewStationFeedback] = useState<string | null>(null)
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState<boolean>(false)
   const [newTemplateName, setNewTemplateName] = useState<string>('')
   const [templateFeedback, setTemplateFeedback] = useState<string | null>(null)
@@ -3191,7 +3191,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               />
 
               {/* Custom Box Content Configuration Sub-Panel */}
-              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history' || selectedKey === 'bidder_name' || selectedKey === 'franchise_stations') && (
+              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history' || selectedKey === 'bidder_name' || selectedKey === 'franchise_stations' || selectedKey === 'action_bar') && (
                 <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/30 space-y-2.5 mt-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -3202,6 +3202,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                           ? 'Bidder Team Name & Logo Settings'
                           : selectedKey === 'franchise_stations'
                           ? 'Franchise Bidding Stations (Option 4)'
+                          : selectedKey === 'action_bar'
+                          ? 'Action & Hammer Controls Settings'
                           : (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))
                           ? 'Photo Box Configuration'
                           : (design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video'))
@@ -3389,7 +3391,138 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       </div>
                     )}
 
-                    {/* If Photo Box */}
+                    {/* If Action Bar */}
+                    {selectedKey === 'action_bar' && (
+                      <div className="space-y-3 rounded-xl bg-slate-950/70 border border-emerald-500/30 p-3.5 shadow-sm">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                          <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
+                            <Gavel className="w-3.5 h-3.5" /> Action Controls Inspector & Buttons
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {currentActionButtons.filter((b) => b.visible).length} / {currentActionButtons.length} Active
+                          </span>
+                        </div>
+
+                        {/* Quick Placement Snap Presets */}
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                            Quick Snap Positions on Canvas
+                          </label>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateElementProp('action_bar', 'x', 2)
+                                updateElementProp('action_bar', 'y', 88)
+                                updateElementProp('action_bar', 'w', 96)
+                                updateElementProp('action_bar', 'h', 10)
+                              }}
+                              className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-200 border border-slate-700 transition cursor-pointer text-center"
+                            >
+                              Bottom Bar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateElementProp('action_bar', 'x', 2)
+                                updateElementProp('action_bar', 'y', 1.5)
+                                updateElementProp('action_bar', 'w', 96)
+                                updateElementProp('action_bar', 'h', 10)
+                              }}
+                              className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-200 border border-slate-700 transition cursor-pointer text-center"
+                            >
+                              Top Ticker
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateElementProp('action_bar', 'x', 18)
+                                updateElementProp('action_bar', 'y', 86)
+                                updateElementProp('action_bar', 'w', 64)
+                                updateElementProp('action_bar', 'h', 11)
+                              }}
+                              className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-200 border border-slate-700 transition cursor-pointer text-center"
+                            >
+                              Floating Center
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Button Visibility Toggles & Order */}
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1.5">
+                            Action Buttons Configuration & Visibility
+                          </label>
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                            {currentActionButtons.map((btn, index) => (
+                              <div
+                                key={btn.id}
+                                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs"
+                              >
+                                <label className="flex items-center gap-2 cursor-pointer text-slate-200 font-medium">
+                                  <input
+                                    type="checkbox"
+                                    checked={btn.visible}
+                                    onChange={(e) => {
+                                      const updated = currentActionButtons.map((b) =>
+                                        b.id === btn.id ? { ...b, visible: e.target.checked } : b
+                                      )
+                                      setDesign((prev) => ({
+                                        ...prev,
+                                        zones: {
+                                          ...prev.zones,
+                                          action_buttons: updated,
+                                        },
+                                      }))
+                                    }}
+                                    className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400 w-3.5 h-3.5 cursor-pointer"
+                                  />
+                                  <span>{btn.label}</span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={index === 0}
+                                    onClick={() => {
+                                      if (index === 0) return
+                                      const updated = [...currentActionButtons]
+                                      const temp = updated[index - 1]
+                                      updated[index - 1] = updated[index]
+                                      updated[index] = temp
+                                      setDesign((prev) => ({
+                                        ...prev,
+                                        zones: { ...prev.zones, action_buttons: updated },
+                                      }))
+                                    }}
+                                    className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
+                                  >
+                                    ↑
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={index === currentActionButtons.length - 1}
+                                    onClick={() => {
+                                      if (index === currentActionButtons.length - 1) return
+                                      const updated = [...currentActionButtons]
+                                      const temp = updated[index + 1]
+                                      updated[index + 1] = updated[index]
+                                      updated[index] = temp
+                                      setDesign((prev) => ({
+                                        ...prev,
+                                        zones: { ...prev.zones, action_buttons: updated },
+                                      }))
+                                    }}
+                                    className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
+                                  >
+                                    ↓
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {(design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo')) && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-center">
                         <div>
@@ -4339,18 +4472,22 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               rowGap: `${el.gap_y || 6}px`,
                             }}
                           >
-                            {SAMPLE_FRANCHISE_TEAMS.slice(0, Math.min(14, (el.grid_cols || 7) * (el.grid_rows || 2))).map((t, idx) => {
+                            {(liveTeams.length > 0 ? liveTeams : SAMPLE_FRANCHISE_TEAMS).slice(0, Math.min(14, (el.grid_cols || 7) * (el.grid_rows || 2))).map((t: any, idx: number) => {
                               const isSolid = (el.box_style || 'solid') === 'solid'
+                              const tColor = t.color || t.team_color || '#3B82F6'
+                              const tShortcut = getTeamShortcut(t.team_name || t.name, t.short_name || t.code)
+                              const tBalance = t.balance != null ? (typeof t.balance === 'number' ? `₹${t.balance.toLocaleString('en-IN')}` : t.balance) : '₹1,00,00,000'
+
                               return (
                                 <div
-                                  key={t.id}
+                                  key={t.id || t.team_id || idx}
                                   className="flex flex-col justify-between p-1 rounded-md overflow-hidden transition select-none min-w-0"
                                   style={{
-                                    backgroundColor: isSolid ? `${t.color}25` : 'transparent',
-                                    borderColor: t.color,
+                                    backgroundColor: isSolid ? `${tColor}25` : 'transparent',
+                                    borderColor: tColor,
                                     borderWidth: isSolid ? '1px' : '2px',
                                     borderStyle: 'solid',
-                                    boxShadow: isSolid ? `0 0 8px ${t.color}20` : 'none',
+                                    boxShadow: isSolid ? `0 0 8px ${tColor}20` : 'none',
                                     writingMode: 'horizontal-tb',
                                   }}
                                 >
@@ -4371,7 +4508,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                     className="w-full text-center font-black truncate my-auto px-0.5"
                                     style={{
                                       fontSize: `${el.font_size || 13}px`,
-                                      color: el.colour || t.color,
+                                      color: el.colour || tColor,
                                       fontFamily: el.font_family || 'inherit',
                                       fontWeight: el.bold !== false ? 900 : 700,
                                       fontStyle: el.italic ? 'italic' : 'normal',
@@ -4380,14 +4517,14 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       textOrientation: 'mixed',
                                     }}
                                   >
-                                    {t.code}
+                                    {tShortcut}
                                   </div>
                                   {el.show_balance !== false && (
                                     <div
                                       className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
                                       style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
                                     >
-                                      {t.balance}
+                                      {tBalance}
                                     </div>
                                   )}
                                 </div>
@@ -4625,375 +4762,6 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               </div>
             </div>
           )}
-
-          {/* Live Action Controls Preview & Canvas Drag Anchor */}
-          <div
-            draggable={true}
-            onDragStart={(e) => {
-              e.dataTransfer.setData('application/turf-element', 'action_bar')
-              e.dataTransfer.setData('text/plain', 'action_bar')
-            }}
-            className="rounded-2xl border-2 border-emerald-500/40 bg-card p-4 shadow-md space-y-3 cursor-grab active:cursor-grabbing hover:border-emerald-400 transition"
-          >
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <div className="flex items-center gap-2">
-                <Gavel className="w-4 h-4 text-emerald-400" />
-                <h4 className="font-extrabold text-sm text-foreground">
-                  Live Action Controls Preview
-                </h4>
-                <span className="text-[10px] font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                  {currentActionButtons.filter((b) => b.visible).length} visible
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleAddCustomBox('action_bar')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-xs transition cursor-pointer"
-                title="Click or Drag onto Canvas Stage"
-              >
-                <Move className="w-3.5 h-3.5" />
-                <span>
-                  {design.elements.action_bar?.selected ? 'Focus on Stage' : '+ Add to Canvas'}
-                </span>
-              </button>
-            </div>
-
-            {/* Canvas Stage Status & Quick Snap Placement */}
-            <div className="space-y-2">
-              {design.elements.action_bar?.selected ? (
-                <div className="flex items-center justify-between text-[11px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-xl font-medium">
-                  <span className="flex items-center gap-1.5 font-bold">
-                    <Check className="w-3.5 h-3.5 text-emerald-400" /> Placed on Canvas Stage
-                    <span className="text-[10px] font-mono opacity-80">
-                      (X: {design.elements.action_bar.x}%, Y: {design.elements.action_bar.y}%)
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedKey('action_bar')
-                      canvasRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                    }}
-                    className="text-[10px] font-extrabold text-amber-400 hover:underline cursor-pointer"
-                  >
-                    Select & Drag
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between text-[11px] bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1.5 rounded-xl font-medium">
-                  <span>Not placed on canvas yet</span>
-                  <button
-                    type="button"
-                    onClick={() => handleAddCustomBox('action_bar')}
-                    className="text-[10px] font-black underline cursor-pointer hover:text-amber-300"
-                  >
-                    Click or Drag to Canvas
-                  </button>
-                </div>
-              )}
-
-              {/* Quick Placement Snap Presets */}
-              <div className="flex items-center gap-1.5 pt-1">
-                <span className="text-[10px] text-muted-foreground font-bold shrink-0">Snap:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAddCustomBox('action_bar')
-                    updateElementProp('action_bar', 'x', 2)
-                    updateElementProp('action_bar', 'y', 88)
-                    updateElementProp('action_bar', 'w', 96)
-                    updateElementProp('action_bar', 'h', 10)
-                  }}
-                  className="flex-1 py-1 rounded-md bg-muted hover:bg-muted/80 text-[10px] font-bold text-foreground border border-border transition cursor-pointer text-center"
-                >
-                  Bottom Bar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAddCustomBox('action_bar')
-                    updateElementProp('action_bar', 'x', 2)
-                    updateElementProp('action_bar', 'y', 1.5)
-                    updateElementProp('action_bar', 'w', 96)
-                    updateElementProp('action_bar', 'h', 10)
-                  }}
-                  className="flex-1 py-1 rounded-md bg-muted hover:bg-muted/80 text-[10px] font-bold text-foreground border border-border transition cursor-pointer text-center"
-                >
-                  Top Ticker
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAddCustomBox('action_bar')
-                    updateElementProp('action_bar', 'x', 18)
-                    updateElementProp('action_bar', 'y', 86)
-                    updateElementProp('action_bar', 'w', 64)
-                    updateElementProp('action_bar', 'h', 11)
-                  }}
-                  className="flex-1 py-1 rounded-md bg-muted hover:bg-muted/80 text-[10px] font-bold text-foreground border border-border transition cursor-pointer text-center"
-                >
-                  Floating Center
-                </button>
-              </div>
-            </div>
-
-            {/* Draggable Buttons Preview Container */}
-            <div
-              draggable={true}
-              onDragStart={(e) => {
-                e.dataTransfer.setData('application/turf-element', 'action_bar')
-                e.dataTransfer.setData('text/plain', 'action_bar')
-              }}
-              title="Drag this entire bar or any button onto the canvas stage"
-              className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-[#030d1a] border border-blue-900/40 cursor-grab active:cursor-grabbing hover:border-emerald-500/50 transition shadow-inner"
-              style={{
-                maxWidth: design.zones.action_zone_width
-                  ? `${design.zones.action_zone_width}px`
-                  : undefined,
-              }}
-            >
-              {currentActionButtons
-                .filter((btn) => btn.visible)
-                .map((btn) => {
-                  switch (btn.id) {
-                    case 'sold':
-                      return (
-                        <div
-                          key={btn.id}
-                          draggable={true}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('application/turf-element', 'action_bar')
-                            e.dataTransfer.setData('text/plain', 'action_bar')
-                          }}
-                          className="bg-emerald-600 font-extrabold text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm cursor-grab active:cursor-grabbing hover:brightness-110 transition"
-                          title="Drag to Canvas Stage"
-                        >
-                          <Gavel className="w-3.5 h-3.5" />
-                          <span>{btn.label}</span>
-                        </div>
-                      )
-                    case 'unsold':
-                      return (
-                        <div
-                          key={btn.id}
-                          draggable={true}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('application/turf-element', 'action_bar')
-                            e.dataTransfer.setData('text/plain', 'action_bar')
-                          }}
-                          className="bg-rose-600 font-extrabold text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm cursor-grab active:cursor-grabbing hover:brightness-110 transition"
-                          title="Drag to Canvas Stage"
-                        >
-                          <XCircle className="w-3.5 h-3.5" />
-                          <span>{btn.label}</span>
-                        </div>
-                      )
-                    case 'custom_bid':
-                      return (
-                        <div
-                          key={btn.id}
-                          draggable={true}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('application/turf-element', 'action_bar')
-                            e.dataTransfer.setData('text/plain', 'action_bar')
-                          }}
-                          className="bg-amber-500 font-black text-zinc-950 text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm cursor-grab active:cursor-grabbing hover:brightness-110 transition"
-                          title="Drag to Canvas Stage"
-                        >
-                          <Flame className="w-3.5 h-3.5 text-zinc-950" />
-                          <span>{btn.label}</span>
-                        </div>
-                      )
-                    case 'undo_sale':
-                      return (
-                        <div
-                          key={btn.id}
-                          draggable={true}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('application/turf-element', 'action_bar')
-                            e.dataTransfer.setData('text/plain', 'action_bar')
-                          }}
-                          className="text-xs text-slate-200 bg-white/10 border border-white/15 px-2.5 py-1.5 rounded-lg font-semibold flex items-center gap-1 cursor-grab active:cursor-grabbing hover:bg-white/20 transition"
-                          title="Drag to Canvas Stage"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          <span>{btn.label}</span>
-                        </div>
-                      )
-                    case 'undo_bid':
-                      return (
-                        <div
-                          key={btn.id}
-                          draggable={true}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('application/turf-element', 'action_bar')
-                            e.dataTransfer.setData('text/plain', 'action_bar')
-                          }}
-                          className="text-xs text-slate-200 bg-white/10 border border-white/15 px-2.5 py-1.5 rounded-lg font-semibold cursor-grab active:cursor-grabbing hover:bg-white/20 transition"
-                          title="Drag to Canvas Stage"
-                        >
-                          <span>{btn.label}</span>
-                        </div>
-                      )
-                    case 'reset_bid':
-                      return (
-                        <div
-                          key={btn.id}
-                          draggable={true}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('application/turf-element', 'action_bar')
-                            e.dataTransfer.setData('text/plain', 'action_bar')
-                          }}
-                          className="text-xs text-slate-200 bg-white/10 border border-white/15 px-2.5 py-1.5 rounded-lg font-semibold cursor-grab active:cursor-grabbing hover:bg-white/20 transition"
-                          title="Drag to Canvas Stage"
-                        >
-                          <span>{btn.label}</span>
-                        </div>
-                      )
-                    default:
-                      return null
-                  }
-                })}
-            </div>
-
-            <p className="text-[11px] text-muted-foreground leading-relaxed flex items-center gap-1.5">
-              <span>💡</span>
-              <span>
-                <strong>Drag & Drop:</strong> Drag this box or any button directly onto the canvas stage, or click <em>"+ Add to Canvas"</em>. Drag freely and use the 8 handles to resize.
-              </span>
-            </p>
-          </div>
-
-          {/* Franchise Bidding Stations Live Preview & Customizer Card */}
-          <div className="rounded-2xl border-2 border-amber-500/30 bg-card p-5 shadow-lg space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-              <div className="flex items-center gap-2.5">
-                <Shield className="w-5 h-5 text-amber-500" />
-                <div>
-                  <h4 className="font-extrabold text-sm text-foreground flex items-center gap-2">
-                    Franchise Bidding Stations ({design.zones?.team_columns || 4} Columns)
-                  </h4>
-                  <p className="text-[11px] text-muted-foreground">
-                    Unique sequence colors, smart team shortcuts (e.g. Mumbai Indians → MI) and numeric key logic (1-9).
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                {/* Column Dropdown on Preview Card */}
-                <div className="flex items-center gap-1.5 bg-muted/70 border border-border px-2.5 py-1 rounded-xl">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Columns:</span>
-                  <select
-                    value={design.zones?.team_columns || 4}
-                    onChange={(e) => {
-                      const cols = Number(e.target.value)
-                      setDesign((prev) => ({
-                        ...prev,
-                        zones: { ...prev.zones, team_columns: cols },
-                      }))
-                    }}
-                    className="bg-transparent text-amber-500 font-black text-xs cursor-pointer focus:outline-none"
-                  >
-                    <option value={2}>2 Columns</option>
-                    <option value={3}>3 Columns</option>
-                    <option value={4}>4 Columns (Standard)</option>
-                    <option value={5}>5 Columns</option>
-                    <option value={6}>6 Columns</option>
-                    <option value={7}>7 Columns</option>
-                    <option value={8}>8 Columns</option>
-                    <option value={10}>10 Columns</option>
-                    <option value={12}>12 Columns</option>
-                    <option value={14}>14 Columns</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Interactive Feedback Alert */}
-            {previewStationFeedback && (
-              <div className="text-xs bg-amber-500/15 border border-amber-500/40 text-amber-500 px-3 py-1.5 rounded-xl font-bold flex items-center gap-2 animate-pulse">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>{previewStationFeedback}</span>
-              </div>
-            )}
-
-            {/* Dynamic Station Grid matching configured columns */}
-            <div
-              className="grid gap-3"
-              style={{
-                gridTemplateColumns: `repeat(${Math.max(
-                  2,
-                  Math.min(14, design.zones?.team_columns || 4)
-                )}, minmax(0, 1fr))`,
-              }}
-            >
-              {(liveTeams.length > 0
-                ? liveTeams
-                : Array.from({ length: Math.min(8, design.zones?.team_columns || 4) }, (_, i) => ({
-                    team_id: String(i + 1),
-                    team_name: `Team ${i + 1}`,
-                    short_name: `T${i + 1}`,
-                    balance: 0,
-                    max_bid: 0,
-                  }))
-              ).map((team: any, idx: number, arr: any[]) => {
-                const theme = getTeamTheme(idx, arr.length)
-                const shortcut = getTeamShortcut(team.team_name, team.short_name)
-
-                return (
-                  <div
-                    key={team.team_id || team.team_name || idx}
-                    onClick={() => {
-                      setPreviewStationFeedback(`Selected #${theme.sequenceNo} ${shortcut} (${team.team_name}) • Keyboard Key [${theme.keyShortcut}]`)
-                      setTimeout(() => setPreviewStationFeedback(null), 3000)
-                    }}
-                    style={{
-                      background: 'rgba(2, 19, 46, 0.95)',
-                      borderColor: theme.border,
-                      boxShadow: `0 0 8px ${theme.glow}`,
-                    }}
-                    className="group relative flex flex-col items-center justify-center rounded-xl border-2 p-2.5 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-md"
-                    title={`Team #${theme.sequenceNo}: ${team.team_name} (Key [${theme.keyShortcut}]) • Purse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}`}
-                  >
-                    {/* Top Row: Sequence Badge & Key */}
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <span
-                        style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
-                        className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs"
-                      >
-                        #{theme.sequenceNo}
-                      </span>
-                      {theme.keyShortcut && (
-                        <span className="text-[9px] font-mono font-bold bg-black/40 text-slate-300 px-1 py-0.2 rounded border border-white/10">
-                          [{theme.keyShortcut}]
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Centered Shortcut Text (Matching User's Screenshot) */}
-                    <span
-                      style={{ color: theme.pillText }}
-                      className="text-lg font-black font-mono tracking-wider drop-shadow-md py-0.5"
-                    >
-                      {shortcut}
-                    </span>
-
-                    {/* Compact Purse */}
-                    <span className="text-[10px] font-mono font-extrabold text-emerald-400 mt-1">
-                      ₹{Number(team.balance || 0).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-              <span>⚡</span>
-              <span>
-                <strong>Live Sync:</strong> Changes to columns will automatically reflect in the live auction broadcast arena and persist when you tap <em>"Save Page Design"</em>.
-              </span>
-            </p>
-          </div>
         </div>
       </div>
 

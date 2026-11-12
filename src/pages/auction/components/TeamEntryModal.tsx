@@ -13,6 +13,7 @@ interface TeamEntryModalProps {
   onSuccess: () => void
   teamToEdit?: any | null
   existingTeamsCount?: number
+  existingTeams?: any[]
 }
 
 const COLOR_PALETTE = [
@@ -27,10 +28,14 @@ export default function TeamEntryModal({
   onClose,
   onSuccess,
   teamToEdit,
-  existingTeamsCount = 0
+  existingTeamsCount = 0,
+  existingTeams = []
 }: TeamEntryModalProps) {
   const [name, setName] = useState('')
   const [shortName, setShortName] = useState('')
+  const [shortcutKey, setShortcutKey] = useState('')
+  const [overrideShortcut, setOverrideShortcut] = useState(false)
+  const [conflictDialog, setConflictDialog] = useState<{ teamName: string; key: string } | null>(null)
   const [ownerName, setOwnerName] = useState('')
   const [ownerEmail, setOwnerEmail] = useState('')
   const [ownerMobile, setOwnerMobile] = useState('')
@@ -56,6 +61,9 @@ export default function TeamEntryModal({
       if (teamToEdit) {
         setName(teamToEdit.name || '')
         setShortName(teamToEdit.short_name || '')
+        setShortcutKey(teamToEdit.shortcut_key || teamToEdit.custom_data?.shortcut_key || '')
+        setOverrideShortcut(false)
+        setConflictDialog(null)
         setOwnerName(teamToEdit.owner_name || '')
         setOwnerEmail(teamToEdit.owner_email || '')
         setOwnerMobile(teamToEdit.owner_mobile || '')
@@ -76,6 +84,9 @@ export default function TeamEntryModal({
         const distinct = COLOR_PALETTE[existingTeamsCount % COLOR_PALETTE.length]
         setName('')
         setShortName('')
+        setShortcutKey('')
+        setOverrideShortcut(false)
+        setConflictDialog(null)
         setOwnerName('')
         setOwnerEmail('')
         setOwnerMobile('')
@@ -108,6 +119,47 @@ export default function TeamEntryModal({
         .slice(0, 3)
       if (generated) setShortName(generated)
     }
+  }
+
+  const handleShortcutKeyChange = (raw: string) => {
+    const key = raw.slice(-1).toUpperCase()
+    if (!key) {
+      setShortcutKey('')
+      setOverrideShortcut(false)
+      return
+    }
+
+    const currentTeamId = teamToEdit?.id ? String(teamToEdit.id) : null
+    const conflict = existingTeams.find((t) => {
+      const tid = String(t.id || t.team_id)
+      if (currentTeamId && tid === currentTeamId) return false
+      const otherKey = (t.shortcut_key || t.custom_data?.shortcut_key || '').toUpperCase()
+      return otherKey === key
+    })
+
+    if (conflict) {
+      setConflictDialog({
+        teamName: conflict.name || conflict.team_name || 'Another Team',
+        key,
+      })
+    } else {
+      setShortcutKey(key)
+      setOverrideShortcut(false)
+    }
+  }
+
+  const handleConfirmOverride = () => {
+    if (conflictDialog) {
+      setShortcutKey(conflictDialog.key)
+      setOverrideShortcut(true)
+      setConflictDialog(null)
+    }
+  }
+
+  const handleDeclineOverride = () => {
+    setShortcutKey('')
+    setOverrideShortcut(false)
+    setConflictDialog(null)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,6 +204,8 @@ export default function TeamEntryModal({
       const formData = new FormData()
       formData.append('name', name.trim())
       formData.append('short_name', shortName.trim().toUpperCase())
+      formData.append('shortcut_key', shortcutKey.trim().toUpperCase())
+      formData.append('override_shortcut', overrideShortcut ? 'true' : 'false')
       formData.append('owner_name', ownerName.trim())
       formData.append('owner_email', ownerEmail.trim())
       formData.append('owner_mobile', ownerMobile.trim())
@@ -232,7 +286,7 @@ export default function TeamEntryModal({
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
             {/* Primary Team Identity */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2 space-y-1.5">
                 <Label className="text-xs font-bold">Team name *</Label>
                 <Input
@@ -244,7 +298,7 @@ export default function TeamEntryModal({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold">Short name * (1–3 characters)</Label>
+                <Label className="text-xs font-bold">Short name * (1–3 chars)</Label>
                 <Input
                   value={shortName}
                   onChange={(e) => setShortName(e.target.value.toUpperCase().slice(0, 3))}
@@ -252,6 +306,20 @@ export default function TeamEntryModal({
                   maxLength={3}
                   required
                   className="font-mono uppercase font-bold"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold flex items-center justify-between">
+                  <span>Shortcut Key</span>
+                  <span className="text-[10px] text-muted-foreground font-mono">A-Z / 0-9</span>
+                </Label>
+                <Input
+                  value={shortcutKey}
+                  onChange={(e) => handleShortcutKeyChange(e.target.value)}
+                  placeholder="e.g. A"
+                  maxLength={1}
+                  className="font-mono uppercase font-black text-center text-amber-500 bg-amber-500/5 border-amber-500/30"
                 />
               </div>
             </div>
@@ -474,6 +542,46 @@ export default function TeamEntryModal({
             </div>
           </form>
         </motion.div>
+
+        {/* Shortcut Key Conflict Override Modal */}
+        {conflictDialog && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-card w-full max-w-md rounded-2xl shadow-2xl border-2 border-amber-500/50 p-6 space-y-4"
+            >
+              <div className="flex items-center gap-3 text-amber-500">
+                <Shield className="w-6 h-6 shrink-0" />
+                <h3 className="font-extrabold text-base text-foreground">Shortcut Key Conflict</h3>
+              </div>
+
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Key <span className="font-black text-amber-500 font-mono">[{conflictDialog.key}]</span> is already assigned to Team <strong className="text-foreground">"{conflictDialog.teamName}"</strong>.
+                <br className="my-1" />
+                Would you like to override it?
+              </p>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDeclineOverride}
+                  className="rounded-xl font-bold px-4"
+                >
+                  No
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmOverride}
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl px-5"
+                >
+                  Yes, Override
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </AnimatePresence>
   )
