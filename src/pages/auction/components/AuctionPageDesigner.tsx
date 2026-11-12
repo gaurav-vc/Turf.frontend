@@ -6,12 +6,13 @@ import {
   Sliders, AlignLeft, AlignCenter, AlignRight,
   Gavel, XCircle, Flame, ArrowUp, ArrowDown,
   Maximize2, Sparkles, Bookmark, BookmarkPlus, X, EyeOff, Clock,
-  Video, Type, Plus, Upload, History, Move
+  Video, Type, Plus, Upload, History, Move, User, Palette
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { apiClient } from '@/api/apiClient'
-import { getTeamShortcut } from './teamThemeUtils'
+import { getTeamShortcut, getTeamTheme } from './teamThemeUtils'
+import { useUserUIPreferences } from './useUserUIPreferences'
 
 interface AuctionPageDesignerProps {
   auctionId: string
@@ -311,25 +312,9 @@ const ELEMENT_LABELS: Record<string, { label: string; fieldNameDefault: boolean 
   franchise_stations: { label: 'Franchise Bidding Stations', fieldNameDefault: false },
 }
 
-const SAMPLE_FRANCHISE_TEAMS = [
-  { id: 1, name: 'Super Kings', code: 'SK', color: '#EAB308', balance: '₹1,25,00,000' },
-  { id: 2, name: 'Hyderabad Sun', code: 'HS', color: '#F97316', balance: '₹1,25,00,000' },
-  { id: 3, name: 'United Challengers', code: 'UC', color: '#EF4444', balance: '₹1,12,00,000' },
-  { id: 4, name: 'X-Warriors', code: 'XW', color: '#8B5CF6', balance: '₹1,25,00,000' },
-  { id: 5, name: '4 The Legends', code: '4TL', color: '#10B981', balance: '₹1,25,00,000' },
-  { id: 6, name: 'Undisputed', code: 'UND', color: '#F59E0B', balance: '₹1,25,00,000' },
-  { id: 7, name: 'Light Design', code: 'LDS', color: '#06B6D4', balance: '₹1,25,00,000' },
-  { id: 8, name: 'Farm Royals', code: 'FR', color: '#3B82F6', balance: '₹1,25,00,000' },
-  { id: 9, name: 'Invincible XI', code: 'IVW', color: '#6366F1', balance: '₹1,25,00,000' },
-  { id: 10, name: 'Mehta Mave', code: 'MM', color: '#14B8A6', balance: '₹1,25,00,000' },
-  { id: 11, name: 'Super All', code: 'SA', color: '#0EA5E9', balance: '₹1,10,00,000' },
-  { id: 12, name: 'Kings Bull', code: 'IK', color: '#EC4899', balance: '₹1,25,00,000' },
-  { id: 13, name: 'Titans Target', code: 'TT', color: '#A855F7', balance: '₹93,00,000' },
-  { id: 14, name: 'Striker Team', code: 'ST', color: '#F43F5E', balance: '₹77,00,000' },
-]
-
 export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDesignerProps) {
   const [design, setDesign] = useState<PageDesignState>(DEFAULT_PAGE_DESIGN)
+  const { prefs: userPrefs, updatePref: updateUserPref, resetPrefs: resetUserPrefs, user: currentUser, userIdentifier } = useUserUIPreferences(auctionId)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
@@ -748,11 +733,54 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
         console.warn('Using existing/cached design template', designErr)
       }
 
-      // 2. Fetch live tournament active player & teams (isolated try/catch so it NEVER overwrites design!)
+      // 2. Fetch real franchise teams directly from /teams/ (Real-time & Dynamically Configurable)
+      try {
+        const teamsRes = await apiClient.get(`/v1/auction/console/${auctionId}/teams/`)
+        const teamList = teamsRes.data?.results || teamsRes.data || []
+        if (Array.isArray(teamList) && teamList.length > 0) {
+          const mapped = teamList.map((t: any, idx: number) => ({
+            id: t.id || t.team_id,
+            team_id: t.team_id || t.id,
+            name: t.name || t.team_name,
+            team_name: t.name || t.team_name,
+            short_name: t.short_name || (t.name ? t.name.slice(0, 3).toUpperCase() : `T${idx + 1}`),
+            code: t.short_name || (t.name ? t.name.slice(0, 3).toUpperCase() : `T${idx + 1}`),
+            shortcut_key: t.shortcut_key || t.custom_data?.shortcut_key || '',
+            color: t.color || t.team_colour || t.logo_color || '#3B82F6',
+            team_color: t.color || t.team_colour || t.logo_color || '#3B82F6',
+            logo: t.logo || t.logo_url || '',
+            team_logo: t.logo || t.logo_url || '',
+            balance: t.balance != null ? t.balance : t.remaining_budget != null ? t.remaining_budget : 0,
+            max_bid: t.max_bid != null ? t.max_bid : 0,
+          }))
+          setLiveTeams(mapped)
+        }
+      } catch (teamErr) {
+        console.warn('Could not load teams from /teams/', teamErr)
+      }
+
+      // 3. Check live tournament state for live active player and any live team updates
       try {
         const stateRes = await apiClient.get(`/v1/auction/console/${auctionId}/live_state/`)
-        if (stateRes.data?.teams && Array.isArray(stateRes.data.teams)) {
-          setLiveTeams(stateRes.data.teams)
+        if (stateRes.data?.teams && Array.isArray(stateRes.data.teams) && stateRes.data.teams.length > 0) {
+          setLiveTeams((prev) => {
+            if (prev.length > 0) return prev
+            return stateRes.data.teams.map((t: any, idx: number) => ({
+              id: t.id || t.team_id,
+              team_id: t.team_id || t.id,
+              name: t.name || t.team_name,
+              team_name: t.name || t.team_name,
+              short_name: t.short_name || (t.name ? t.name.slice(0, 3).toUpperCase() : `T${idx + 1}`),
+              code: t.short_name || (t.name ? t.name.slice(0, 3).toUpperCase() : `T${idx + 1}`),
+              shortcut_key: t.shortcut_key || t.custom_data?.shortcut_key || '',
+              color: t.color || t.team_colour || t.logo_color || '#3B82F6',
+              team_color: t.color || t.team_colour || t.logo_color || '#3B82F6',
+              logo: t.logo || t.logo_url || '',
+              team_logo: t.logo || t.logo_url || '',
+              balance: t.balance != null ? t.balance : t.remaining_budget != null ? t.remaining_budget : 0,
+              max_bid: t.max_bid != null ? t.max_bid : 0,
+            }))
+          })
         }
         if (stateRes.data?.active_player) {
           const p = stateRes.data.active_player
@@ -4516,8 +4544,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       {/* Franchise Bidding Stations Element (Configurable / Option 4 Geometry) */}
                       {key === 'franchise_stations' && (
                         <div
-                          className="w-full h-full p-1.5 rounded-xl bg-[#030f1e]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-lg relative"
-                          style={{ borderRadius: `${el.border_radius ?? 12}px` }}
+                          className="w-full h-full p-2 rounded-2xl bg-[#020617]/95 border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-2xl relative"
+                          style={{ borderRadius: `${el.border_radius ?? 14}px` }}
                         >
                           <div
                             className="w-full h-full grid overflow-visible"
@@ -4528,84 +4556,100 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               rowGap: `${el.gap_y || 6}px`,
                             }}
                           >
-                            {(liveTeams.length > 0 ? liveTeams : SAMPLE_FRANCHISE_TEAMS).slice(0, Math.min(14, (el.grid_cols || 7) * (el.grid_rows || 2))).map((t: any, idx: number) => {
-                              const isSolid = (el.box_style || 'solid') === 'solid'
-                              const tColor = t.color || t.team_color || '#3B82F6'
-                              const tShortcut = getTeamShortcut(t.team_name || t.name, t.short_name || t.code)
-                              const tBalance = t.balance != null ? (typeof t.balance === 'number' ? `₹${t.balance.toLocaleString('en-IN')}` : t.balance) : '₹1,00,00,000'
-                              const tMaxBid = t.max_bid != null ? (typeof t.max_bid === 'number' ? `₹${t.max_bid.toLocaleString('en-IN')}` : t.max_bid) : '₹48,00,000'
-                              const teamFullName = t.team_name || t.name || `Team #${idx + 1}`
+                            {liveTeams.length === 0 ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center text-slate-400">
+                                <Shield className="w-6 h-6 text-amber-500/70 mb-1" />
+                                <span className="text-[11px] font-bold text-slate-200">No Franchise Teams in Tournament</span>
+                                <span className="text-[9px] text-slate-400">Add teams in Team Setup to render live stations</span>
+                              </div>
+                            ) : (
+                              liveTeams.slice(0, Math.min(liveTeams.length, (el.grid_cols || 7) * (el.grid_rows || 2))).map((t: any, idx: number) => {
+                                const theme = getTeamTheme(idx, Math.max(1, liveTeams.length))
+                                const isSolid = (el.box_style || 'solid') === 'solid'
+                                const tColor = t.color || t.team_color || theme.accent || '#3B82F6'
+                                const tShortcut = t.short_name || t.code || getTeamShortcut(t.team_name || t.name, '')
+                                const tBalance = t.balance != null ? (typeof t.balance === 'number' ? `₹${t.balance.toLocaleString('en-IN')}` : t.balance) : '₹0'
+                                const tMaxBid = t.max_bid != null ? (typeof t.max_bid === 'number' ? `₹${t.max_bid.toLocaleString('en-IN')}` : t.max_bid) : '₹0'
+                                const teamFullName = t.name || t.team_name || `Team #${idx + 1}`
 
-                              return (
-                                <div
-                                  key={t.id || t.team_id || idx}
-                                  className="group relative flex flex-col justify-between p-1 rounded-md transition select-none min-w-0 cursor-pointer"
-                                  style={{
-                                    backgroundColor: isSolid ? `${tColor}25` : 'transparent',
-                                    borderColor: tColor,
-                                    borderWidth: isSolid ? '1px' : '2px',
-                                    borderStyle: 'solid',
-                                    boxShadow: isSolid ? `0 0 8px ${tColor}20` : 'none',
-                                    writingMode: 'horizontal-tb',
-                                  }}
-                                  title={`Team #${idx + 1}: ${teamFullName}\nShort Name: ${tShortcut}\nPurse Balance: ${tBalance}\nMax Bid: ${tMaxBid}`}
-                                >
-                                  {/* Hover Tooltip (Only on hover: Team #, Full Name, Purse Amount, Max Bid) */}
-                                  <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-0.5 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[160px] backdrop-blur-md text-left">
-                                    <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
-                                      <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
-                                      <span className="font-mono text-slate-300">[{idx + 1}]</span>
-                                    </div>
-                                    <div className="font-bold text-[11px] text-white truncate">{teamFullName}</div>
-                                    <div className="flex items-center justify-between text-[10px] pt-0.5">
-                                      <span className="text-slate-400">Purse Balance:</span>
-                                      <span className="font-mono font-bold text-emerald-400">{tBalance}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-[10px]">
-                                      <span className="text-slate-400">Max Bid:</span>
-                                      <span className="font-mono font-black text-amber-300">{tMaxBid}</span>
-                                    </div>
-                                  </div>
+                                // User Account UI Preference Overrides (Isolated to this user's account)
+                                const effectiveFontSize = userPrefs.fontSize || el.font_size || 14
+                                const effectiveColor = userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : (el.colour && el.colour !== '#FFFFFF' ? el.colour : tColor)
+                                const effectiveBg = userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : (isSolid ? `${tColor}18` : 'rgba(2, 19, 46, 0.95)')
+                                const effectiveGlow = userPrefs.borderGlow ? `0 0 10px ${tColor}35` : 'none'
 
+                                return (
                                   <div
-                                    className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0"
-                                    style={{ writingMode: 'horizontal-tb' }}
-                                  >
-                                    {el.show_number !== false && (
-                                      <span className="px-1 py-0.2 rounded bg-black/50 font-mono text-[8px] text-white">
-                                        #{idx + 1}
-                                      </span>
-                                    )}
-                                    <span className="font-mono text-[8px] text-slate-400 opacity-75">
-                                      [{idx + 1}]
-                                    </span>
-                                  </div>
-                                  <div
-                                    className="w-full text-center font-black truncate my-auto px-0.5"
+                                    key={t.id || t.team_id || idx}
+                                    className="group relative flex flex-col justify-between p-1.5 rounded-xl transition-all select-none min-w-0 cursor-pointer hover:scale-105 active:scale-95"
                                     style={{
-                                      fontSize: `${el.font_size || 13}px`,
-                                      color: el.colour || tColor,
-                                      fontFamily: el.font_family || 'inherit',
-                                      fontWeight: el.bold !== false ? 900 : 700,
-                                      fontStyle: el.italic ? 'italic' : 'normal',
+                                      backgroundColor: effectiveBg,
+                                      borderColor: tColor,
+                                      borderWidth: '2px',
+                                      borderStyle: 'solid',
+                                      boxShadow: effectiveGlow,
                                       writingMode: 'horizontal-tb',
-                                      whiteSpace: 'nowrap',
-                                      textOrientation: 'mixed',
                                     }}
+                                    title={`Team #${idx + 1}: ${teamFullName}\nShort Name: ${tShortcut}\nPurse Balance: ${tBalance}\nMax Bid: ${tMaxBid}`}
                                   >
-                                    {tShortcut}
-                                  </div>
-                                  {el.show_balance === true && (
-                                    <div
-                                      className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
-                                      style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
-                                    >
-                                      {tBalance}
+                                    {/* Hover Tooltip (Only on hover: Team #, Full Name, Purse Amount, Max Bid) */}
+                                    <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-0.5 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[160px] backdrop-blur-md text-left">
+                                      <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
+                                        <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
+                                        <span className="font-mono text-slate-300">[{idx + 1}]</span>
+                                      </div>
+                                      <div className="font-bold text-[11px] text-white truncate">{teamFullName}</div>
+                                      <div className="flex items-center justify-between text-[10px] pt-0.5">
+                                        <span className="text-slate-400">Purse Balance:</span>
+                                        <span className="font-mono font-bold text-emerald-400">{tBalance}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between text-[10px]">
+                                        <span className="text-slate-400">Max Bid:</span>
+                                        <span className="font-mono font-black text-amber-300">{tMaxBid}</span>
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
-                              )
-                            })}
+
+                                    {/* Top Row: #{idx + 1} Badge */}
+                                    <div
+                                      className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
+                                      style={{ writingMode: 'horizontal-tb' }}
+                                    >
+                                      {el.show_number !== false && (
+                                        <span
+                                          style={{ backgroundColor: tColor }}
+                                          className="px-1.5 py-0.2 rounded-full font-mono text-[8px] font-black text-white shadow-xs"
+                                        >
+                                          #{idx + 1}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Center: Team Short Name */}
+                                    <span
+                                      style={{
+                                        fontSize: `${effectiveFontSize}px`,
+                                        color: effectiveColor,
+                                        writingMode: 'horizontal-tb',
+                                        whiteSpace: 'nowrap',
+                                        textOrientation: 'mixed',
+                                      }}
+                                      className="font-black font-mono tracking-wider text-center my-auto py-0.5 drop-shadow-md truncate"
+                                    >
+                                      {tShortcut}
+                                    </span>
+
+                                    {el.show_balance === true && (
+                                      <div
+                                        className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
+                                        style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
+                                      >
+                                        {tBalance}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })
+                            )}
                           </div>
                         </div>
                       )}
@@ -4921,6 +4965,532 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               </div>
             </div>
           )}
+
+          {/* ================= FRANCHISE BIDDING STATIONS CONFIGURATION STUDIO ================= */}
+          <div className="rounded-3xl border border-border bg-card p-5 shadow-xl space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Shield className="w-5 h-5 text-amber-500" />
+                <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider text-foreground flex items-center gap-2">
+                  <span>Franchise Bidding Stations</span>
+                  <span className="text-amber-500 font-mono">
+                    ({design.elements.franchise_stations?.grid_cols || design.zones.team_columns || 7} Columns)
+                  </span>
+                </h3>
+                <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold">
+                  {liveTeams.length} Teams
+                </span>
+                {design.elements.franchise_stations?.selected ? (
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Placed on Stage
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
+                    Hidden on Stage
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Column Dropdown Selector */}
+                <div className="flex items-center gap-1.5 bg-muted/80 border border-border px-3 py-1.5 rounded-xl shadow-2xs">
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">COLUMNS:</span>
+                  <select
+                    value={design.elements.franchise_stations?.grid_cols || design.zones.team_columns || 7}
+                    onChange={(e) => {
+                      const cols = Number(e.target.value)
+                      updateElementProp('franchise_stations', 'grid_cols', cols)
+                      setDesign((prev) => ({
+                        ...prev,
+                        zones: { ...prev.zones, team_columns: cols },
+                        elements: {
+                          ...prev.elements,
+                          franchise_stations: {
+                            ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                            grid_cols: cols,
+                            selected: true,
+                          },
+                        },
+                      }))
+                      setSelectedKey('franchise_stations')
+                    }}
+                    className="bg-transparent text-amber-500 font-black text-xs cursor-pointer focus:outline-none"
+                  >
+                    {[2, 3, 4, 5, 6, 7, 8, 10, 12, 14].map((col) => (
+                      <option key={col} value={col} className="bg-popover text-popover-foreground">
+                        {col} Columns
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Focus on Stage Button */}
+                <Button
+                  size="sm"
+                  variant={selectedKey === 'franchise_stations' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setDesign((prev) => ({
+                      ...prev,
+                      elements: {
+                        ...prev.elements,
+                        franchise_stations: {
+                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                          selected: true,
+                        },
+                      },
+                    }))
+                    setSelectedKey('franchise_stations')
+                    if (canvasRef.current) {
+                      canvasRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }
+                  }}
+                  className="gap-1.5 text-xs font-bold"
+                >
+                  <Move className="w-3.5 h-3.5" />
+                  {selectedKey === 'franchise_stations' ? 'Active on Stage' : 'Focus on Stage'}
+                </Button>
+
+                {/* Toggle Show / Hide on Canvas */}
+                <Button
+                  size="sm"
+                  variant={design.elements.franchise_stations?.selected ? 'outline' : 'secondary'}
+                  onClick={() => {
+                    const isNowSelected = !design.elements.franchise_stations?.selected
+                    setDesign((prev) => ({
+                      ...prev,
+                      elements: {
+                        ...prev.elements,
+                        franchise_stations: {
+                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                          selected: isNowSelected,
+                        },
+                      },
+                    }))
+                    if (isNowSelected) setSelectedKey('franchise_stations')
+                  }}
+                  className="gap-1 text-xs font-bold"
+                >
+                  {design.elements.franchise_stations?.selected ? 'Hide from Stage' : '+ Add to Canvas'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Layout Presets & Styling Controls */}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-muted/30 p-3 rounded-2xl border border-border/60">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground font-bold">Snap:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDesign((prev) => ({
+                      ...prev,
+                      elements: {
+                        ...prev.elements,
+                        franchise_stations: {
+                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                          x: 2,
+                          y: 78,
+                          w: 96,
+                          h: 18,
+                          selected: true,
+                        },
+                      },
+                    }))
+                    setSelectedKey('franchise_stations')
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border font-bold text-foreground text-[11px] transition cursor-pointer"
+                >
+                  Bottom Stadium Bar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDesign((prev) => ({
+                      ...prev,
+                      elements: {
+                        ...prev.elements,
+                        franchise_stations: {
+                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                          x: 4,
+                          y: 56,
+                          w: 92,
+                          h: 22,
+                          selected: true,
+                        },
+                      },
+                    }))
+                    setSelectedKey('franchise_stations')
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border font-bold text-foreground text-[11px] transition cursor-pointer"
+                >
+                  Mid Floating
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDesign((prev) => ({
+                      ...prev,
+                      elements: {
+                        ...prev.elements,
+                        franchise_stations: {
+                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                          x: 0,
+                          y: 80,
+                          w: 100,
+                          h: 20,
+                          selected: true,
+                        },
+                      },
+                    }))
+                    setSelectedKey('franchise_stations')
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border font-bold text-foreground text-[11px] transition cursor-pointer"
+                >
+                  Full Width Dock
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground font-bold">Gap:</span>
+                {[2, 4, 6, 8, 12].map((gp) => (
+                  <button
+                    key={gp}
+                    type="button"
+                    onClick={() => {
+                      updateElementProp('franchise_stations', 'gap_x', gp)
+                      updateElementProp('franchise_stations', 'gap_y', gp)
+                    }}
+                    className={`px-2 py-0.5 rounded border text-[11px] font-bold cursor-pointer transition ${
+                      (design.elements.franchise_stations?.gap_x || 6) === gp
+                        ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                        : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                    }`}
+                  >
+                    {gp}px
+                  </button>
+                ))}
+
+                <span className="text-muted-foreground font-bold ml-2">Style:</span>
+                {[
+                  { id: 'solid', label: 'Solid' },
+                  { id: 'outline', label: 'Neon Outline' },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => updateElementProp('franchise_stations', 'box_style', st.id)}
+                    className={`px-2 py-0.5 rounded border text-[11px] font-bold cursor-pointer transition ${
+                      (design.elements.franchise_stations?.box_style || 'solid') === st.id
+                        ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                        : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ================= USER ACCOUNT UI CUSTOMIZATION (ACCOUNT-ONLY) ================= */}
+            <div className="p-4 rounded-2xl bg-slate-950/80 border border-amber-500/30 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-black uppercase tracking-wider text-amber-400">
+                    My Account UI Customization
+                  </span>
+                  <span className="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
+                    User: {currentUser?.name || currentUser?.email || userIdentifier}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-400 italic hidden sm:inline">
+                    ✨ Applied to your screen only • Never alters global template for other users
+                  </span>
+                  <button
+                    type="button"
+                    onClick={resetUserPrefs}
+                    className="text-[10px] font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-700 transition cursor-pointer"
+                  >
+                    Reset My UI
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                {/* 1. Font Size Customization */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                    <span>Account Font Size:</span>
+                    <span className="font-mono text-amber-400 font-extrabold">{userPrefs.fontSize}px</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateUserPref('fontSize', Math.max(10, userPrefs.fontSize - 1))}
+                      className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="range"
+                      min={10}
+                      max={26}
+                      value={userPrefs.fontSize}
+                      onChange={(e) => updateUserPref('fontSize', Number(e.target.value))}
+                      className="flex-1 accent-amber-500 cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateUserPref('fontSize', Math.min(26, userPrefs.fontSize + 1))}
+                      className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1 pt-1">
+                    {[12, 14, 16, 18, 20].map((sz) => (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => updateUserPref('fontSize', sz)}
+                        className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
+                          userPrefs.fontSize === sz
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        {sz}px
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Font Color Customization */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                    <span>Account Text Color:</span>
+                    <span className="font-mono text-xs" style={{ color: userPrefs.useCustomColor ? userPrefs.fontColor : '#FBBF24' }}>
+                      {userPrefs.useCustomColor ? userPrefs.fontColor : 'Dynamic Team Theme'}
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateUserPref('useCustomColor', false)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                        !userPrefs.useCustomColor
+                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                      }`}
+                    >
+                      Team Palette
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateUserPref('useCustomColor', true)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer flex items-center gap-1 ${
+                        userPrefs.useCustomColor
+                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <Palette className="w-3 h-3" /> Custom
+                    </button>
+                    {userPrefs.useCustomColor && (
+                      <input
+                        type="color"
+                        value={userPrefs.fontColor || '#FFFFFF'}
+                        onChange={(e) => updateUserPref('fontColor', e.target.value)}
+                        className="w-7 h-7 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                        title="Pick custom font color for your screen"
+                      />
+                    )}
+                  </div>
+                  {userPrefs.useCustomColor && (
+                    <div className="flex items-center gap-1 pt-1">
+                      {[
+                        { hex: '#FFFFFF', name: 'White' },
+                        { hex: '#00F0FF', name: 'Cyan' },
+                        { hex: '#FBBF24', name: 'Gold' },
+                        { hex: '#10B981', name: 'Emerald' },
+                        { hex: '#F43F5E', name: 'Pink' },
+                        { hex: '#A855F7', name: 'Violet' },
+                      ].map((c) => (
+                        <button
+                          key={c.hex}
+                          type="button"
+                          onClick={() => {
+                            updateUserPref('fontColor', c.hex)
+                            updateUserPref('useCustomColor', true)
+                          }}
+                          className={`flex-1 h-5 rounded border transition cursor-pointer ${
+                            userPrefs.fontColor === c.hex ? 'ring-2 ring-white scale-110' : 'opacity-80 hover:opacity-100'
+                          }`}
+                          style={{ backgroundColor: c.hex }}
+                          title={c.name}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Card Atmosphere & Background */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                    <span>Card Atmosphere:</span>
+                    <span className="font-mono text-slate-400 uppercase text-[10px]">{userPrefs.cardBg}</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {[
+                      { id: 'default', label: 'Default' },
+                      { id: 'oled', label: 'OLED Black' },
+                      { id: 'navy', label: 'Deep Navy' },
+                    ].map((bg) => (
+                      <button
+                        key={bg.id}
+                        type="button"
+                        onClick={() => updateUserPref('cardBg', bg.id as any)}
+                        className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                          userPrefs.cardBg === bg.id
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        {bg.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="pt-1 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400">Card Neon Glow:</span>
+                    <button
+                      type="button"
+                      onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
+                        userPrefs.borderGlow
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
+                          : 'bg-slate-900 text-slate-500 border-slate-800'
+                      }`}
+                    >
+                      {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-label instruction */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+              <span className="font-mono text-[11px]">
+                {liveTeams.length > 0
+                  ? `Live real-time franchise teams (${liveTeams.length} registered) • Tap card to preview`
+                  : 'Waiting for franchise teams to be added in Team Setup'}
+              </span>
+              <span className="text-[11px] text-amber-500 font-medium">
+                Hover over any team box to inspect Full Name, Purse Amount & Max Bid
+              </span>
+            </div>
+
+            {/* THE LIVE BIDDING STATIONS GRID (100% Dynamic Real-Time Teams) */}
+            <div
+              className="w-full p-4 rounded-2xl border border-blue-900/60 shadow-2xl overflow-visible"
+              style={{
+                backgroundColor: userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : '#020617',
+                borderRadius: `${design.elements.franchise_stations?.border_radius ?? 14}px`,
+              }}
+            >
+              {liveTeams.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 text-center rounded-xl bg-slate-900/50 border border-dashed border-slate-800 text-slate-400 space-y-2.5">
+                  <Shield className="w-8 h-8 text-amber-500/70" />
+                  <p className="text-xs font-bold text-slate-200">No Franchise Teams Registered Yet</p>
+                  <p className="text-[11px] text-slate-400 max-w-sm">
+                    Teams are loaded dynamically in real-time from your tournament database. Go to Team Setup to create franchise teams.
+                  </p>
+                  <Button size="sm" variant="outline" onClick={fetchDesignAndSampleData} className="gap-1.5 text-xs font-bold">
+                    <RefreshCw className="w-3.5 h-3.5" /> Refresh Live Teams
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  className="grid overflow-visible"
+                  style={{
+                    gridTemplateColumns: `repeat(${design.elements.franchise_stations?.grid_cols || design.zones.team_columns || 7}, minmax(0, 1fr))`,
+                    columnGap: `${design.elements.franchise_stations?.gap_x || 6}px`,
+                    rowGap: `${design.elements.franchise_stations?.gap_y || 6}px`,
+                  }}
+                >
+                  {liveTeams.map((t: any, idx: number) => {
+                    const theme = getTeamTheme(idx, Math.max(1, liveTeams.length))
+                    const isSolid = (design.elements.franchise_stations?.box_style || 'solid') === 'solid'
+                    const tColor = t.color || t.team_color || theme.accent || '#3B82F6'
+                    const tShortcut = t.short_name || t.code || getTeamShortcut(t.team_name || t.name, '')
+                    const tBalance = t.balance != null ? (typeof t.balance === 'number' ? `₹${t.balance.toLocaleString('en-IN')}` : t.balance) : '₹0'
+                    const tMaxBid = t.max_bid != null ? (typeof t.max_bid === 'number' ? `₹${t.max_bid.toLocaleString('en-IN')}` : t.max_bid) : '₹0'
+                    const teamFullName = t.name || t.team_name || `Team #${idx + 1}`
+
+                    // Account-specific UI styling
+                    const effectiveFontSize = userPrefs.fontSize || design.elements.franchise_stations?.font_size || 15
+                    const effectiveColor = userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : tColor
+                    const effectiveBg = userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : (isSolid ? `${tColor}18` : 'rgba(2, 19, 46, 0.95)')
+                    const effectiveGlow = userPrefs.borderGlow ? `0 0 12px ${tColor}35` : 'none'
+
+                    return (
+                      <div
+                        key={t.id || t.team_id || idx}
+                        className="group relative flex flex-col justify-between p-2 rounded-xl transition-all select-none min-h-[72px] cursor-pointer hover:scale-105 active:scale-95"
+                        style={{
+                          backgroundColor: effectiveBg,
+                          borderColor: tColor,
+                          borderWidth: '2px',
+                          borderStyle: 'solid',
+                          boxShadow: effectiveGlow,
+                        }}
+                        title={`Team #${idx + 1}: ${teamFullName}\nShort Name: ${tShortcut}\nPurse Balance: ${tBalance}\nMax Bid: ${tMaxBid}`}
+                      >
+                        {/* Rich Hover Tooltip */}
+                        <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-1 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[160px] backdrop-blur-md text-left">
+                          <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
+                            <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
+                            <span className="font-mono text-slate-300">[{idx + 1}]</span>
+                          </div>
+                          <div className="font-bold text-xs text-white truncate">{teamFullName}</div>
+                          <div className="flex items-center justify-between text-[10px] pt-0.5">
+                            <span className="text-slate-400">Purse Balance:</span>
+                            <span className="font-mono font-bold text-emerald-400">{tBalance}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="text-slate-400">Max Bid:</span>
+                            <span className="font-mono font-black text-amber-300">{tMaxBid}</span>
+                          </div>
+                        </div>
+
+                        {/* Top Row: #{idx + 1} Badge */}
+                        <div className="flex items-center justify-between w-full">
+                          <span
+                            style={{ backgroundColor: tColor }}
+                            className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black text-white shadow-xs"
+                          >
+                            #{idx + 1}
+                          </span>
+                        </div>
+
+                        {/* Center: Team Short Code (e.g. SK, HS, UC) */}
+                        <span
+                          style={{
+                            color: effectiveColor,
+                            fontSize: `${effectiveFontSize}px`,
+                          }}
+                          className="font-black font-mono tracking-wider text-center my-auto py-0.5 drop-shadow-md truncate"
+                        >
+                          {tShortcut}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

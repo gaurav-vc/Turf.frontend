@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti'
 import {
   Gavel, RotateCcw, Search, Shield, Trophy, Flame,
   Clock, CheckCircle, XCircle, ChevronRight, AlertCircle, RefreshCw, Sparkles,
-  Volume2, VolumeX, Play, Pause, Maximize2, Users
+  Volume2, VolumeX, Play, Pause, Maximize2, Users, Palette
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,6 +13,7 @@ import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import { useLiveAuctionState } from '../hooks/useLiveAuctionState'
 import { type ActionButtonConfig, DEFAULT_ACTION_BUTTONS, DEFAULT_PAGE_DESIGN, getPhotoShapeStyle } from './AuctionPageDesigner'
 import { getTeamTheme, getTeamShortcut } from './teamThemeUtils'
+import { useUserUIPreferences } from './useUserUIPreferences'
 
 interface LiveBroadcastConsoleProps {
   auctionId: string
@@ -38,6 +39,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   } = useLiveAuctionState(auctionId, 1200)
 
   const [pageDesign, setPageDesign] = useState<any>(null)
+  const { prefs: userPrefs, updatePref: updateUserPref, resetPrefs: resetUserPrefs, userIdentifier } = useUserUIPreferences(auctionId)
+  const [showMyUiMenu, setShowMyUiMenu] = useState(false)
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [customBidAmount, setCustomBidAmount] = useState<number>(0)
   const [customBidTeamId, setCustomBidTeamId] = useState<string>('')
@@ -1632,133 +1635,381 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                     <option value={14} className="bg-slate-900 text-white">14 Columns</option>
                   </select>
                 </div>
+
+                {/* My UI Preferences Popover (User-Account Only Customization) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowMyUiMenu(!showMyUiMenu)}
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-indigo-500/20 hover:from-amber-500/30 hover:to-indigo-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-xl shadow-xs transition cursor-pointer"
+                    title="Customize font size, color and contrast for your account UI only"
+                  >
+                    <Palette className="w-3.5 h-3.5 text-amber-400" />
+                    <span>My UI</span>
+                    {userPrefs.useCustomColor && (
+                      <span className="w-2 h-2 rounded-full ring-1 ring-white/40" style={{ backgroundColor: userPrefs.fontColor }} />
+                    )}
+                  </button>
+
+                  {/* Popover */}
+                  {showMyUiMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-80 p-4 rounded-2xl bg-slate-950/98 border border-amber-500/50 shadow-2xl z-50 text-slate-200 backdrop-blur-xl space-y-3.5">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                        <div className="flex items-center gap-1.5">
+                          <Palette className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs font-black uppercase tracking-wider text-white">My Account UI Settings</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowMyUiMenu(false)}
+                          className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 rounded cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="text-[10px] text-amber-400/90 font-mono bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 flex items-center justify-between">
+                        <span className="truncate max-w-[170px]">User: {userIdentifier}</span>
+                        <span className="text-emerald-400 font-bold shrink-0">Isolated to you</span>
+                      </div>
+
+                      {/* Font Size */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-slate-300">Shortcut Font Size:</span>
+                          <span className="font-mono text-amber-400">{userPrefs.fontSize || 20}px</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('fontSize', Math.max(10, userPrefs.fontSize - 1))}
+                            className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
+                          >-</button>
+                          <input
+                            type="range"
+                            min={10}
+                            max={28}
+                            value={userPrefs.fontSize || 20}
+                            onChange={(e) => updateUserPref('fontSize', Number(e.target.value))}
+                            className="flex-1 accent-amber-500 cursor-pointer"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('fontSize', Math.min(28, userPrefs.fontSize + 1))}
+                            className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
+                          >+</button>
+                        </div>
+                        <div className="flex items-center gap-1 pt-0.5">
+                          {[14, 16, 18, 20, 24].map((sz) => (
+                            <button
+                              key={sz}
+                              type="button"
+                              onClick={() => updateUserPref('fontSize', sz)}
+                              className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
+                                userPrefs.fontSize === sz
+                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                              }`}
+                            >
+                              {sz}px
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Text Color */}
+                      <div className="space-y-1.5 border-t border-white/10 pt-2">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-slate-300">Text Color:</span>
+                          <span className="font-mono text-[11px]" style={{ color: userPrefs.useCustomColor ? userPrefs.fontColor : '#FBBF24' }}>
+                            {userPrefs.useCustomColor ? userPrefs.fontColor : 'Dynamic Palette'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('useCustomColor', false)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer ${
+                              !userPrefs.useCustomColor
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            }`}
+                          >
+                            Team Palette
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('useCustomColor', true)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer flex items-center gap-1 ${
+                              userPrefs.useCustomColor
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            }`}
+                          >
+                            Custom
+                          </button>
+                          {userPrefs.useCustomColor && (
+                            <input
+                              type="color"
+                              value={userPrefs.fontColor || '#FFFFFF'}
+                              onChange={(e) => updateUserPref('fontColor', e.target.value)}
+                              className="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                            />
+                          )}
+                        </div>
+                        {userPrefs.useCustomColor && (
+                          <div className="flex items-center gap-1 pt-1">
+                            {[
+                              { hex: '#FFFFFF', name: 'White' },
+                              { hex: '#00F0FF', name: 'Cyan' },
+                              { hex: '#FBBF24', name: 'Gold' },
+                              { hex: '#10B981', name: 'Emerald' },
+                              { hex: '#F43F5E', name: 'Pink' },
+                              { hex: '#A855F7', name: 'Violet' },
+                            ].map((c) => (
+                              <button
+                                key={c.hex}
+                                type="button"
+                                onClick={() => {
+                                  updateUserPref('fontColor', c.hex)
+                                  updateUserPref('useCustomColor', true)
+                                }}
+                                className={`flex-1 h-5 rounded border transition cursor-pointer ${
+                                  userPrefs.fontColor === c.hex ? 'ring-2 ring-white scale-110' : 'opacity-80 hover:opacity-100'
+                                }`}
+                                style={{ backgroundColor: c.hex }}
+                                title={c.name}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Atmosphere & Glow */}
+                      <div className="space-y-1.5 border-t border-white/10 pt-2">
+                        <span className="text-xs font-bold text-slate-300 block">Card Atmosphere:</span>
+                        <div className="flex items-center gap-1.5">
+                          {[
+                            { id: 'default', label: 'Default' },
+                            { id: 'oled', label: 'OLED' },
+                            { id: 'navy', label: 'Navy' },
+                            { id: 'carbon', label: 'Carbon' },
+                          ].map((atm) => (
+                            <button
+                              key={atm.id}
+                              type="button"
+                              onClick={() => updateUserPref('cardBg', atm.id as any)}
+                              className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                                userPrefs.cardBg === atm.id
+                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                              }`}
+                            >
+                              {atm.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[11px] font-bold text-slate-300">Neon Border Glow:</span>
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
+                              userPrefs.borderGlow
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
+                                : 'bg-slate-900 text-slate-500 border-slate-800'
+                            }`}
+                          >
+                            {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Reset Button */}
+                      <div className="border-t border-white/10 pt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={resetUserPrefs}
+                          className="text-[10px] text-slate-400 hover:text-white font-medium hover:underline cursor-pointer"
+                        >
+                          Reset My UI Defaults
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <span className="text-xs text-slate-300 font-medium hidden sm:inline">
                   Tap card or press Key 1–{state?.teams?.length || 9} to bid (2s timeout or Enter)
                 </span>
               </div>
             </div>
 
-            <div
-              className="grid gap-3"
-              style={{
-                gridTemplateColumns: `repeat(${Math.max(
-                  2,
-                  Math.min(14, pageDesign?.zones?.team_columns || 4)
-                )}, minmax(0, 1fr))`,
-              }}
-            >
-              {state?.teams?.map((team, idx) => {
-                const isLeading = highestBid?.team_id === team.team_id
-                const playerCat = player?.category || selectedCategory
-                const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
-                const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
-                const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
-                const isSelected = selectedTeamId === team.team_id
-                const theme = getTeamTheme(idx, state.teams.length)
-                const shortcut = getTeamShortcut(team.team_name, team.short_name)
-                const isNumBuffered = Boolean(numKeyBuffer && parseInt(numKeyBuffer, 10) === theme.sequenceNo)
-                const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
+            {(!state?.teams || state.teams.length === 0) ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center rounded-xl bg-slate-900/50 border border-dashed border-slate-800 text-slate-400 space-y-2">
+                <Shield className="w-8 h-8 text-amber-500/70" />
+                <p className="text-xs font-bold text-slate-200">No Franchise Teams Registered Yet</p>
+                <p className="text-[11px] text-slate-400 max-w-sm">
+                  Teams are loaded in real-time from your tournament database. Go to Team Setup to create franchise teams.
+                </p>
+              </div>
+            ) : (
+              <div
+                className="grid gap-3"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.max(
+                    2,
+                    Math.min(14, pageDesign?.zones?.team_columns || 4)
+                  )}, minmax(0, 1fr))`,
+                }}
+              >
+                {state.teams.map((team, idx) => {
+                  const isLeading = highestBid?.team_id === team.team_id
+                  const playerCat = player?.category || selectedCategory
+                  const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
+                  const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
+                  const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
+                  const isSelected = selectedTeamId === team.team_id
+                  const theme = getTeamTheme(idx, state.teams.length)
+                  const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                  const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
+                  const teamLogo = (team as any).team_logo || (team as any).logo || (team as any).custom_data?.logo_url
+                  const isNumBuffered = Boolean(numKeyBuffer && parseInt(numKeyBuffer, 10) === theme.sequenceNo)
+                  const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
 
-                return (
-                  <button
-                    key={team.team_id}
-                    onClick={() => handleTeamSelectAndBid(team.team_id)}
-                    disabled={isTeamDisabled}
-                    style={{
-                      background: isLeading
-                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(180, 83, 9, 0.5) 100%)'
-                        : isNumBuffered
-                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.4) 100%)'
-                        : isQuotaFull || isBudgetExceeded
-                        ? 'rgba(15, 23, 42, 0.85)'
-                        : 'rgba(2, 19, 46, 0.95)',
-                      borderColor: isLeading
-                        ? '#F59E0B'
-                        : isNumBuffered
-                        ? '#FBBF24'
-                        : isQuotaFull
-                        ? '#EF4444'
-                        : isBudgetExceeded
-                        ? '#F59E0B'
-                        : isSelected
-                        ? theme.accentHover
-                        : theme.border,
-                      boxShadow: isLeading
-                        ? '0 0 18px rgba(245, 158, 11, 0.5)'
-                        : isNumBuffered
-                        ? '0 0 20px rgba(251, 191, 36, 0.6)'
-                        : isSelected
-                        ? `0 0 14px ${theme.glow}`
-                        : `0 0 8px ${theme.glow}`,
-                      writingMode: 'horizontal-tb',
-                    }}
-                    className={`group relative flex flex-col items-center justify-between rounded-xl border-2 p-2.5 transition-all select-none min-h-[76px] ${
-                      isLeading
-                        ? 'ring-2 ring-amber-400'
-                        : isNumBuffered
-                        ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
-                        : isQuotaFull
-                        ? 'opacity-40 cursor-not-allowed border-rose-800'
-                        : isBudgetExceeded
-                        ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
-                        : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
-                    }`}
-                    title={`Team #${theme.sequenceNo}: ${team.team_name}\nShort Name: ${shortcut}\nPurse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit Exceeded' : ''}`}
-                  >
-                    {/* Rich Hover Card: Team number, Full Name, Purse Balance, Max Bid */}
-                    <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-1 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[170px] backdrop-blur-md text-left">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-1 text-[10px]">
-                        <span className="font-extrabold text-amber-400">Team #{theme.sequenceNo}</span>
-                        <span className="font-mono text-slate-300 font-bold">{shortcut}</span>
-                      </div>
-                      <div className="font-bold text-xs text-white truncate">{team.team_name}</div>
-                      <div className="flex items-center justify-between text-[11px] pt-0.5">
-                        <span className="text-slate-400">Purse:</span>
-                        <span className="font-mono font-bold text-emerald-400">₹{Number(team.balance || 0).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400">Max Bid:</span>
-                        <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
-                      </div>
-                      {catTarget > 0 && (
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-white/10 pt-0.5 mt-0.5">
-                          <span>{playerCat}:</span>
-                          <span>{team.category_counts?.[playerCat] || 0}/{catTarget}</span>
-                        </div>
-                      )}
-                    </div>
+                  // Account-level UI customizations
+                  const effectiveFontSize = userPrefs.fontSize || 20
+                  const effectiveTextColor = isLeading
+                    ? '#FDE047'
+                    : isQuotaFull
+                    ? '#FDA4AF'
+                    : userPrefs.useCustomColor && userPrefs.fontColor
+                    ? userPrefs.fontColor
+                    : theme.pillText
 
-                    {/* Top Row: Sequence Badge & Leading Indicator */}
-                    <div className="flex items-center justify-between w-full mb-1" style={{ writingMode: 'horizontal-tb' }}>
-                      <span
-                        style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
-                        className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black shadow-xs shrink-0"
-                      >
-                        #{theme.sequenceNo}
-                      </span>
-                      {isLeading && (
-                        <span className="px-1.5 py-0.2 rounded bg-amber-400 text-black font-black text-[8px] animate-pulse">
-                          LEADING
-                        </span>
-                      )}
-                    </div>
+                  const effectiveBg = isLeading
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(180, 83, 9, 0.5) 100%)'
+                    : isNumBuffered
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.4) 100%)'
+                    : isQuotaFull || isBudgetExceeded
+                    ? 'rgba(15, 23, 42, 0.85)'
+                    : userPrefs.cardBg === 'oled'
+                    ? '#000000'
+                    : userPrefs.cardBg === 'navy'
+                    ? '#020617'
+                    : userPrefs.cardBg === 'carbon'
+                    ? '#18181b'
+                    : 'rgba(2, 19, 46, 0.95)'
 
-                    {/* Centered Shortcut Text (Strictly Horizontal) */}
-                    <span
+                  const effectiveGlow = isLeading
+                    ? '0 0 18px rgba(245, 158, 11, 0.5)'
+                    : isNumBuffered
+                    ? '0 0 20px rgba(251, 191, 36, 0.6)'
+                    : userPrefs.borderGlow
+                    ? `0 0 14px ${theme.glow}`
+                    : isSelected
+                    ? `0 0 14px ${theme.glow}`
+                    : `0 0 8px ${theme.glow}`
+
+                  return (
+                    <button
+                      key={team.team_id}
+                      onClick={() => handleTeamSelectAndBid(team.team_id)}
+                      disabled={isTeamDisabled}
                       style={{
-                        color: isLeading ? '#FDE047' : isQuotaFull ? '#FDA4AF' : theme.pillText,
+                        background: effectiveBg,
+                        borderColor: isLeading
+                          ? '#F59E0B'
+                          : isNumBuffered
+                          ? '#FBBF24'
+                          : isQuotaFull
+                          ? '#EF4444'
+                          : isBudgetExceeded
+                          ? '#F59E0B'
+                          : isSelected
+                          ? theme.accentHover
+                          : (teamColor || theme.border),
+                        boxShadow: effectiveGlow,
                         writingMode: 'horizontal-tb',
-                        whiteSpace: 'nowrap',
-                        textOrientation: 'mixed',
                       }}
-                      className="text-xl font-black font-mono tracking-wider drop-shadow-md my-auto py-1"
+                      className={`group relative flex flex-col items-center justify-between rounded-xl border-2 p-2.5 transition-all select-none min-h-[76px] ${
+                        isLeading
+                          ? 'ring-2 ring-amber-400'
+                          : isNumBuffered
+                          ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
+                          : isQuotaFull
+                          ? 'opacity-40 cursor-not-allowed border-rose-800'
+                          : isBudgetExceeded
+                          ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
+                          : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
+                      }`}
+                      title={`Team #${theme.sequenceNo}: ${team.team_name}\nShort Name: ${shortcut}\nPurse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit Exceeded' : ''}`}
                     >
-                      {shortcut}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+                      {/* Rich Hover Card: Team number, Full Name, Purse Balance, Max Bid */}
+                      <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-1 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[170px] backdrop-blur-md text-left">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-1 text-[10px]">
+                          <span className="font-extrabold text-amber-400">Team #{theme.sequenceNo}</span>
+                          <span className="font-mono text-slate-300 font-bold">{shortcut}</span>
+                        </div>
+                        <div className="font-bold text-xs text-white truncate">{team.team_name}</div>
+                        <div className="flex items-center justify-between text-[11px] pt-0.5">
+                          <span className="text-slate-400">Purse:</span>
+                          <span className="font-mono font-bold text-emerald-400">₹{Number(team.balance || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400">Max Bid:</span>
+                          <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                        {catTarget > 0 && (
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-white/10 pt-0.5 mt-0.5">
+                            <span>{playerCat}:</span>
+                            <span>{team.category_counts?.[playerCat] || 0}/{catTarget}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Top Row: Sequence Badge & Leading Indicator */}
+                      <div className="flex items-center justify-between w-full mb-1" style={{ writingMode: 'horizontal-tb' }}>
+                        <span
+                          style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
+                          className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black shadow-xs shrink-0"
+                        >
+                          #{theme.sequenceNo}
+                        </span>
+                        {isLeading && (
+                          <span className="px-1.5 py-0.2 rounded bg-amber-400 text-black font-black text-[8px] animate-pulse">
+                            LEADING
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Centered Shortcut Text + Team Logo (Strictly Horizontal) */}
+                      <div className="flex items-center justify-center gap-1.5 my-auto py-1 w-full truncate">
+                        {teamLogo && (
+                          <img
+                            src={resolveMediaUrl(teamLogo)}
+                            alt=""
+                            className="w-5 h-5 rounded-full object-cover shrink-0 border border-white/20 shadow-xs"
+                          />
+                        )}
+                        <span
+                          style={{
+                            color: effectiveTextColor,
+                            fontSize: `${effectiveFontSize}px`,
+                            writingMode: 'horizontal-tb',
+                            whiteSpace: 'nowrap',
+                            textOrientation: 'mixed',
+                          }}
+                          className="font-black font-mono tracking-wider drop-shadow-md truncate"
+                        >
+                          {shortcut}
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -2591,117 +2842,143 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                             {/* Franchise Bidding Stations Element (Option 4 Geometry) */}
                             {key === 'franchise_stations' && (
                               <div
-                                className="w-full h-full p-1.5 rounded-xl bg-[#030f1e]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-lg relative"
-                                style={{ borderRadius: `${el.border_radius ?? 12}px` }}
+                                className="w-full h-full p-1.5 rounded-xl border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-lg relative"
+                                style={{
+                                  borderRadius: `${el.border_radius ?? 12}px`,
+                                  backgroundColor: userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : 'rgba(3, 15, 30, 0.92)',
+                                }}
                               >
-                                <div
-                                  className="w-full h-full grid overflow-visible"
-                                  style={{
-                                    gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
-                                    gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
-                                    columnGap: `${el.gap_x || 6}px`,
-                                    rowGap: `${el.gap_y || 6}px`,
-                                  }}
-                                >
-                                  {state?.teams?.slice(0, Math.min(state.teams.length, (el.grid_cols || 7) * (el.grid_rows || 2))).map((team, idx) => {
-                                    const isLeading = highestBid?.team_id === team.team_id
-                                    const playerCat = player?.category || selectedCategory
-                                    const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
-                                    const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
-                                    const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
-                                    const isSolid = (el.box_style || 'solid') === 'solid'
-                                    const shortcut = getTeamShortcut(team.team_name, team.short_name)
-                                    const theme = getTeamTheme(idx, state.teams.length)
-                                    const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
-                                    const assignedShortcut = ((team as any).shortcut_key || (team as any).custom_data?.shortcut_key || '').toUpperCase()
-                                    const badgeKey = assignedShortcut ? `${idx + 1} - ${assignedShortcut}` : `${idx + 1}`
-                                    const teamLogo = (team as any).team_logo || (team as any).logo
+                                {(!state?.teams || state.teams.length === 0) ? (
+                                  <div className="flex flex-col items-center justify-center p-3 text-center text-slate-400">
+                                    <Shield className="w-5 h-5 text-amber-500/70 mb-1" />
+                                    <span className="text-[10px] font-bold text-slate-300">No Franchise Teams Registered</span>
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="w-full h-full grid overflow-visible"
+                                    style={{
+                                      gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
+                                      gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
+                                      columnGap: `${el.gap_x || 6}px`,
+                                      rowGap: `${el.gap_y || 6}px`,
+                                    }}
+                                  >
+                                    {state.teams.slice(0, Math.min(state.teams.length, (el.grid_cols || 7) * (el.grid_rows || 2))).map((team, idx) => {
+                                      const isLeading = highestBid?.team_id === team.team_id
+                                      const playerCat = player?.category || selectedCategory
+                                      const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
+                                      const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
+                                      const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
+                                      const isSolid = (el.box_style || 'solid') === 'solid'
+                                      const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                                      const theme = getTeamTheme(idx, state.teams.length)
+                                      const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
+                                      const assignedShortcut = ((team as any).shortcut_key || (team as any).custom_data?.shortcut_key || '').toUpperCase()
+                                      const badgeKey = assignedShortcut ? `${idx + 1} - ${assignedShortcut}` : `${idx + 1}`
+                                      const teamLogo = (team as any).team_logo || (team as any).logo || (team as any).custom_data?.logo_url
 
-                                    return (
-                                      <button
-                                        key={team.team_id}
-                                        onClick={() => handleTeamSelectAndBid(team.team_id)}
-                                        disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull}
-                                        title={`Team #${idx + 1}: ${team.team_name}\nShort Name: ${shortcut}\nPurse Balance: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
-                                        className={`group relative flex flex-col justify-between p-1 rounded-md transition select-none min-w-0 ${
-                                          isLeading
-                                            ? 'ring-2 ring-amber-400'
-                                            : isQuotaFull || isBudgetExceeded
-                                            ? 'opacity-40 cursor-not-allowed'
-                                            : 'cursor-pointer hover:scale-105 active:scale-95'
-                                        }`}
-                                        style={{
-                                          backgroundColor: isSolid ? (isLeading ? 'rgba(245, 158, 11, 0.4)' : `${teamColor}25`) : 'transparent',
-                                          borderColor: isLeading ? '#F59E0B' : teamColor,
-                                          borderWidth: isSolid ? '1px' : '2px',
-                                          borderStyle: 'solid',
-                                          boxShadow: isSolid ? `0 0 8px ${teamColor}20` : 'none',
-                                          writingMode: 'horizontal-tb',
-                                        }}
-                                      >
-                                        {/* Rich Hover Card: Team number, Full Name, Short Name, Purse Balance, Max Bid */}
-                                        <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-0.5 p-2 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[155px] backdrop-blur-md text-left">
-                                          <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
-                                            <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
-                                            {assignedShortcut && <span className="font-mono text-slate-300 font-bold">[{assignedShortcut}]</span>}
-                                          </div>
-                                          <div className="font-bold text-[11px] text-white truncate">{team.team_name}</div>
-                                          <div className="flex items-center justify-between text-[10px] pt-0.5">
-                                            <span className="text-slate-400">Purse Balance:</span>
-                                            <span className="font-mono font-bold text-emerald-400">₹{Number(team.balance || 0).toLocaleString('en-IN')}</span>
-                                          </div>
-                                          <div className="flex items-center justify-between text-[10px]">
-                                            <span className="text-slate-400">Max Bid:</span>
-                                            <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
-                                          </div>
-                                        </div>
-                                        <div
-                                          className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
-                                          style={{ writingMode: 'horizontal-tb' }}
-                                        >
-                                          <span className="px-1.5 py-0.5 rounded-sm bg-black/70 font-mono text-[8px] font-extrabold text-white border border-white/15 shadow-2xs">
-                                            {badgeKey}
-                                          </span>
-                                          {isLeading && (
-                                            <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
-                                              LEADING
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div
-                                          className="w-full flex items-center justify-center gap-1 font-black truncate my-auto px-0.5"
+                                      // Account-level UI styling
+                                      const effectiveFontSize = userPrefs.fontSize || el.font_size || 13
+                                      const effectiveColor = isLeading ? '#FDE047' : userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : (el.colour || teamColor)
+                                      const effectiveCardBg = userPrefs.cardBg === 'oled'
+                                        ? '#000000'
+                                        : userPrefs.cardBg === 'navy'
+                                        ? '#020617'
+                                        : userPrefs.cardBg === 'carbon'
+                                        ? '#18181b'
+                                        : isSolid ? (isLeading ? 'rgba(245, 158, 11, 0.4)' : `${teamColor}25`) : 'transparent'
+                                      const effectiveGlow = isLeading
+                                        ? '0 0 14px rgba(245, 158, 11, 0.5)'
+                                        : userPrefs.borderGlow
+                                        ? `0 0 12px ${teamColor}40`
+                                        : isSolid ? `0 0 8px ${teamColor}20` : 'none'
+
+                                      return (
+                                        <button
+                                          key={team.team_id}
+                                          onClick={() => handleTeamSelectAndBid(team.team_id)}
+                                          disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull}
+                                          title={`Team #${idx + 1}: ${team.team_name}\nShort Name: ${shortcut}\nPurse Balance: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
+                                          className={`group relative flex flex-col justify-between p-1 rounded-md transition select-none min-w-0 ${
+                                            isLeading
+                                              ? 'ring-2 ring-amber-400'
+                                              : isQuotaFull || isBudgetExceeded
+                                              ? 'opacity-40 cursor-not-allowed'
+                                              : 'cursor-pointer hover:scale-105 active:scale-95'
+                                          }`}
                                           style={{
-                                            fontSize: `${el.font_size || 13}px`,
-                                            color: isLeading ? '#FDE047' : (el.colour || teamColor),
-                                            fontFamily: el.font_family || 'inherit',
-                                            fontWeight: el.bold !== false ? 900 : 700,
-                                            fontStyle: el.italic ? 'italic' : 'normal',
+                                            backgroundColor: effectiveCardBg,
+                                            borderColor: isLeading ? '#F59E0B' : teamColor,
+                                            borderWidth: isSolid ? '1px' : '2px',
+                                            borderStyle: 'solid',
+                                            boxShadow: effectiveGlow,
                                             writingMode: 'horizontal-tb',
-                                            whiteSpace: 'nowrap',
-                                            textOrientation: 'mixed',
                                           }}
                                         >
-                                          {teamLogo && (
-                                            <img
-                                              src={resolveMediaUrl(teamLogo)}
-                                              alt=""
-                                              className="w-3.5 h-3.5 rounded-full object-cover shrink-0"
-                                            />
-                                          )}
-                                          <span className="truncate">{shortcut}</span>
-                                        </div>
-                                        {el.show_balance === true && (
-                                          <div
-                                            className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
-                                            style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
-                                          >
-                                            ₹{Number(team.balance || 0).toLocaleString('en-IN')}
+                                          {/* Rich Hover Card: Team number, Full Name, Short Name, Purse Balance, Max Bid */}
+                                          <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-0.5 p-2 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[155px] backdrop-blur-md text-left">
+                                            <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
+                                              <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
+                                              {assignedShortcut && <span className="font-mono text-slate-300 font-bold">[{assignedShortcut}]</span>}
+                                            </div>
+                                            <div className="font-bold text-[11px] text-white truncate">{team.team_name}</div>
+                                            <div className="flex items-center justify-between text-[10px] pt-0.5">
+                                              <span className="text-slate-400">Purse Balance:</span>
+                                              <span className="font-mono font-bold text-emerald-400">₹{Number(team.balance || 0).toLocaleString('en-IN')}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-[10px]">
+                                              <span className="text-slate-400">Max Bid:</span>
+                                              <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
+                                            </div>
                                           </div>
-                                        )}
-                                      </button>
-                                    )
-                                  })}
-                                </div>
+                                          <div
+                                            className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
+                                            style={{ writingMode: 'horizontal-tb' }}
+                                          >
+                                            <span className="px-1.5 py-0.5 rounded-sm bg-black/70 font-mono text-[8px] font-extrabold text-white border border-white/15 shadow-2xs">
+                                              {badgeKey}
+                                            </span>
+                                            {isLeading && (
+                                              <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
+                                                LEADING
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div
+                                            className="w-full flex items-center justify-center gap-1 font-black truncate my-auto px-0.5"
+                                            style={{
+                                              fontSize: `${effectiveFontSize}px`,
+                                              color: effectiveColor,
+                                              fontFamily: el.font_family || 'inherit',
+                                              fontWeight: el.bold !== false ? 900 : 700,
+                                              fontStyle: el.italic ? 'italic' : 'normal',
+                                              writingMode: 'horizontal-tb',
+                                              whiteSpace: 'nowrap',
+                                              textOrientation: 'mixed',
+                                            }}
+                                          >
+                                            {teamLogo && (
+                                              <img
+                                                src={resolveMediaUrl(teamLogo)}
+                                                alt=""
+                                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-white/20"
+                                              />
+                                            )}
+                                            <span className="truncate">{shortcut}</span>
+                                          </div>
+                                          {el.show_balance === true && (
+                                            <div
+                                              className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
+                                              style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
+                                            >
+                                              ₹{Number(team.balance || 0).toLocaleString('en-IN')}
+                                            </div>
+                                          )}
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             )}
                             {/* Custom Photo Box Element */}
@@ -3003,6 +3280,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                   const isSelected = selectedTeamId === team.team_id
                   const theme = getTeamTheme(idx, state.teams.length)
                   const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                  const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
                   const isNumBuffered = Boolean(numKeyBuffer && parseInt(numKeyBuffer, 10) === theme.sequenceNo)
                   const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
 
@@ -3029,7 +3307,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           ? '#F59E0B'
                           : isSelected
                           ? theme.accentHover
-                          : theme.border,
+                          : (teamColor || theme.border),
                         boxShadow: isLeading
                           ? '0 0 16px rgba(245, 158, 11, 0.5)'
                           : isNumBuffered

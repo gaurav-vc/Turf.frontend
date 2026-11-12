@@ -42,6 +42,19 @@ export const resolveMediaUrl = (url: string | null | undefined): string => {
     return trimmed
   }
 
+  // Google Drive direct image URL converter
+  if (trimmed.includes('drive.google.com')) {
+    const fileIdMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/)
+    if (fileIdMatch && fileIdMatch[1]) {
+      return `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`
+    }
+  }
+
+  // Dropbox direct image URL converter
+  if (trimmed.includes('dropbox.com')) {
+    return trimmed.replace('dl=0', 'raw=1')
+  }
+
   // Base API url (e.g. "https://xrena.99.vibesandbox.live/api" or "http://localhost:8000/api")
   const baseWithApi = BASE_URL.replace(/\/+$/, '')
   const baseWithoutApi = BASE_URL.replace(/\/api\/?$/, '')
@@ -56,12 +69,15 @@ export const resolveMediaUrl = (url: string | null | undefined): string => {
     trimmed = trimmed.replace(/^https?:\/\/[^/]+/, '')
   }
 
-  // Pure external URLs (e.g. imgur, s3, unsplash, cdn) without media path
-  if ((trimmed.startsWith('http://') || trimmed.startsWith('https://')) && !trimmed.includes('/media/')) {
-    return trimmed
+  // Pure external URLs that don't belong to our own backend host
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    const isOurBackend = trimmed.startsWith(baseWithoutApi) || trimmed.startsWith(baseWithApi)
+    if (!isOurBackend) {
+      return trimmed
+    }
   }
 
-  // Full URL containing /media/ but on another host or with host
+  // Full URL containing /media/ but on our backend or relative
   if (trimmed.includes('/media/')) {
     const idx = trimmed.indexOf('/media/')
     const relPart = trimmed.slice(idx) // e.g. "/media/team_logos/..."
