@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Users, Shield, Plus, Download, Upload, Link2, Search,
   Edit2, Trash2, RefreshCw, Check, Copy, ExternalLink,
-  Trophy, Award, Gavel, List, LayoutGrid
+  Trophy, Award, Gavel, List, LayoutGrid, Key
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -571,10 +571,30 @@ export default function TeamsAndPlayersHub({ auctionId, onNavigateToLive }: Team
                               <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-md bg-[#facc15] text-slate-950 font-mono shadow-xs">
                                 {t.short_name}
                               </span>
-                              {t.shortcut_key && (
-                                <span className="text-xs font-black uppercase px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 font-mono shadow-xs" title={`Bidding Shortcut Key: [${t.shortcut_key}]`}>
-                                  Key [{t.shortcut_key}]
-                                </span>
+                              {t.shortcut_key ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTeamToEdit(t)
+                                    setShowTeamModal(true)
+                                  }}
+                                  className="text-xs font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 border border-amber-500/40 font-mono shadow-xs flex items-center gap-1 transition cursor-pointer"
+                                  title={`Bidding Shortcut Key: [${t.shortcut_key}] (Click to change)`}
+                                >
+                                  <Key className="w-3 h-3 text-amber-500" /> Key [{t.shortcut_key}]
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTeamToEdit(t)
+                                    setShowTeamModal(true)
+                                  }}
+                                  className="text-[11px] font-bold text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-md bg-muted/70 hover:bg-muted border border-border/60 flex items-center gap-1 transition cursor-pointer"
+                                  title="Define Shortcut Key for instant keyboard bidding"
+                                >
+                                  <Key className="w-3 h-3 opacity-60" /> + Key
+                                </button>
                               )}
                             </div>
                             {t.sponsor_name && (

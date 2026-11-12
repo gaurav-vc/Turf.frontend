@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Shield, RefreshCw, Check } from 'lucide-react'
+import { X, Shield, RefreshCw, Check, Key } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -243,6 +243,13 @@ export default function TeamEntryModal({
       onClose()
     } catch (err: any) {
       console.error('Error saving team:', err)
+      if (err.response?.status === 409 && err.response?.data?.conflict_team) {
+        setConflictDialog({
+          teamName: err.response.data.conflict_team,
+          key: err.response.data.conflict_key || shortcutKey,
+        })
+        return
+      }
       setErrorMsg(err.response?.data?.error || err.message || 'Failed to save franchise team.')
     } finally {
       setSaving(false)
@@ -315,7 +322,10 @@ export default function TeamEntryModal({
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold flex items-center justify-between">
-                  <span>Shortcut Key</span>
+                  <span className="flex items-center gap-1.5 text-foreground">
+                    <Key className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Shortcut Key</span>
+                  </span>
                   <span className="text-[10px] text-muted-foreground font-mono">A-Z / 0-9</span>
                 </Label>
                 <Input
@@ -577,10 +587,8 @@ export default function TeamEntryModal({
                 <h3 className="font-extrabold text-base text-foreground">Shortcut Key Conflict</h3>
               </div>
 
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Key <span className="font-black text-amber-500 font-mono">[{conflictDialog.key}]</span> is already assigned to Team <strong className="text-foreground">"{conflictDialog.teamName}"</strong>.
-                <br className="my-1" />
-                Would you like to override it?
+              <p className="text-sm text-foreground/90 leading-relaxed">
+                Key already assign to Team &ldquo;<strong className="text-amber-400">{conflictDialog.teamName}</strong>&rdquo;. Would you like to over ride it?
               </p>
 
               <div className="flex items-center justify-end gap-2.5 pt-2">
@@ -597,7 +605,7 @@ export default function TeamEntryModal({
                   onClick={handleConfirmOverride}
                   className="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl px-5"
                 >
-                  Yes, Override
+                  Yes
                 </Button>
               </div>
             </motion.div>

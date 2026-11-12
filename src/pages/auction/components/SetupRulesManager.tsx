@@ -106,6 +106,15 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
   const [activeTeamsCount, setActiveTeamsCount] = useState<number>(4)
 
   // 8. Tournament Branding & Group Draw
+  const [tournamentName, setTournamentName] = useState('')
+  const [titleColour, setTitleColour] = useState('#FFD54A')
+  const [titleSize, setTitleSize] = useState<number>(26)
+  const [titleImageFile, setTitleImageFile] = useState<File | null>(null)
+  const [titleImageUrl, setTitleImageUrl] = useState('')
+  const [removeTitleBg, setRemoveTitleBg] = useState(false)
+  const [logoPosition, setLogoPosition] = useState<'left' | 'center' | 'right'>('left')
+  const [logoSize, setLogoSize] = useState<number>(34)
+
   const [groupCardColour, setGroupCardColour] = useState('#FFFFFF')
   const [groupCardAnimation, setGroupCardAnimation] = useState('3D Flip Horizontal')
   const [groupDrawAnimationEnabled, setGroupDrawAnimationEnabled] = useState(true)
@@ -243,6 +252,15 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       if (cfg.group_card_animation) setGroupCardAnimation(cfg.group_card_animation)
       if (cfg.group_draw_animation_enabled !== undefined) setGroupDrawAnimationEnabled(Boolean(cfg.group_draw_animation_enabled))
       if (cfg.group_card_bg_image) setGroupCardBgImage(cfg.group_card_bg_image)
+      const branding = d.branding || cfg || {}
+      setTournamentName(branding.tournament_name || branding.title_text || d.auction?.name || '')
+      if (branding.title_colour) setTitleColour(branding.title_colour)
+      if (branding.title_size) setTitleSize(Number(branding.title_size))
+      if (branding.title_image_url) setTitleImageUrl(branding.title_image_url)
+      if (branding.remove_title_bg !== undefined) setRemoveTitleBg(Boolean(branding.remove_title_bg))
+      if (branding.logo_position) setLogoPosition(branding.logo_position)
+      if (branding.logo_size) setLogoSize(Number(branding.logo_size))
+
       if (cfg.tournament_logo) setTournamentLogo(cfg.tournament_logo)
       if (cfg.auction_background) setAuctionBackground(cfg.auction_background)
       if (cfg.overall_background) setOverallBackground(cfg.overall_background)
@@ -482,7 +500,20 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
         formData.append('group_card_bg_image_url', groupCardBgImage)
       }
 
-      // 6. Branding
+      // 6. Name Branding & Broadcast Logos
+      formData.append('tournament_name', tournamentName.trim())
+      formData.append('title_text', tournamentName.trim())
+      formData.append('title_colour', titleColour)
+      formData.append('title_size', titleSize.toString())
+      formData.append('logo_position', logoPosition)
+      formData.append('logo_size', logoSize.toString())
+      formData.append('remove_title_bg', removeTitleBg ? 'true' : 'false')
+      if (titleImageFile) {
+        formData.append('title_image', titleImageFile)
+      } else if (titleImageUrl) {
+        formData.append('title_image_url', titleImageUrl)
+      }
+
       if (tournamentLogoFile) {
         formData.append('tournament_logo', tournamentLogoFile)
         formData.append('remove_tournament_logo_bg', removeTournamentLogoBg ? 'true' : 'false')
@@ -1432,11 +1463,209 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       </section>
 
       {/* 8. Tournament Branding */}
-      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs">
-        <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
-          <Palette className="h-5 w-5 text-purple-500" />
-          Tournament Branding
-        </h2>
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-xs space-y-6">
+        <div>
+          <h2 className="text-base font-black text-foreground flex items-center gap-2 mb-1">
+            <Palette className="h-5 w-5 text-purple-500" />
+            Tournament Branding & Identity
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Configure broadcast title name branding, color palette, tournament logos, and arena backgrounds synchronized across Live Auction and Page Designer.
+          </p>
+        </div>
+
+        {/* Master Tournament Name Branding Card */}
+        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-card to-purple-500/5 p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-border/60 pb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-foreground">
+                Tournament Name Branding (Broadcast Header)
+              </h3>
+            </div>
+            <span className="text-[10px] font-mono text-amber-500 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+              Master Sync Active
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Tournament Name / Title Input */}
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs font-bold text-foreground flex items-center justify-between">
+                <span>Tournament Full Name / Broadcast Title:</span>
+                <span className="text-[11px] text-muted-foreground font-normal">Syncs to Live Header Banner & Page Designer</span>
+              </Label>
+              <Input
+                value={tournamentName}
+                onChange={(e) => setTournamentName(e.target.value)}
+                placeholder="e.g. WCC 5.0, Turf Premier League, Super Cup 2026"
+                className="text-sm font-bold rounded-xl border-border bg-background focus:ring-amber-400"
+              />
+            </div>
+
+            {/* Title Font Colour */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-foreground">Title Text Colour</Label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={titleColour}
+                  onChange={(e) => setTitleColour(e.target.value)}
+                  className="w-10 h-10 rounded-xl cursor-pointer border border-border p-0.5 bg-background shrink-0"
+                />
+                <Input
+                  value={titleColour}
+                  onChange={(e) => setTitleColour(e.target.value)}
+                  className="w-28 text-xs font-mono font-bold rounded-xl border-border bg-background"
+                />
+                <div className="flex items-center gap-1">
+                  {[
+                    { hex: '#FFD54A', name: 'Gold' },
+                    { hex: '#FFFFFF', name: 'White' },
+                    { hex: '#00F0FF', name: 'Cyan' },
+                    { hex: '#84CC16', name: 'Lime' },
+                    { hex: '#F97316', name: 'Orange' },
+                  ].map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      onClick={() => setTitleColour(c.hex)}
+                      className={`w-5 h-5 rounded-md border border-white/20 transition cursor-pointer ${
+                        titleColour === c.hex ? 'ring-2 ring-amber-400 scale-110' : 'opacity-80 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Title Font Size */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-foreground">Title Font Size</Label>
+                <span className="font-mono text-xs font-bold text-amber-500">{titleSize}px</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min={16}
+                  max={48}
+                  value={titleSize}
+                  onChange={(e) => setTitleSize(Number(e.target.value))}
+                  className="flex-1 accent-amber-500 cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center gap-1 pt-0.5">
+                {[20, 24, 26, 30, 36, 42].map((sz) => (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => setTitleSize(sz)}
+                    className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
+                      titleSize === sz
+                        ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                        : 'bg-muted text-muted-foreground border-border hover:text-foreground'
+                    }`}
+                  >
+                    {sz}px
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Alignment & Position */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-foreground">Header Alignment</Label>
+              <div className="flex items-center gap-2">
+                {(['left', 'center', 'right'] as const).map((pos) => (
+                  <button
+                    key={pos}
+                    type="button"
+                    onClick={() => setLogoPosition(pos)}
+                    className={`flex-1 py-1.5 rounded-xl text-xs font-bold capitalize border transition cursor-pointer ${
+                      logoPosition === pos
+                        ? 'bg-amber-500 text-zinc-950 border-amber-400 shadow-xs'
+                        : 'bg-muted text-muted-foreground border-border hover:text-foreground'
+                    }`}
+                  >
+                    {pos}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Logo Height */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-foreground">Logo / Emblem Height</Label>
+                <span className="font-mono text-xs font-bold text-amber-500">{logoSize}px</span>
+              </div>
+              <input
+                type="range"
+                min={20}
+                max={64}
+                value={logoSize}
+                onChange={(e) => setLogoSize(Number(e.target.value))}
+                className="w-full accent-amber-500 cursor-pointer"
+              />
+            </div>
+
+            {/* Title Banner Image Upload */}
+            <div className="space-y-2 md:col-span-2">
+              <Label className="text-xs font-bold text-foreground">Title Custom Banner / Emblem Image (Optional)</Label>
+              <Input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                onChange={(e) => setTitleImageFile(e.target.files?.[0] || null)}
+                className="text-xs rounded-xl border-border bg-background"
+              />
+              <label className="flex items-center gap-2 text-xs font-bold text-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={removeTitleBg}
+                  onChange={(e) => setRemoveTitleBg(e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-500"
+                />
+                Remove background and use transparent PNG
+              </label>
+            </div>
+          </div>
+
+          {/* Live Header Banner Preview */}
+          <div className="border-t border-border/60 pt-3">
+            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground block mb-1.5">
+              Live Broadcast Header Preview:
+            </span>
+            <div
+              className={`p-3 rounded-xl bg-slate-950 border border-slate-800 shadow-inner flex items-center gap-3 ${
+                logoPosition === 'center' ? 'justify-center' : logoPosition === 'right' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              {tournamentLogo ? (
+                <img
+                  src={resolveMediaUrl(tournamentLogo)}
+                  alt="Emblem"
+                  style={{ height: `${logoSize}px` }}
+                  className="object-contain"
+                />
+              ) : (
+                <Shield style={{ width: `${logoSize}px`, height: `${logoSize}px` }} className="text-amber-400 shrink-0" />
+              )}
+              <span
+                style={{
+                  color: titleColour,
+                  fontSize: `${titleSize}px`,
+                }}
+                className="font-black tracking-tight drop-shadow-md truncate"
+              >
+                {tournamentName || 'Tournament Name'}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
           {/* Card Colour */}
           <div className="space-y-2">

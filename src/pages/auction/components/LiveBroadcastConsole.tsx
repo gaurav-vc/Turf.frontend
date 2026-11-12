@@ -92,6 +92,13 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         ...(pageDesign?.zones || DEFAULT_PAGE_DESIGN.zones),
         team_columns: cols,
       },
+      elements: {
+        ...(pageDesign?.elements || DEFAULT_PAGE_DESIGN.elements),
+        franchise_stations: {
+          ...((pageDesign?.elements || DEFAULT_PAGE_DESIGN.elements).franchise_stations || {}),
+          grid_cols: cols,
+        },
+      },
     }
     setPageDesign(updated)
     try {
@@ -342,7 +349,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         // If it could be a multi-digit prefix (e.g. '1' with >= 10 teams), wait fraction of a second (450ms)
         numKeyTimerRef.current = setTimeout(() => {
           executeNumKeyBid(numKeyBufferRef.current)
-        }, 450)
+        }, 200)
         return
       }
 
@@ -1598,11 +1605,12 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
             </div>
           </div>
 
-          {/* Franchise Quick Bid Grid with Dynamic Team Columns & Real-time Dropdown */}
-          <div
-            className="rounded-2xl border border-slate-800 p-5 shadow-xl backdrop-blur-md"
-            style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617', backgroundImage: 'none', boxShadow: 'none' }}
-          >
+          {/* Franchise Quick Bid Grid with Dynamic Team Columns & Real-time Dropdown (Fallback only when hidden on stage) */}
+          {pageDesign?.elements?.franchise_stations?.selected === false && (
+            <div
+              className="rounded-2xl border border-slate-800 p-5 shadow-xl backdrop-blur-md"
+              style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617', backgroundImage: 'none', boxShadow: 'none' }}
+            >
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-white/10 pb-3">
               <div className="flex items-center gap-2.5">
                 <Shield className="h-4 w-4 text-amber-400" />
@@ -2010,7 +2018,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 })}
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Live Feed & Lot History with Bid History Width */}
@@ -2181,6 +2190,223 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                     • PLAYER #{player.serial_no}
                   </span>
                 )}
+              </div>
+
+              {/* Columns & My UI & Timer & Audio controls */}
+              <div className="flex items-center gap-2">
+                {/* Real-time Franchise Columns Dropdown Selector */}
+                <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 px-2.5 py-1 rounded-xl">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">Columns:</span>
+                  <select
+                    value={pageDesign?.elements?.franchise_stations?.grid_cols || pageDesign?.zones?.team_columns || 7}
+                    onChange={(e) => handleUpdateColumns(Number(e.target.value))}
+                    className="bg-transparent text-amber-400 font-black text-xs cursor-pointer focus:outline-none"
+                  >
+                    {[2, 3, 4, 5, 6, 7, 8, 10, 12, 14].map((col) => (
+                      <option key={col} value={col} className="bg-slate-900 text-white">
+                        {col} Columns
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* My UI Preferences Popover (User-Account Only Customization) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowMyUiMenu(!showMyUiMenu)}
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-indigo-500/20 hover:from-amber-500/30 hover:to-indigo-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-xl shadow-xs transition cursor-pointer"
+                    title="Customize font size, color and contrast for your account UI only"
+                  >
+                    <Palette className="w-3.5 h-3.5 text-amber-400" />
+                    <span>My UI</span>
+                    {userPrefs.useCustomColor && (
+                      <span className="w-2 h-2 rounded-full ring-1 ring-white/40" style={{ backgroundColor: userPrefs.fontColor }} />
+                    )}
+                  </button>
+
+                  {/* Popover */}
+                  {showMyUiMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-80 p-4 rounded-2xl bg-slate-950/98 border border-amber-500/50 shadow-2xl z-50 text-slate-200 backdrop-blur-xl space-y-3.5">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                        <div className="flex items-center gap-1.5">
+                          <Palette className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs font-black uppercase tracking-wider text-white">My Account UI Settings</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowMyUiMenu(false)}
+                          className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 rounded cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="text-[10px] text-amber-400/90 font-mono bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 flex items-center justify-between">
+                        <span className="truncate max-w-[170px]">User: {userIdentifier}</span>
+                        <span className="text-emerald-400 font-bold shrink-0">Isolated to you</span>
+                      </div>
+
+                      {/* Font Size */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-slate-300">Shortcut Font Size:</span>
+                          <span className="font-mono text-amber-400">{userPrefs.fontSize || 20}px</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('fontSize', Math.max(10, userPrefs.fontSize - 1))}
+                            className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
+                          >-</button>
+                          <input
+                            type="range"
+                            min={10}
+                            max={28}
+                            value={userPrefs.fontSize || 20}
+                            onChange={(e) => updateUserPref('fontSize', Number(e.target.value))}
+                            className="flex-1 accent-amber-500 cursor-pointer"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('fontSize', Math.min(28, userPrefs.fontSize + 1))}
+                            className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
+                          >+</button>
+                        </div>
+                        <div className="flex items-center gap-1 pt-0.5">
+                          {[14, 16, 18, 20, 24].map((sz) => (
+                            <button
+                              key={sz}
+                              type="button"
+                              onClick={() => updateUserPref('fontSize', sz)}
+                              className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
+                                userPrefs.fontSize === sz
+                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                              }`}
+                            >
+                              {sz}px
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Text Color */}
+                      <div className="space-y-1.5 border-t border-white/10 pt-2">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-slate-300">Text Color:</span>
+                          <span className="font-mono text-[11px]" style={{ color: userPrefs.useCustomColor ? userPrefs.fontColor : '#FBBF24' }}>
+                            {userPrefs.useCustomColor ? userPrefs.fontColor : 'Dynamic Palette'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('useCustomColor', false)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer ${
+                              !userPrefs.useCustomColor
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            }`}
+                          >
+                            Team Palette
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('useCustomColor', true)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer flex items-center gap-1 ${
+                              userPrefs.useCustomColor
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            }`}
+                          >
+                            Custom
+                          </button>
+                          {userPrefs.useCustomColor && (
+                            <input
+                              type="color"
+                              value={userPrefs.fontColor || '#FFFFFF'}
+                              onChange={(e) => updateUserPref('fontColor', e.target.value)}
+                              className="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                            />
+                          )}
+                        </div>
+                        {userPrefs.useCustomColor && (
+                          <div className="flex items-center gap-1 pt-1">
+                            {[
+                              { hex: '#FFFFFF', name: 'White' },
+                              { hex: '#00F0FF', name: 'Cyan' },
+                              { hex: '#FBBF24', name: 'Gold' },
+                              { hex: '#10B981', name: 'Emerald' },
+                              { hex: '#F43F5E', name: 'Pink' },
+                              { hex: '#A855F7', name: 'Violet' },
+                            ].map((c) => (
+                              <button
+                                key={c.hex}
+                                type="button"
+                                onClick={() => updateUserPref('fontColor', c.hex)}
+                                className="w-5 h-5 rounded-full border border-white/20 transition hover:scale-110 cursor-pointer"
+                                style={{ backgroundColor: c.hex }}
+                                title={c.name}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Background Atmosphere */}
+                      <div className="space-y-1.5 border-t border-white/10 pt-2">
+                        <span className="text-xs font-bold text-slate-300 block">Card Atmosphere:</span>
+                        <div className="flex items-center gap-1">
+                          {[
+                            { id: 'default', label: 'Default' },
+                            { id: 'oled', label: 'OLED Black' },
+                            { id: 'navy', label: 'Deep Navy' },
+                            { id: 'carbon', label: 'Carbon' },
+                          ].map((atm) => (
+                            <button
+                              key={atm.id}
+                              type="button"
+                              onClick={() => updateUserPref('cardBg', atm.id as any)}
+                              className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
+                                userPrefs.cardBg === atm.id
+                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                              }`}
+                            >
+                              {atm.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[11px] font-bold text-slate-300">Neon Border Glow:</span>
+                          <button
+                            type="button"
+                            onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
+                              userPrefs.borderGlow
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
+                                : 'bg-slate-900 text-slate-500 border-slate-800'
+                            }`}
+                          >
+                            {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Reset Button */}
+                      <div className="border-t border-white/10 pt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={resetUserPrefs}
+                          className="text-[10px] text-slate-400 hover:text-white font-medium hover:underline cursor-pointer"
+                        >
+                          Reset My UI Defaults
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Timer and Audio controls */}
@@ -3265,9 +3491,11 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
           </div>
 
             {/* Bottom Stadium Bar: Franchise Stations & Action Buttons */}
-            <div className="border-t border-blue-900/40 bg-[#030d1a] p-3 space-y-2 shrink-0">
-              {/* Franchise Bidding Stations Row */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {(!pageDesign?.elements?.franchise_stations?.selected || !pageDesign?.elements?.action_bar?.selected) && (
+              <div className="border-t border-blue-900/40 bg-[#030d1a] p-3 space-y-2 shrink-0">
+                {/* Franchise Bidding Stations Row (Only if hidden from stage canvas) */}
+                {!pageDesign?.elements?.franchise_stations?.selected && (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 px-1">
                   TEAMS (TAP OR PRESS 1–{state?.teams?.length || 9} • 2s timeout / Enter):
                 </span>
@@ -3360,7 +3588,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                     </button>
                   )
                 })}
-              </div>
+                  </div>
+                )}
 
               {/* Actions Row (SOLD, UNSOLD, CUSTOM BID, PLAYER NO. + SHOW) */}
               {!pageDesign?.elements?.action_bar?.selected && (
@@ -3480,9 +3709,10 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
               </div>
               )}
             </div>
-          </div>
-        )
-      })()}
+          )}
+        </div>
+      )
+    })()}
 
       {/* 2-Step Custom Bid Modal (Mounted at root with z-[99999] so it is visible in both fullscreen and normal modes) */}
       <AnimatePresence>

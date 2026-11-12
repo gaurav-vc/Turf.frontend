@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { apiClient } from '@/api/apiClient'
+import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import { getTeamShortcut, getTeamTheme } from './teamThemeUtils'
 import { useUserUIPreferences } from './useUserUIPreferences'
 
@@ -4568,6 +4568,9 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 const isSolid = (el.box_style || 'solid') === 'solid'
                                 const tColor = t.color || t.team_color || theme.accent || '#3B82F6'
                                 const tShortcut = t.short_name || t.code || getTeamShortcut(t.team_name || t.name, '')
+                                const assignedShortcut = ((t as any).shortcut_key || (t as any).custom_data?.shortcut_key || '').toUpperCase()
+                                const badgeKey = assignedShortcut ? `${idx + 1} - ${assignedShortcut}` : `${idx + 1}`
+                                const tLogo = (t as any).team_logo || (t as any).logo || (t as any).logo_url || (t as any).custom_data?.logo_url
                                 const tBalance = t.balance != null ? (typeof t.balance === 'number' ? `₹${t.balance.toLocaleString('en-IN')}` : t.balance) : '₹0'
                                 const tMaxBid = t.max_bid != null ? (typeof t.max_bid === 'number' ? `₹${t.max_bid.toLocaleString('en-IN')}` : t.max_bid) : '₹0'
                                 const teamFullName = t.name || t.team_name || `Team #${idx + 1}`
@@ -4590,13 +4593,13 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       boxShadow: effectiveGlow,
                                       writingMode: 'horizontal-tb',
                                     }}
-                                    title={`Team #${idx + 1}: ${teamFullName}\nShort Name: ${tShortcut}\nPurse Balance: ${tBalance}\nMax Bid: ${tMaxBid}`}
+                                    title={`Team #${idx + 1}: ${teamFullName}\nShort Name: ${tShortcut}\nPurse Balance: ${tBalance}\nMax Bid: ${tMaxBid}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
                                   >
-                                    {/* Hover Tooltip (Only on hover: Team #, Full Name, Purse Amount, Max Bid) */}
+                                    {/* Hover Tooltip (Only on hover: Team #, Full Name, Purse Amount, Max Bid, Shortcut Key) */}
                                     <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-0.5 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[160px] backdrop-blur-md text-left">
                                       <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
                                         <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
-                                        <span className="font-mono text-slate-300">[{idx + 1}]</span>
+                                        {assignedShortcut && <span className="font-mono text-slate-300 font-bold">[{assignedShortcut}]</span>}
                                       </div>
                                       <div className="font-bold text-[11px] text-white truncate">{teamFullName}</div>
                                       <div className="flex items-center justify-between text-[10px] pt-0.5">
@@ -4609,7 +4612,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       </div>
                                     </div>
 
-                                    {/* Top Row: #{idx + 1} Badge */}
+                                    {/* Top Row: #{badgeKey} Badge */}
                                     <div
                                       className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
                                       style={{ writingMode: 'horizontal-tb' }}
@@ -4617,26 +4620,32 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       {el.show_number !== false && (
                                         <span
                                           style={{ backgroundColor: tColor }}
-                                          className="px-1.5 py-0.2 rounded-full font-mono text-[8px] font-black text-white shadow-xs"
+                                          className="px-1.5 py-0.2 rounded font-mono text-[8px] font-black text-white shadow-xs"
                                         >
-                                          #{idx + 1}
+                                          #{badgeKey}
                                         </span>
                                       )}
                                     </div>
 
-                                    {/* Center: Team Short Name */}
-                                    <span
+                                    {/* Center: Team Logo + Short Name */}
+                                    <div
+                                      className="w-full flex items-center justify-center gap-1 font-black truncate my-auto px-0.5"
                                       style={{
                                         fontSize: `${effectiveFontSize}px`,
                                         color: effectiveColor,
                                         writingMode: 'horizontal-tb',
                                         whiteSpace: 'nowrap',
-                                        textOrientation: 'mixed',
                                       }}
-                                      className="font-black font-mono tracking-wider text-center my-auto py-0.5 drop-shadow-md truncate"
                                     >
-                                      {tShortcut}
-                                    </span>
+                                      {tLogo && (
+                                        <img
+                                          src={resolveMediaUrl(tLogo)}
+                                          alt=""
+                                          className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-white/30"
+                                        />
+                                      )}
+                                      <span className="font-mono tracking-wider">{tShortcut}</span>
+                                    </div>
 
                                     {el.show_balance === true && (
                                       <div
@@ -4967,7 +4976,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
           )}
 
           {/* ================= FRANCHISE BIDDING STATIONS CONFIGURATION STUDIO ================= */}
-          <div className="rounded-3xl border border-border bg-card p-5 shadow-xl space-y-4">
+          {selectedKey === 'franchise_stations' && (
+            <div className="rounded-3xl border border-border bg-card p-5 shadow-xl space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
               <div className="flex items-center gap-2.5">
                 <Shield className="w-5 h-5 text-amber-500" />
@@ -5378,121 +5388,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                 </div>
               </div>
             </div>
-
-            {/* Sub-label instruction */}
-            <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-              <span className="font-mono text-[11px]">
-                {liveTeams.length > 0
-                  ? `Live real-time franchise teams (${liveTeams.length} registered) • Tap card to preview`
-                  : 'Waiting for franchise teams to be added in Team Setup'}
-              </span>
-              <span className="text-[11px] text-amber-500 font-medium">
-                Hover over any team box to inspect Full Name, Purse Amount & Max Bid
-              </span>
-            </div>
-
-            {/* THE LIVE BIDDING STATIONS GRID (100% Dynamic Real-Time Teams) */}
-            <div
-              className="w-full p-4 rounded-2xl border border-blue-900/60 shadow-2xl overflow-visible"
-              style={{
-                backgroundColor: userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : '#020617',
-                borderRadius: `${design.elements.franchise_stations?.border_radius ?? 14}px`,
-              }}
-            >
-              {liveTeams.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-8 text-center rounded-xl bg-slate-900/50 border border-dashed border-slate-800 text-slate-400 space-y-2.5">
-                  <Shield className="w-8 h-8 text-amber-500/70" />
-                  <p className="text-xs font-bold text-slate-200">No Franchise Teams Registered Yet</p>
-                  <p className="text-[11px] text-slate-400 max-w-sm">
-                    Teams are loaded dynamically in real-time from your tournament database. Go to Team Setup to create franchise teams.
-                  </p>
-                  <Button size="sm" variant="outline" onClick={fetchDesignAndSampleData} className="gap-1.5 text-xs font-bold">
-                    <RefreshCw className="w-3.5 h-3.5" /> Refresh Live Teams
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  className="grid overflow-visible"
-                  style={{
-                    gridTemplateColumns: `repeat(${design.elements.franchise_stations?.grid_cols || design.zones.team_columns || 7}, minmax(0, 1fr))`,
-                    columnGap: `${design.elements.franchise_stations?.gap_x || 6}px`,
-                    rowGap: `${design.elements.franchise_stations?.gap_y || 6}px`,
-                  }}
-                >
-                  {liveTeams.map((t: any, idx: number) => {
-                    const theme = getTeamTheme(idx, Math.max(1, liveTeams.length))
-                    const isSolid = (design.elements.franchise_stations?.box_style || 'solid') === 'solid'
-                    const tColor = t.color || t.team_color || theme.accent || '#3B82F6'
-                    const tShortcut = t.short_name || t.code || getTeamShortcut(t.team_name || t.name, '')
-                    const tBalance = t.balance != null ? (typeof t.balance === 'number' ? `₹${t.balance.toLocaleString('en-IN')}` : t.balance) : '₹0'
-                    const tMaxBid = t.max_bid != null ? (typeof t.max_bid === 'number' ? `₹${t.max_bid.toLocaleString('en-IN')}` : t.max_bid) : '₹0'
-                    const teamFullName = t.name || t.team_name || `Team #${idx + 1}`
-
-                    // Account-specific UI styling
-                    const effectiveFontSize = userPrefs.fontSize || design.elements.franchise_stations?.font_size || 15
-                    const effectiveColor = userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : tColor
-                    const effectiveBg = userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : (isSolid ? `${tColor}18` : 'rgba(2, 19, 46, 0.95)')
-                    const effectiveGlow = userPrefs.borderGlow ? `0 0 12px ${tColor}35` : 'none'
-
-                    return (
-                      <div
-                        key={t.id || t.team_id || idx}
-                        className="group relative flex flex-col justify-between p-2 rounded-xl transition-all select-none min-h-[72px] cursor-pointer hover:scale-105 active:scale-95"
-                        style={{
-                          backgroundColor: effectiveBg,
-                          borderColor: tColor,
-                          borderWidth: '2px',
-                          borderStyle: 'solid',
-                          boxShadow: effectiveGlow,
-                        }}
-                        title={`Team #${idx + 1}: ${teamFullName}\nShort Name: ${tShortcut}\nPurse Balance: ${tBalance}\nMax Bid: ${tMaxBid}`}
-                      >
-                        {/* Rich Hover Tooltip */}
-                        <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-1 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[160px] backdrop-blur-md text-left">
-                          <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
-                            <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
-                            <span className="font-mono text-slate-300">[{idx + 1}]</span>
-                          </div>
-                          <div className="font-bold text-xs text-white truncate">{teamFullName}</div>
-                          <div className="flex items-center justify-between text-[10px] pt-0.5">
-                            <span className="text-slate-400">Purse Balance:</span>
-                            <span className="font-mono font-bold text-emerald-400">{tBalance}</span>
-                          </div>
-                          <div className="flex items-center justify-between text-[10px]">
-                            <span className="text-slate-400">Max Bid:</span>
-                            <span className="font-mono font-black text-amber-300">{tMaxBid}</span>
-                          </div>
-                        </div>
-
-                        {/* Top Row: #{idx + 1} Badge */}
-                        <div className="flex items-center justify-between w-full">
-                          <span
-                            style={{ backgroundColor: tColor }}
-                            className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black text-white shadow-xs"
-                          >
-                            #{idx + 1}
-                          </span>
-                        </div>
-
-                        {/* Center: Team Short Code (e.g. SK, HS, UC) */}
-                        <span
-                          style={{
-                            color: effectiveColor,
-                            fontSize: `${effectiveFontSize}px`,
-                          }}
-                          className="font-black font-mono tracking-wider text-center my-auto py-0.5 drop-shadow-md truncate"
-                        >
-                          {tShortcut}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
           </div>
-        </div>
+        )}
       </div>
+    </div>
 
       {/* ================= SCREEN TEMPLATES MODAL ================= */}
       {isTemplateModalOpen && (
