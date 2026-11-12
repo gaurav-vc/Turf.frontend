@@ -17,20 +17,44 @@ interface TeamsAndPlayersHubProps {
 }
 
 function TeamLogoBadge({ team }: { team: any }) {
-  const [hasError, setHasError] = useState(false)
   const rawUrl = team.logo || team.logo_url
   const resolved = rawUrl ? resolveMediaUrl(rawUrl) : ''
+  const [imgSrc, setImgSrc] = useState(resolved)
+  const [hasError, setHasError] = useState(false)
+  const [triedFallback, setTriedFallback] = useState(false)
+
   const teamColor = team.color || '#2563EB'
   const shortName = (team.short_name || team.name?.substring(0, 3) || 'TM').toUpperCase()
 
-  if (resolved && !hasError) {
+  useEffect(() => {
+    setImgSrc(resolved)
+    setHasError(false)
+    setTriedFallback(false)
+  }, [resolved])
+
+  const handleImageError = () => {
+    if (!triedFallback) {
+      setTriedFallback(true)
+      if (imgSrc.includes('/api/media/')) {
+        setImgSrc(imgSrc.replace('/api/media/', '/media/'))
+      } else if (imgSrc.includes('/media/')) {
+        setImgSrc(imgSrc.replace('/media/', '/api/media/'))
+      } else {
+        setHasError(true)
+      }
+    } else {
+      setHasError(true)
+    }
+  }
+
+  if (imgSrc && !hasError) {
     return (
       <div className="w-14 h-14 rounded-2xl p-1.5 flex items-center justify-center bg-slate-900 border-2 border-slate-700/80 shadow-md overflow-hidden shrink-0">
         <img
-          src={resolved}
+          src={imgSrc}
           alt={team.name}
           className="w-full h-full object-contain"
-          onError={() => setHasError(true)}
+          onError={handleImageError}
         />
       </div>
     )

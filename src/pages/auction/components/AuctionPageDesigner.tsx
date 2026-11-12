@@ -1201,19 +1201,28 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
           </div>
 
           {/* Franchise Bidding Stations Column Dropdown */}
-          <div className="flex items-center gap-1.5 bg-muted/60 border border-border px-3 py-1.5 rounded-xl shadow-2xs">
+          <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl shadow-2xs">
             <Shield className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider hidden sm:inline">Franchise Cols:</span>
+            <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider hidden sm:inline">Team Columns:</span>
             <select
-              value={design.zones?.team_columns || 4}
+              value={design.elements.franchise_stations?.grid_cols || design.zones?.team_columns || 7}
               onChange={(e) => {
                 const cols = Number(e.target.value)
                 setDesign((prev) => ({
                   ...prev,
                   zones: { ...prev.zones, team_columns: cols },
+                  elements: {
+                    ...prev.elements,
+                    franchise_stations: {
+                      ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                      grid_cols: cols,
+                      selected: true,
+                    },
+                  },
                 }))
+                setSelectedKey('franchise_stations')
               }}
-              className="bg-transparent text-foreground font-black text-xs cursor-pointer focus:outline-none"
+              className="bg-transparent text-amber-300 font-black text-xs cursor-pointer focus:outline-none"
               title="Configure Franchise Bidding Stations Grid Columns"
             >
               <option value={2} className="bg-popover text-popover-foreground">2 Columns</option>
@@ -3874,17 +3883,64 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                   </div>
                 </div>
               )}
-              {/* Fixed Auction Zones Overlay (Visual Reference) */}
-              <div className="absolute bottom-2 inset-x-4 flex items-center justify-between text-[10px] text-slate-500 font-mono pointer-events-none">
-                <span className="bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
-                  Team Columns: {design.zones.team_columns}
-                </span>
-                <span className="bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+              {/* Fixed Auction Zones Overlay (Interactive Quick Toggles) */}
+              <div className="absolute bottom-2 inset-x-4 flex items-center justify-between text-[10px] text-slate-500 font-mono z-30 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDesign((prev) => ({
+                      ...prev,
+                      elements: {
+                        ...prev.elements,
+                        franchise_stations: {
+                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                          selected: true,
+                        },
+                      },
+                    }))
+                    setSelectedKey('franchise_stations')
+                  }}
+                  className={`px-2.5 py-1 rounded border cursor-pointer font-bold transition flex items-center gap-1.5 shadow-md ${
+                    selectedKey === 'franchise_stations'
+                      ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                      : 'bg-slate-900/90 hover:bg-slate-800 text-amber-400 border-amber-500/50'
+                  }`}
+                  title="Click to select & edit Franchise Team Stations and Columns"
+                >
+                  <Shield className="w-3 h-3 text-current" />
+                  <span>Team Columns: {design.elements.franchise_stations?.grid_cols || design.zones.team_columns || 7} (Click to Edit)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedKey('action_bar')
+                  }}
+                  className={`px-2 py-0.5 rounded border cursor-pointer font-bold transition ${
+                    selectedKey === 'action_bar'
+                      ? 'bg-emerald-500 text-zinc-950 border-emerald-400'
+                      : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
+                  title="Click to edit Action Controls"
+                >
                   Action Zone: {design.zones.action_zone_width}px
-                </span>
-                <span className="bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedKey('bid_history')
+                  }}
+                  className={`px-2 py-0.5 rounded border cursor-pointer font-bold transition ${
+                    selectedKey === 'bid_history'
+                      ? 'bg-blue-500 text-zinc-950 border-blue-400'
+                      : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
+                  title="Click to edit Bid History"
+                >
                   Bid History: {design.zones.bid_history_width}px
-                </span>
+                </button>
               </div>
 
               {/* Render Every Configured Stage Element */}
@@ -4460,11 +4516,11 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       {/* Franchise Bidding Stations Element (Configurable / Option 4 Geometry) */}
                       {key === 'franchise_stations' && (
                         <div
-                          className="w-full h-full p-1.5 rounded-xl bg-[#030f1e]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-hidden flex flex-col justify-center shadow-lg"
+                          className="w-full h-full p-1.5 rounded-xl bg-[#030f1e]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-lg relative"
                           style={{ borderRadius: `${el.border_radius ?? 12}px` }}
                         >
                           <div
-                            className="w-full h-full grid"
+                            className="w-full h-full grid overflow-visible"
                             style={{
                               gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
                               gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
@@ -4477,11 +4533,13 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               const tColor = t.color || t.team_color || '#3B82F6'
                               const tShortcut = getTeamShortcut(t.team_name || t.name, t.short_name || t.code)
                               const tBalance = t.balance != null ? (typeof t.balance === 'number' ? `₹${t.balance.toLocaleString('en-IN')}` : t.balance) : '₹1,00,00,000'
+                              const tMaxBid = t.max_bid != null ? (typeof t.max_bid === 'number' ? `₹${t.max_bid.toLocaleString('en-IN')}` : t.max_bid) : '₹48,00,000'
+                              const teamFullName = t.team_name || t.name || `Team #${idx + 1}`
 
                               return (
                                 <div
                                   key={t.id || t.team_id || idx}
-                                  className="flex flex-col justify-between p-1 rounded-md overflow-hidden transition select-none min-w-0"
+                                  className="group relative flex flex-col justify-between p-1 rounded-md transition select-none min-w-0 cursor-pointer"
                                   style={{
                                     backgroundColor: isSolid ? `${tColor}25` : 'transparent',
                                     borderColor: tColor,
@@ -4490,7 +4548,25 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                     boxShadow: isSolid ? `0 0 8px ${tColor}20` : 'none',
                                     writingMode: 'horizontal-tb',
                                   }}
+                                  title={`Team #${idx + 1}: ${teamFullName}\nShort Name: ${tShortcut}\nPurse Balance: ${tBalance}\nMax Bid: ${tMaxBid}`}
                                 >
+                                  {/* Hover Tooltip (Only on hover: Team #, Full Name, Purse Amount, Max Bid) */}
+                                  <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-0.5 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[160px] backdrop-blur-md text-left">
+                                    <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
+                                      <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
+                                      <span className="font-mono text-slate-300">[{idx + 1}]</span>
+                                    </div>
+                                    <div className="font-bold text-[11px] text-white truncate">{teamFullName}</div>
+                                    <div className="flex items-center justify-between text-[10px] pt-0.5">
+                                      <span className="text-slate-400">Purse Balance:</span>
+                                      <span className="font-mono font-bold text-emerald-400">{tBalance}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[10px]">
+                                      <span className="text-slate-400">Max Bid:</span>
+                                      <span className="font-mono font-black text-amber-300">{tMaxBid}</span>
+                                    </div>
+                                  </div>
+
                                   <div
                                     className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0"
                                     style={{ writingMode: 'horizontal-tb' }}
@@ -4519,7 +4595,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                   >
                                     {tShortcut}
                                   </div>
-                                  {el.show_balance !== false && (
+                                  {el.show_balance === true && (
                                     <div
                                       className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
                                       style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
@@ -4676,15 +4752,98 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
           {selectedKey && design.elements[selectedKey] && (
             <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border border-border bg-card shadow-xs text-xs">
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-foreground uppercase">
-                  {ELEMENT_LABELS[selectedKey]?.label || selectedKey}
+                <span className="font-extrabold text-foreground uppercase text-[11px] hidden sm:inline">
+                  Element:
                 </span>
-                <span className="text-muted-foreground font-mono">
+                <select
+                  value={selectedKey}
+                  onChange={(e) => {
+                    const key = e.target.value
+                    if (key === 'franchise_stations') {
+                      setDesign((prev) => ({
+                        ...prev,
+                        elements: {
+                          ...prev.elements,
+                          franchise_stations: {
+                            ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                            selected: true,
+                          },
+                        },
+                      }))
+                    }
+                    setSelectedKey(key)
+                  }}
+                  className="bg-muted px-2.5 py-1 rounded-lg font-bold text-foreground border border-border text-xs cursor-pointer focus:outline-none"
+                >
+                  {Object.entries(ELEMENT_LABELS).map(([k, meta]) => (
+                    <option key={k} value={k}>
+                      {k === 'franchise_stations' ? '🛡️ Franchise Bidding Stations (Team Columns)' : meta.label}
+                    </option>
+                  ))}
+                  {Object.keys(design.elements).filter((k) => k.startsWith('custom_')).map((k) => (
+                    <option key={k} value={k}>Custom Box ({k})</option>
+                  ))}
+                </select>
+                <span className="text-muted-foreground font-mono hidden md:inline text-[11px]">
                   (X: {design.elements[selectedKey].x}%, Y: {design.elements[selectedKey].y}%, W: {design.elements[selectedKey].w}%, H: {design.elements[selectedKey].h}%)
                 </span>
               </div>
 
               <div className="flex items-center gap-3">
+                {/* Team Columns Quick Selector if Franchise Stations */}
+                {selectedKey === 'franchise_stations' ? (
+                  <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/40 px-2.5 py-1 rounded-lg">
+                    <Shield className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span className="text-amber-400 font-bold text-xs">Cols:</span>
+                    <select
+                      value={design.elements.franchise_stations?.grid_cols || design.zones?.team_columns || 7}
+                      onChange={(e) => {
+                        const cols = Number(e.target.value)
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: { ...prev.zones, team_columns: cols },
+                          elements: {
+                            ...prev.elements,
+                            franchise_stations: {
+                              ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                              grid_cols: cols,
+                              selected: true,
+                            },
+                          },
+                        }))
+                      }}
+                      className="bg-slate-900 text-amber-300 font-black text-xs rounded px-1.5 py-0.5 border border-amber-500/50 cursor-pointer focus:outline-none"
+                    >
+                      {[2, 3, 4, 5, 6, 7, 8, 10, 12, 14].map((col) => (
+                        <option key={col} value={col} className="bg-popover text-popover-foreground">
+                          {col} Columns
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDesign((prev) => ({
+                        ...prev,
+                        elements: {
+                          ...prev.elements,
+                          franchise_stations: {
+                            ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                            selected: true,
+                          },
+                        },
+                      }))
+                      setSelectedKey('franchise_stations')
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-xs cursor-pointer transition shadow-2xs"
+                    title="Switch to Franchise Bidding Stations & Edit Team Columns"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Edit Team Columns</span>
+                  </button>
+                )}
                 {/* Font Size Adjust */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">Size:</span>

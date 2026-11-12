@@ -1703,8 +1703,31 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
                         : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
                     }`}
-                    title={`Team #${theme.sequenceNo} (${team.team_name || team.short_name})${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
+                    title={`Team #${theme.sequenceNo}: ${team.team_name}\nShort Name: ${shortcut}\nPurse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit Exceeded' : ''}`}
                   >
+                    {/* Rich Hover Card: Team number, Full Name, Purse Balance, Max Bid */}
+                    <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-1 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[170px] backdrop-blur-md text-left">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-1 text-[10px]">
+                        <span className="font-extrabold text-amber-400">Team #{theme.sequenceNo}</span>
+                        <span className="font-mono text-slate-300 font-bold">{shortcut}</span>
+                      </div>
+                      <div className="font-bold text-xs text-white truncate">{team.team_name}</div>
+                      <div className="flex items-center justify-between text-[11px] pt-0.5">
+                        <span className="text-slate-400">Purse:</span>
+                        <span className="font-mono font-bold text-emerald-400">₹{Number(team.balance || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-400">Max Bid:</span>
+                        <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      {catTarget > 0 && (
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-white/10 pt-0.5 mt-0.5">
+                          <span>{playerCat}:</span>
+                          <span>{team.category_counts?.[playerCat] || 0}/{catTarget}</span>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Top Row: Sequence Badge & Leading Indicator */}
                     <div className="flex items-center justify-between w-full mb-1" style={{ writingMode: 'horizontal-tb' }}>
                       <span
@@ -2568,11 +2591,11 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                             {/* Franchise Bidding Stations Element (Option 4 Geometry) */}
                             {key === 'franchise_stations' && (
                               <div
-                                className="w-full h-full p-1.5 rounded-xl bg-[#030f1e]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-hidden flex flex-col justify-center shadow-lg"
+                                className="w-full h-full p-1.5 rounded-xl bg-[#030f1e]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-lg relative"
                                 style={{ borderRadius: `${el.border_radius ?? 12}px` }}
                               >
                                 <div
-                                  className="w-full h-full grid"
+                                  className="w-full h-full grid overflow-visible"
                                   style={{
                                     gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
                                     gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
@@ -2599,8 +2622,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                         key={team.team_id}
                                         onClick={() => handleTeamSelectAndBid(team.team_id)}
                                         disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull}
-                                        title={`Team #${idx + 1}: ${team.team_name}\nShort Name: ${shortcut}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}\nPurse Balance: ₹${Number(team.balance || 0).toLocaleString('en-IN')}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
-                                        className={`flex flex-col justify-between p-1 rounded-md overflow-hidden transition select-none min-w-0 ${
+                                        title={`Team #${idx + 1}: ${team.team_name}\nShort Name: ${shortcut}\nPurse Balance: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
+                                        className={`group relative flex flex-col justify-between p-1 rounded-md transition select-none min-w-0 ${
                                           isLeading
                                             ? 'ring-2 ring-amber-400'
                                             : isQuotaFull || isBudgetExceeded
@@ -2616,6 +2639,22 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                           writingMode: 'horizontal-tb',
                                         }}
                                       >
+                                        {/* Rich Hover Card: Team number, Full Name, Short Name, Purse Balance, Max Bid */}
+                                        <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-0.5 p-2 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[155px] backdrop-blur-md text-left">
+                                          <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
+                                            <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
+                                            {assignedShortcut && <span className="font-mono text-slate-300 font-bold">[{assignedShortcut}]</span>}
+                                          </div>
+                                          <div className="font-bold text-[11px] text-white truncate">{team.team_name}</div>
+                                          <div className="flex items-center justify-between text-[10px] pt-0.5">
+                                            <span className="text-slate-400">Purse Balance:</span>
+                                            <span className="font-mono font-bold text-emerald-400">₹{Number(team.balance || 0).toLocaleString('en-IN')}</span>
+                                          </div>
+                                          <div className="flex items-center justify-between text-[10px]">
+                                            <span className="text-slate-400">Max Bid:</span>
+                                            <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
+                                          </div>
+                                        </div>
                                         <div
                                           className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
                                           style={{ writingMode: 'horizontal-tb' }}

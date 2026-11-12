@@ -51,6 +51,7 @@ export default function TeamEntryModal({
   const [sponsorName, setSponsorName] = useState('')
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoBase64, setLogoBase64] = useState<string>('')
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -79,6 +80,7 @@ export default function TeamEntryModal({
         setSponsorName(teamToEdit.sponsor_name || '')
         setLogoPreview(resolveMediaUrl(teamToEdit.logo || teamToEdit.logo_url) || null)
         setLogoFile(null)
+        setLogoBase64('')
       } else {
         // New Team: Auto distinct color
         const distinct = COLOR_PALETTE[existingTeamsCount % COLOR_PALETTE.length]
@@ -102,6 +104,7 @@ export default function TeamEntryModal({
         setSponsorName('')
         setLogoPreview(null)
         setLogoFile(null)
+        setLogoBase64('')
       }
     }
   }, [isOpen, teamToEdit, existingTeamsCount])
@@ -168,7 +171,9 @@ export default function TeamEntryModal({
       setLogoFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
-        setLogoPreview(reader.result as string)
+        const b64 = reader.result as string
+        setLogoPreview(b64)
+        setLogoBase64(b64)
       }
       reader.readAsDataURL(file)
     }
@@ -224,15 +229,14 @@ export default function TeamEntryModal({
       if (logoFile) {
         formData.append('logo', logoFile)
       }
+      if (logoBase64) {
+        formData.append('logo_base64', logoBase64)
+      }
 
       if (teamToEdit?.id) {
-        await apiClient.patch(`/v1/auction/console/${auctionId}/teams/${teamToEdit.id}/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
+        await apiClient.patch(`/v1/auction/console/${auctionId}/teams/${teamToEdit.id}/`, formData)
       } else {
-        await apiClient.post(`/v1/auction/console/${auctionId}/teams/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
+        await apiClient.post(`/v1/auction/console/${auctionId}/teams/`, formData)
       }
 
       onSuccess()
@@ -434,9 +438,14 @@ export default function TeamEntryModal({
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer text-muted-foreground"
+                    className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer text-muted-foreground w-full"
                   />
-                  <div className="flex items-center gap-2 pt-2">
+                  {logoFile && (
+                    <p className="text-[11px] font-semibold text-emerald-600 truncate">
+                      ✓ Chosen: {logoFile.name}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 pt-1">
                     <input
                       type="checkbox"
                       id="removeLogoBg"
@@ -462,8 +471,20 @@ export default function TeamEntryModal({
                   />
                   {logoPreview && (
                     <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
-                      <div className="w-8 h-8 rounded-lg border border-border overflow-hidden bg-black/10 flex items-center justify-center p-0.5">
-                        <img src={logoPreview} alt="Preview" className="w-full h-full object-contain" />
+                      <div className="w-10 h-10 rounded-xl border border-border overflow-hidden bg-slate-900 flex items-center justify-center p-1 shrink-0 shadow-sm">
+                        <img
+                          src={logoPreview}
+                          alt="Preview"
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            const cur = e.currentTarget.src
+                            if (cur.includes('/media/') && !cur.includes('/api/media/')) {
+                              e.currentTarget.src = cur.replace('/media/', '/api/media/')
+                            } else if (cur.includes('/api/media/')) {
+                              e.currentTarget.src = cur.replace('/api/media/', '/media/')
+                            }
+                          }}
+                        />
                       </div>
                       <span className="text-[11px] font-semibold text-emerald-600">Logo preview ready</span>
                     </div>

@@ -37,23 +37,52 @@ export const resolveMediaUrl = (url: string | null | undefined): string => {
   let trimmed = String(url).trim()
   if (!trimmed) return ''
 
-  const base = BASE_URL.replace(/\/api\/?$/, '')
-
-  // If the stored URL contains localhost:8000 or 127.0.0.1:8000 from local tests, rewrite it to current API host
-  if (trimmed.includes('localhost:8000/') || trimmed.includes('127.0.0.1:8000/')) {
-    const relPart = trimmed.replace(/^https?:\/\/[^/]+/, '')
-    return `${base}${relPart.startsWith('/') ? '' : '/'}${relPart}`
-  }
-
+  // Data URLs or Blob URLs can be rendered immediately
   if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
     return trimmed
   }
 
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+  // Base API url (e.g. "https://xrena.99.vibesandbox.live/api" or "http://localhost:8000/api")
+  const baseWithApi = BASE_URL.replace(/\/+$/, '')
+  const baseWithoutApi = BASE_URL.replace(/\/api\/?$/, '')
+
+  // If the stored URL contains obsolete or test hosts, normalize to active base
+  if (
+    trimmed.includes('testserver/') ||
+    trimmed.includes('localhost:8000/') ||
+    trimmed.includes('127.0.0.1:8000/') ||
+    trimmed.includes('localhost:5173/')
+  ) {
+    trimmed = trimmed.replace(/^https?:\/\/[^/]+/, '')
+  }
+
+  // Pure external URLs (e.g. imgur, s3, unsplash, cdn) without media path
+  if ((trimmed.startsWith('http://') || trimmed.startsWith('https://')) && !trimmed.includes('/media/')) {
     return trimmed
   }
 
-  return `${base}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`
+  // Full URL containing /media/ but on another host or with host
+  if (trimmed.includes('/media/')) {
+    const idx = trimmed.indexOf('/media/')
+    const relPart = trimmed.slice(idx) // e.g. "/media/team_logos/..."
+    // Route via /api/media/ so it safely traverses API reverse proxies on live/sandbox
+    return `${baseWithoutApi}/api${relPart}`
+  }
+
+  if (trimmed.startsWith('/api/media/')) {
+    return `${baseWithoutApi}${trimmed}`
+  }
+
+  if (trimmed.startsWith('api/media/')) {
+    return `${baseWithoutApi}/${trimmed}`
+  }
+
+  if (trimmed.startsWith('/')) {
+    return `${baseWithoutApi}/api/media${trimmed}`
+  }
+
+  // Bare filename/path (e.g. "team_logos/logo.png")
+  return `${baseWithApi}/media/${trimmed}`
 }
 
 export const apiClient = axios.create({
