@@ -9,6 +9,7 @@ import {
   Sparkles,
   Table as TableIcon,
   LayoutGrid,
+  List as ListIcon,
   Search,
   X,
   TrendingUp,
@@ -24,6 +25,7 @@ export default function PublicViewerPage() {
 
   // Visitor Navigation Tabs
   const [activeTab, setActiveTab] = useState<'teams' | 'players' | 'highlights'>('teams')
+  const [teamViewType, setTeamViewType] = useState<'cards' | 'list'>('cards')
 
   // Selected Team for Roster Drill-Down Modal
   const [selectedTeamRoster, setSelectedTeamRoster] = useState<any | null>(null)
@@ -282,68 +284,174 @@ export default function PublicViewerPage() {
         {/* ================= TAB 1: TEAMS LEADERBOARD ================= */}
         {activeTab === 'teams' && (
           <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                <Shield className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span>Franchise Purse & Squad Leaderboard</span>
-              </h3>
-              <span className="text-[11px] text-slate-400">💡 Click any team to view acquired players</span>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div>
+                <h3 className="text-sm sm:text-base font-black uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span>Franchise Purse & Squad Leaderboard</span>
+                </h3>
+                <span className="text-[11px] text-slate-400">💡 Click any team card or row to view complete acquired squad</span>
+              </div>
+
+              {/* View Toggle: List View vs Card View (Matching Image 2) */}
+              <div className="flex items-center rounded-xl bg-blue-500/10 p-1 border border-blue-500/20 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setTeamViewType('list')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    teamViewType === 'list'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-blue-300 hover:text-white'
+                  }`}
+                >
+                  <ListIcon className="w-3.5 h-3.5" />
+                  <span>List View</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeamViewType('cards')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    teamViewType === 'cards'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-blue-300 hover:text-white'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Card View</span>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
-              {data?.teams?.map((t: any) => {
-                const teamColor = t.team_color || t.color || '#3b82f6'
-                const maxSquad = t.max_squad || data?.config?.max_squad || data?.max_squad || 12
-                const shortcut = t.short_name || t.team_name?.slice(0, 3)?.toUpperCase()
+            {teamViewType === 'cards' ? (
+              /* CARD VIEW (Matching Image 1) */
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+                {data?.teams?.map((t: any) => {
+                  const teamColor = t.team_color || t.color || '#3b82f6'
+                  const maxSquad = t.max_squad || data?.config?.max_squad || data?.max_squad || 12
+                  const shortcut = t.short_name || t.team_name?.slice(0, 3)?.toUpperCase()
 
-                return (
-                  <div
-                    key={t.team_id}
-                    onClick={() => setSelectedTeamRoster(t)}
-                    style={{ borderTop: `4px solid ${teamColor}` }}
-                    className="rounded-xl border border-white/10 bg-white/5 p-4 shadow-sm hover:border-amber-400/60 hover:bg-white/10 transition-all flex flex-col justify-between cursor-pointer group"
-                    title={`Click to view ${t.team_name} squad roster`}
-                  >
-                    <div className="flex items-start gap-2.5 mb-2">
-                      <span
-                        className="w-3.5 h-3.5 rounded-full shrink-0 mt-0.5 shadow-xs border border-white/30"
-                        style={{ backgroundColor: teamColor }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <span className="font-black text-white text-sm block break-words whitespace-normal leading-snug group-hover:text-amber-300 transition">
-                          {t.team_name}
-                        </span>
-                        {shortcut && (
-                          <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.2 rounded bg-white/10 text-slate-300 mt-0.5 inline-block">
-                            {shortcut}
+                  return (
+                    <div
+                      key={t.team_id}
+                      onClick={() => setSelectedTeamRoster(t)}
+                      style={{ borderTop: `4px solid ${teamColor}` }}
+                      className="rounded-xl border border-white/10 bg-white/5 p-4 shadow-sm hover:border-amber-400/60 hover:bg-white/10 transition-all flex flex-col justify-between cursor-pointer group"
+                      title={`Click to view ${t.team_name} squad roster`}
+                    >
+                      <div className="flex items-start gap-2.5 mb-2">
+                        <span
+                          className="w-3.5 h-3.5 rounded-full shrink-0 mt-0.5 shadow-xs border border-white/30"
+                          style={{ backgroundColor: teamColor }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <span className="font-black text-white text-sm block break-words whitespace-normal leading-snug group-hover:text-amber-300 transition">
+                            {t.team_name}
                           </span>
-                        )}
+                          {shortcut && (
+                            <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.2 rounded bg-white/10 text-slate-300 mt-0.5 inline-block">
+                              {shortcut}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-2 space-y-1.5 text-xs border-t border-white/10 pt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Balance:</span>
+                          <span className="font-mono font-bold text-emerald-400">
+                            ₹{Number(t.balance || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Max Bid:</span>
+                          <span className="font-mono font-bold text-amber-300">
+                            ₹{Number(t.max_bid || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400 font-medium">Players Bought:</span>
+                          <span className="font-bold text-white font-mono bg-white/10 px-1.5 py-0.5 rounded text-[11px]">
+                            {t.bought || 0} / {maxSquad}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="mt-2 space-y-1.5 text-xs border-t border-white/10 pt-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400">Purse Balance:</span>
-                        <span className="font-mono font-bold text-emerald-400">
-                          ₹{Number(t.balance || 0).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400">Max Bid:</span>
-                        <span className="font-mono font-bold text-amber-300">
-                          ₹{Number(t.max_bid || 0).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-medium">Players Bought:</span>
-                        <span className="font-bold text-white font-mono bg-white/10 px-1.5 py-0.5 rounded text-[11px]">
-                          {t.bought || 0} / {maxSquad}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            ) : (
+              /* TABULAR LIST VIEW */
+              <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-950/80">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-white/10 font-bold">
+                    <tr>
+                      <th className="py-2.5 px-3">#</th>
+                      <th className="py-2.5 px-3">Team Name</th>
+                      <th className="py-2.5 px-3">Short Code</th>
+                      <th className="py-2.5 px-3 text-right">Purse Balance</th>
+                      <th className="py-2.5 px-3 text-right">Max Bid</th>
+                      <th className="py-2.5 px-3 text-center">Players Bought</th>
+                      <th className="py-2.5 px-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {data?.teams?.map((t: any, idx: number) => {
+                      const teamColor = t.team_color || t.color || '#3b82f6'
+                      const maxSquad = t.max_squad || data?.config?.max_squad || data?.max_squad || 12
+                      const shortcut = t.short_name || t.team_name?.slice(0, 3)?.toUpperCase()
+
+                      return (
+                        <tr
+                          key={t.team_id}
+                          onClick={() => setSelectedTeamRoster(t)}
+                          className="hover:bg-white/5 transition cursor-pointer"
+                        >
+                          <td className="py-3 px-3 font-mono font-bold text-slate-400">#{idx + 1}</td>
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2.5">
+                              <span
+                                className="w-3 h-3 rounded-full shrink-0 shadow-xs border border-white/30"
+                                style={{ backgroundColor: teamColor }}
+                              />
+                              <span className="font-bold text-white text-sm hover:text-amber-300 transition">
+                                {t.team_name}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="font-mono text-xs font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded">
+                              {shortcut}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono font-bold text-emerald-400">
+                            ₹{Number(t.balance || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono font-bold text-amber-300">
+                            ₹{Number(t.max_bid || 0).toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3 px-3 text-center font-mono font-bold text-white">
+                            <span className="bg-white/10 px-2 py-0.5 rounded">
+                              {t.bought || 0} / {maxSquad}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedTeamRoster(t)
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[11px] font-bold transition cursor-pointer"
+                            >
+                              View Squad →
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
