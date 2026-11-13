@@ -6,7 +6,7 @@ import {
   Sliders, AlignLeft, AlignCenter, AlignRight,
   Gavel, XCircle, Flame, ArrowUp, ArrowDown,
   Maximize2, Sparkles, Bookmark, BookmarkPlus, X, EyeOff, Clock,
-  Video, Type, Plus, Upload, History, Move, User, Palette, Columns3
+  Video, Type, Plus, Upload, History, Move, User, Palette, Columns3, Radio
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -2707,6 +2707,20 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                 >
                   <Layout className="w-3.5 h-3.5" />
                   <span>Canvas Only</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const search = new URLSearchParams(window.location.search)
+                    search.set('tab', 'live')
+                    if (auctionId) search.set('tournament', auctionId)
+                    window.location.search = search.toString()
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 hover:text-white"
+                  title="Switch to Interactive Live Broadcast View"
+                >
+                  <Radio className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+                  <span>Live Broadcast</span>
                 </button>
               </div>
             </div>

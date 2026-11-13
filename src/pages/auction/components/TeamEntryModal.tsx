@@ -43,6 +43,7 @@ export default function TeamEntryModal({
   const [managerEmail, setManagerEmail] = useState('')
   const [managerMobile, setManagerMobile] = useState('')
   const [teamColor, setTeamColor] = useState('#2563EB')
+  const [logoBg, setLogoBg] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
   const [removeBg, setRemoveBg] = useState(false)
   const [additionalKitty, setAdditionalKitty] = useState<number>(0)
@@ -72,6 +73,7 @@ export default function TeamEntryModal({
         setManagerEmail(teamToEdit.manager_email || '')
         setManagerMobile(teamToEdit.manager_mobile || '')
         setTeamColor(teamToEdit.color || '#2563EB')
+        setLogoBg(teamToEdit.logo_bg || teamToEdit.card_bg || '')
         setLogoUrl(teamToEdit.logo_url || '')
         setRemoveBg(Boolean(teamToEdit.remove_logo_background))
         setAdditionalKitty(teamToEdit.additional_kitty || 0)
@@ -96,6 +98,7 @@ export default function TeamEntryModal({
         setManagerEmail('')
         setManagerMobile('')
         setTeamColor(distinct)
+        setLogoBg('')
         setLogoUrl('')
         setRemoveBg(false)
         setAdditionalKitty(0)
@@ -219,6 +222,8 @@ export default function TeamEntryModal({
       formData.append('manager_mobile', managerMobile.trim())
       formData.append('color', teamColor)
       formData.append('team_colour', teamColor)
+      formData.append('logo_bg', logoBg || teamColor)
+      formData.append('card_bg', logoBg || teamColor)
       formData.append('logo_url', logoUrl.trim())
       formData.append('remove_logo_background', removeBg ? 'true' : 'false')
       formData.append('additional_kitty', additionalKitty.toString())
@@ -464,8 +469,46 @@ export default function TeamEntryModal({
                       className="rounded border-border text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                     />
                     <label htmlFor="removeLogoBg" className="text-xs font-medium cursor-pointer">
-                      Remove logo background
+                      Remove logo background (Transparent / Knockout white)
                     </label>
+                  </div>
+
+                  {/* Logo Container Background Selection */}
+                  <div className="pt-2 border-t border-border/40 space-y-1">
+                    <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                      Logo Box Background Color:
+                    </Label>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setLogoBg(teamColor)}
+                        className={`px-2 py-0.5 rounded text-[11px] font-bold border transition ${
+                          (!logoBg || logoBg.toLowerCase() === teamColor.toLowerCase())
+                            ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-2xs'
+                            : 'bg-muted text-muted-foreground border-border hover:text-foreground'
+                        }`}
+                      >
+                        Team Color
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLogoBg('#FFFFFF')}
+                        className={`px-2 py-0.5 rounded text-[11px] font-bold border transition ${
+                          logoBg.toLowerCase() === '#ffffff'
+                            ? 'bg-amber-500 text-slate-950 border-amber-400 font-black shadow-2xs'
+                            : 'bg-muted text-muted-foreground border-border hover:text-foreground'
+                        }`}
+                      >
+                        White
+                      </button>
+                      <input
+                        type="color"
+                        value={logoBg || teamColor}
+                        onChange={(e) => setLogoBg(e.target.value)}
+                        className="w-6 h-6 rounded cursor-pointer border border-border p-0.5 bg-background"
+                        title="Pick custom logo background"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -481,11 +524,17 @@ export default function TeamEntryModal({
                   />
                   {logoPreview && (
                     <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
-                      <div className="w-10 h-10 rounded-xl border border-border overflow-hidden bg-slate-900 flex items-center justify-center p-1 shrink-0 shadow-sm">
+                      <div
+                        className="w-10 h-10 rounded-xl border border-border overflow-hidden flex items-center justify-center p-1 shrink-0 shadow-sm transition-colors"
+                        style={{ backgroundColor: logoBg || teamColor }}
+                      >
                         <img
                           src={logoPreview}
                           alt="Preview"
                           className="w-full h-full object-contain"
+                          style={{
+                            mixBlendMode: removeBg ? 'multiply' : 'normal',
+                          }}
                           onError={(e) => {
                             const cur = e.currentTarget.src
                             if (cur.includes('/media/') && !cur.includes('/api/media/')) {

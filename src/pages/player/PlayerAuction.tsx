@@ -124,8 +124,8 @@ export default function PlayerAuction() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Banner Header */}
-      <div className="border-b border-border/40 bg-card/60 backdrop-blur-xl px-6 py-4">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="border-b border-border/40 bg-card/60 backdrop-blur-xl px-4 md:px-8 py-4 transition-all duration-300">
+        <div className="w-full max-w-[1920px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all duration-300">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold shrink-0">
               <Gavel className="w-6 h-6 text-amber-500" />
@@ -257,7 +257,7 @@ export default function PlayerAuction() {
       </div>
 
       {/* Main Workspace Body */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 py-4 md:py-6 transition-all duration-300">
         {selectedAuction ? (
           /* PHASE 2 V24 SUITE (All 13 Workspaces Integrated) */
           <AuctionSuite

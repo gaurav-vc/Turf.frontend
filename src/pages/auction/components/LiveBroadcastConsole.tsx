@@ -719,25 +719,10 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
     }
   }
 
-  const rawBg =
-    pageDesign?.custom_background_url ||
-    state?.config?.auction_background ||
-    state?.config?.overall_background ||
-    auctionBackground ||
-    (state as any)?.tournament?.background_image ||
-    state?.config?.background_image ||
-    ''
-
-  const resolvedBgUrl =
-    rawBg === 'stadium'
-      ? 'https://images.unsplash.com/photo-1529900245534-47fbf822495d?w=1600&auto=format&fit=crop&q=80'
-      : rawBg === 'dark_neon'
-      ? 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&auto=format&fit=crop&q=80'
-      : rawBg === 'classic_turf'
-      ? 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=1600&auto=format&fit=crop&q=80'
-      : rawBg && rawBg !== 'default'
-      ? resolveMediaUrl(rawBg)
-      : ''
+  // Stage Background matching Auction Page Designer
+  const customBgUrl = pageDesign?.custom_background_url ? resolveMediaUrl(pageDesign.custom_background_url) : ''
+  const backgroundMode = pageDesign?.background_mode || 'stadium'
+  const resolvedBgUrl = customBgUrl
 
   const getBidDisplayShort = (bid: { team_id?: string; team_name?: string; short_name?: string }) => {
     const teamObj = state?.teams?.find(
@@ -774,26 +759,43 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
           >
             {/* Top Bar */}
             <div className="flex items-center justify-between px-6 py-3 border-b border-blue-900/40 bg-[#031124] shrink-0">
-              {/* Left: Exit or Full Screen Button */}
-              {isFull ? (
+              {/* Left: Exit or Full Screen Button & Edit in Designer shortcut */}
+              <div className="flex items-center gap-2">
+                {isFull ? (
+                  <button
+                    onClick={exitFullScreen}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs border border-white/15 transition shadow-2xs cursor-pointer"
+                  >
+                    ← Exit Full Screen
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setIsFullScreen(true)
+                      toggleBrowserFullscreen()
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs border border-amber-300 transition shadow-md cursor-pointer"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    <span>Full Screen Arena</span>
+                  </button>
+                )}
+
                 <button
-                  onClick={exitFullScreen}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs border border-white/15 transition shadow-2xs cursor-pointer"
-                >
-                  ← Exit Full Screen
-                </button>
-              ) : (
-                <button
+                  type="button"
                   onClick={() => {
-                    setIsFullScreen(true)
-                    toggleBrowserFullscreen()
+                    if (isFull) exitFullScreen()
+                    const url = new URL(window.location.href)
+                    url.searchParams.set('tab', 'designer')
+                    window.location.href = url.toString()
                   }}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs border border-amber-300 transition shadow-md cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-xs border border-indigo-400/40 shadow-xs transition cursor-pointer"
+                  title="Switch to Auction Page Designer to customize layout, fonts, colors, and boxes"
                 >
-                  <Maximize2 className="w-3.5 h-3.5" />
-                  <span>Full Screen Arena</span>
+                  <Palette className="w-3.5 h-3.5 text-indigo-200" />
+                  <span>Edit in Designer</span>
                 </button>
-              )}
+              </div>
 
               {/* Center: Tournament Name & Pulsing Live Indicator */}
               <div className="text-center">
@@ -1116,25 +1118,35 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
             </div>
 
             {/* Center Arena Body */}
-            <div className="flex-1 flex gap-4 p-4 min-h-0 overflow-hidden">
+            <div className={`flex-1 flex gap-4 min-h-0 overflow-hidden ${isFull ? 'p-1 md:p-2' : 'p-4'}`}>
               {/* Left Stage: Dynamically Configured Live Broadcast Arena Stage */}
-              <div className="flex-1 flex flex-col justify-center rounded-2xl border border-blue-900/40 bg-gradient-to-b from-[#07162b] via-[#051122] to-[#030c18] p-4 shadow-2xl relative overflow-hidden">
-                {/* Background Image / Preset if configured */}
-                {resolvedBgUrl ? (
+              <div className="flex-1 flex flex-col justify-center rounded-2xl border border-blue-900/40 bg-gradient-to-b from-[#07162b] via-[#051122] to-[#030c18] p-2 md:p-4 shadow-2xl relative overflow-hidden">
+                {/* Background Image / Preset if configured matching Page Designer */}
+                {customBgUrl ? (
                   <img
-                    src={resolvedBgUrl}
+                    src={customBgUrl}
                     alt="Stage Background"
-                    className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-60"
+                    className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-40"
                   />
-                ) : pageDesign?.background_mode === 'classic_turf' ? (
+                ) : backgroundMode === 'classic_turf' ? (
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-950 pointer-events-none opacity-60" />
-                ) : pageDesign?.background_mode === 'dark_neon' ? (
+                ) : backgroundMode === 'dark_neon' ? (
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-indigo-950 pointer-events-none opacity-60" />
-                ) : null}
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 pointer-events-none" />
+                )}
 
                 {player ? (
                   /* 16:9 Canvas Stage Layout matching Page Designer element positions */
-                  <div className="relative aspect-video w-full select-none overflow-hidden mx-auto my-auto">
+                  <div
+                    className="relative aspect-video w-full select-none overflow-hidden mx-auto my-auto"
+                    style={{
+                      backgroundImage: (pageDesign?.grid_visible !== false)
+                        ? `radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)`
+                        : 'none',
+                      backgroundSize: `${(pageDesign?.snap_grid || 5) * 2}% ${(pageDesign?.snap_grid || 5) * 2}%`,
+                    }}
+                  >
                     {Object.entries((pageDesign?.elements || DEFAULT_PAGE_DESIGN.elements) as Record<string, any>).map(([key, el]) => {
                       if (!el || el.selected === false) return null
 
@@ -2110,8 +2122,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 )}
               </div>
 
-              {/* Right Column: Bid History Stream (Only show if not already placed inside stage canvas) */}
-              {pageDesign?.elements?.bid_history?.selected !== true && (
+              {/* Right Column: Bid History Stream (Only show in windowed mode if not already placed inside stage canvas) */}
+              {!isFull && (pageDesign?.elements?.bid_history ?? DEFAULT_PAGE_DESIGN.elements.bid_history)?.selected !== true && (
                 <div className="w-80 flex flex-col rounded-2xl border border-blue-900/40 bg-[#030f1e] p-4 shrink-0 shadow-2xl">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2.5 mb-3">
                   <span className="text-xs font-black uppercase tracking-wider text-slate-200">
@@ -2163,11 +2175,14 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
             )}
           </div>
 
-            {/* Bottom Stadium Bar: Franchise Stations & Action Buttons */}
-            {(!pageDesign?.elements?.franchise_stations?.selected || !pageDesign?.elements?.action_bar?.selected) && (
+            {/* Bottom Stadium Bar: Franchise Stations & Action Buttons (Only show in windowed mode if not already on stage canvas) */}
+            {!isFull && (
+              ((pageDesign?.elements?.franchise_stations ?? DEFAULT_PAGE_DESIGN.elements.franchise_stations)?.selected === false) ||
+              ((pageDesign?.elements?.action_bar ?? DEFAULT_PAGE_DESIGN.elements.action_bar)?.selected === false)
+            ) && (
               <div className="border-t border-blue-900/40 bg-[#030d1a] p-3 space-y-2 shrink-0">
                 {/* Franchise Bidding Stations Row (Only if hidden from stage canvas) */}
-                {!pageDesign?.elements?.franchise_stations?.selected && (
+                {(pageDesign?.elements?.franchise_stations ?? DEFAULT_PAGE_DESIGN.elements.franchise_stations)?.selected === false && (
                   <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 px-1">
                   TEAMS (TAP OR PRESS 1–{state?.teams?.length || 9} • 2s timeout / Enter):
@@ -2265,7 +2280,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 )}
 
               {/* Actions Row (SOLD, UNSOLD, CUSTOM BID, PLAYER NO. + SHOW) */}
-              {!pageDesign?.elements?.action_bar?.selected && (
+              {(pageDesign?.elements?.action_bar ?? DEFAULT_PAGE_DESIGN.elements.action_bar)?.selected === false && (
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-white/5">
                 <div className="flex items-center gap-2 flex-wrap">
                   {actionButtons

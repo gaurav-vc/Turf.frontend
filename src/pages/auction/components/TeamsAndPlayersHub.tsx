@@ -23,8 +23,10 @@ function TeamLogoBadge({ team }: { team: any }) {
   const [hasError, setHasError] = useState(false)
   const [triedFallback, setTriedFallback] = useState(false)
 
-  const teamColor = team.color || '#2563EB'
+  const teamColor = team.color || team.team_colour || team.logo_color || '#2563EB'
   const shortName = (team.short_name || team.name?.substring(0, 3) || 'TM').toUpperCase()
+  // Dynamic logo background matching team's setup color, card_bg, or logo_bg
+  const dynamicLogoBg = team.logo_bg || team.card_bg || teamColor
 
   useEffect(() => {
     setImgSrc(resolved)
@@ -48,12 +50,30 @@ function TeamLogoBadge({ team }: { team: any }) {
   }
 
   if (imgSrc && !hasError) {
+    const isLightBg = dynamicLogoBg && (
+      dynamicLogoBg.toLowerCase() === '#ffffff' ||
+      dynamicLogoBg.toLowerCase() === 'white' ||
+      dynamicLogoBg.startsWith('rgb(255')
+    )
+
     return (
-      <div className="w-14 h-14 rounded-2xl p-1.5 flex items-center justify-center bg-slate-900 border-2 border-slate-700/80 shadow-md overflow-hidden shrink-0">
+      <div
+        className="w-14 h-14 rounded-2xl p-1.5 flex items-center justify-center shadow-md overflow-hidden shrink-0 transition-colors"
+        style={{
+          backgroundColor: dynamicLogoBg,
+          borderColor: teamColor,
+          borderWidth: '2px',
+          borderStyle: 'solid',
+        }}
+        title={`${team.name} (Logo)`}
+      >
         <img
           src={imgSrc}
           alt={team.name}
-          className="w-full h-full object-contain"
+          className="w-full h-full object-contain pointer-events-none"
+          style={{
+            mixBlendMode: team.remove_logo_background || (!isLightBg && team.remove_logo_background !== false) ? 'multiply' : 'normal',
+          }}
           onError={handleImageError}
         />
       </div>
