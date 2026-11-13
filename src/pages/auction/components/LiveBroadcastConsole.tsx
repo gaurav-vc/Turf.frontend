@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import {
-  Gavel, RotateCcw, Search, Shield, Trophy, Flame,
+  Gavel, RotateCcw, Shield, Trophy, Flame,
   Clock, CheckCircle, XCircle, ChevronRight, AlertCircle, RefreshCw, Sparkles,
   Volume2, VolumeX, Play, Pause, Maximize2, Users, Palette
 } from 'lucide-react'
@@ -176,6 +176,15 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
       : DEFAULT_ACTION_BUTTONS
 
   useEffect(() => {
+    // 1. Instant optimistic load from localStorage
+    try {
+      const cached = localStorage.getItem(`turf_auction_page_design_${auctionId}`)
+      if (cached) {
+        setPageDesign(JSON.parse(cached))
+      }
+    } catch (e) {}
+
+    // 2. Fetch authoritative design from backend
     apiClient
       .get(`/v1/auction/console/${auctionId}/page_design/`)
       .then((res) => {
@@ -184,6 +193,28 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
       .catch((err) => {
         console.warn('Page design load fallback', err)
       })
+
+    // 3. Real-time sync listener from AuctionPageDesigner in any tab or component
+    const handleDesignUpdate = (e: any) => {
+      if (e.detail?.auctionId === auctionId && e.detail?.design) {
+        setPageDesign(e.detail.design)
+      } else if (e.detail && !e.detail.auctionId) {
+        setPageDesign(e.detail)
+      }
+    }
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === `turf_auction_page_design_${auctionId}` && e.newValue) {
+        try {
+          setPageDesign(JSON.parse(e.newValue))
+        } catch (err) {}
+      }
+    }
+    window.addEventListener('auction_page_design_updated', handleDesignUpdate)
+    window.addEventListener('storage', handleStorage)
+    return () => {
+      window.removeEventListener('auction_page_design_updated', handleDesignUpdate)
+      window.removeEventListener('storage', handleStorage)
+    }
   }, [auctionId])
 
   useEffect(() => {
@@ -338,18 +369,11 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
         const teams = state?.teams || []
         const currentVal = parseInt(newBuf, 10)
-        // If currentVal cannot be extended to another team (e.g. 14 teams, typed 2 -> 20 > 14):
-        // execute IMMEDIATELY with zero delay!
-        const canExtend = !isNaN(currentVal) && currentVal > 0 && (currentVal * 10 <= teams.length)
-        if (!canExtend && currentVal > 0 && currentVal <= teams.length) {
+        // Instant 0ms bid execution on number key press - zero lag!
+        if (currentVal > 0 && currentVal <= teams.length) {
           executeNumKeyBid(newBuf)
           return
         }
-
-        // If it could be a multi-digit prefix (e.g. '1' with >= 10 teams), wait fraction of a second (450ms)
-        numKeyTimerRef.current = setTimeout(() => {
-          executeNumKeyBid(numKeyBufferRef.current)
-        }, 200)
         return
       }
 
@@ -487,12 +511,19 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const currentBid = state?.current_bid || 0
   const highestBid = state?.highest_bid
 
+  const audioCtxRef = useRef<any>(null)
   const playSoundEffect = (type: 'bid' | 'sold' | 'unsold' | 'timer') => {
     if (!soundEnabled) return
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
       if (!AudioCtx) return
-      const ctx = new AudioCtx()
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioCtx()
+      }
+      const ctx = audioCtxRef.current
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {})
+      }
 
       if (type === 'bid') {
         const osc = ctx.createOscillator()
@@ -725,1388 +756,13 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
     )
   }
 
-  return (
-    <div
-      className="space-y-6 rounded-3xl p-2 sm:p-4 transition-all"
-      style={
-        resolvedBgUrl
-          ? {
-              backgroundImage: `linear-gradient(rgba(3, 10, 24, 0.75), rgba(3, 10, 24, 0.88)), url(${resolvedBgUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundAttachment: 'fixed',
-            }
-          : undefined
-      }
-    >
-      {/* Top Banner Toolbar: Title & Full Screen Arena Mode Trigger */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-slate-800 bg-[#07162b] p-4 rounded-2xl shadow-xl">
-        <div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <Gavel className="w-5 h-5 text-amber-400" />
-            Live Broadcast Auction Arena
-          </h2>
-          <p className="text-xs text-slate-300 mt-0.5">
-            Real-time franchise bidding floor with live audio feedback, countdown timers, and instant lot settlement.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Multiple Bid Toggle (Yes / No) */}
-          <button
-            type="button"
-            onClick={async () => {
-              const nextVal = !allowMultipleBids
-              setAllowMultipleBids(nextVal)
-              try {
-                await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, {
-                  allow_multiple_bids: nextVal,
-                })
-              } catch (_) {}
-            }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${
-              allowMultipleBids
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
-                : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
-            }`}
-            title="Enable to permit a team to place consecutive bids (re-bidding / raising own bid)"
-          >
-            <span className="text-[10px] text-slate-400 uppercase">Multiple Bid:</span>
-            <span className={`font-black font-mono ${allowMultipleBids ? 'text-emerald-400' : 'text-slate-300'}`}>
-              {allowMultipleBids ? 'YES' : 'NO'}
-            </span>
-          </button>
-
-          {/* Auto Advance Queue Toggle (On / Off) */}
-          <button
-            type="button"
-            onClick={async () => {
-              const nextVal = !autoAdvanceQueue
-              setAutoAdvanceQueue(nextVal)
-              try {
-                await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, {
-                  auto_advance_queue: nextVal,
-                })
-              } catch (_) {}
-            }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${
-              autoAdvanceQueue
-                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
-                : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
-            }`}
-            title="Automatically load the next player from the queue after SOLD or UNSOLD"
-          >
-            <span className="text-[10px] text-slate-400 uppercase">Auto Queue:</span>
-            <span className={`font-black font-mono ${autoAdvanceQueue ? 'text-indigo-400' : 'text-slate-300'}`}>
-              {autoAdvanceQueue ? 'ON' : 'OFF'}
-            </span>
-          </button>
-
-          {/* Up Next Queue Drawer Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowQueueDrawer(!showQueueDrawer)}
-            className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-2.5 py-1.5 rounded-xl border border-white/15 transition cursor-pointer"
-            title="View upcoming players in queue"
-          >
-            <Users className="w-3.5 h-3.5 text-amber-400" />
-            <span>Up Next ({upcomingQueue.length})</span>
-          </button>
-
-          {/* Category Selector */}
-          <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 px-2.5 py-1.5 rounded-xl">
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Cat:</span>
-            <select
-              value={selectedCategory}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="bg-transparent text-white font-extrabold text-xs cursor-pointer focus:outline-none"
-            >
-              <option value="ALL" className="bg-slate-900 text-white">All Categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c} className="bg-slate-900 text-white">
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Button
-            size="sm"
-            onClick={() => handleBringNextQueuedPlayer()}
-            disabled={actionLoading}
-            className="bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 font-bold text-xs px-3 py-1.5 rounded-xl border border-emerald-500/40 transition"
-            title="Bring next available player in queue"
-          >
-            <ChevronRight className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-            Next In Queue →
-          </Button>
-
-          <Button
-            onClick={() => {
-              setIsFullScreen(true)
-              toggleBrowserFullscreen()
-            }}
-            className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 cursor-pointer transition-all hover:scale-[1.02]"
-          >
-            <Maximize2 className="w-4 h-4" />
-            <span>Full Screen</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Auto-Advance Countdown Banner */}
-      {autoAdvanceCountdown !== null && (
-        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-2.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 font-bold text-xs shadow-xl animate-pulse border-2 border-amber-300">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-slate-950 animate-spin" />
-            <span>
-              🎉 Auto-loading next player from queue in <strong>{autoAdvanceCountdown}s</strong>...
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleBringNextQueuedPlayer}
-              className="bg-slate-950 text-white hover:bg-slate-800 px-3 py-1 rounded-xl text-xs font-black shadow-xs cursor-pointer transition"
-            >
-              Bring Next Now →
-            </button>
-            <button
-              type="button"
-              onClick={() => setAutoAdvanceCountdown(null)}
-              className="bg-amber-600/40 text-slate-950 hover:bg-amber-600/60 px-2.5 py-1 rounded-xl text-xs font-bold cursor-pointer transition"
-            >
-              Cancel Auto-Advance
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Upcoming Queue Drawer Strip */}
-      {showQueueDrawer && (
-        <div className="bg-[#040e1d] border border-amber-500/40 p-4 rounded-2xl shadow-2xl space-y-3">
-          <div className="flex items-center justify-between border-b border-white/10 pb-2">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-amber-400" />
-              <h3 className="font-extrabold text-xs text-white uppercase tracking-wider">
-                Upcoming Queue ({upcomingQueue.length} Players Waiting)
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowQueueDrawer(false)}
-              className="text-xs text-slate-400 hover:text-white"
-            >
-              Close ✕
-            </button>
-          </div>
-          {upcomingQueue.length === 0 ? (
-            <div className="text-center py-4 text-xs text-slate-400 italic">
-              No players currently queued in this category.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 max-h-48 overflow-y-auto pr-1">
-              {upcomingQueue.map((p, idx) => (
-                <div
-                  key={p.id || idx}
-                  className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-center justify-between text-xs hover:border-amber-400/50 transition group"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span className="font-mono text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                      #{p.serial_no || idx + 1}
-                    </span>
-                    <div className="truncate">
-                      <span className="font-bold text-white block truncate">{p.name}</span>
-                      <span className="text-[10px] text-slate-400">{p.role} • ₹{Number(p.base_price || 0).toLocaleString('en-IN')}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (p.serial_no) {
-                        await selectPlayerNo(p.serial_no)
-                      }
-                    }}
-                    className="opacity-0 group-hover:opacity-100 bg-amber-400 text-slate-950 font-bold text-[10px] px-2 py-1 rounded transition shrink-0 ml-1 cursor-pointer"
-                    title="Bring this player immediately"
-                  >
-                    Select
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Feedback Banner */}
-      <AnimatePresence>
-        {feedbackMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className={`flex items-center justify-between rounded-xl border p-4 text-sm font-medium ${
-              feedbackMessage.type === 'success'
-                ? 'border-emerald-500/30 bg-emerald-950/40 text-emerald-300'
-                : 'border-red-500/30 bg-red-950/40 text-red-300'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {feedbackMessage.type === 'success' ? (
-                <CheckCircle className="h-5 w-5 text-emerald-400" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-red-400" />
-              )}
-              <span>{feedbackMessage.text}</span>
-            </div>
-            <button
-              onClick={() => setFeedbackMessage(null)}
-              className="rounded p-1 hover:bg-white/10"
-            >
-              ✕
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Main Broadcast Stage */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Column: Player on the Block (8 Cols) */}
-        <div className="lg:col-span-8 space-y-4">
-          <div
-            className="relative overflow-hidden rounded-2xl border border-slate-800 p-6 shadow-2xl backdrop-blur-md"
-            style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617' }}
-          >
-            {/* Background Image / Preset Overlay from Page Designer */}
-            {pageDesign?.custom_background_url ? (
-              <img
-                src={pageDesign.custom_background_url}
-                alt="Stage Background"
-                className="absolute inset-0 h-full w-full object-cover opacity-35 pointer-events-none"
-              />
-            ) : pageDesign?.background_mode === 'classic_turf' ? (
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-950 pointer-events-none opacity-50" />
-            ) : pageDesign?.background_mode === 'dark_neon' ? (
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-indigo-950 pointer-events-none opacity-50" />
-            ) : pageDesign?.background_mode === 'stadium' ? (
-              <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 pointer-events-none opacity-60" />
-            ) : null}
-
-            {/* Broadcast Tournament Branding Banner */}
-            {pageDesign?.zones?.branding?.title_text && pageDesign?.elements?.tournament_title?.selected !== false && (
-              <div
-                className={`flex items-center gap-2 mb-4 pb-3 border-b border-white/10 ${
-                  pageDesign.zones.branding.logo_position === 'center'
-                    ? 'justify-center'
-                    : pageDesign.zones.branding.logo_position === 'right'
-                    ? 'justify-end'
-                    : 'justify-start'
-                }`}
-              >
-                {pageDesign.zones.branding.title_image_url ? (
-                  <img
-                    src={pageDesign.zones.branding.title_image_url}
-                    alt="Logo"
-                    style={{ height: `${pageDesign.zones.branding.logo_size || 34}px` }}
-                    className={`object-contain ${pageDesign.zones.branding.remove_title_bg ? 'bg-transparent' : ''}`}
-                  />
-                ) : (
-                  <Shield
-                    style={{
-                      width: `${pageDesign.zones.branding.logo_size || 28}px`,
-                      height: `${pageDesign.zones.branding.logo_size || 28}px`,
-                    }}
-                    className="text-amber-400"
-                  />
-                )}
-                <span
-                  style={{
-                    color: pageDesign.zones.branding.title_colour || '#FFD54A',
-                    fontSize: `${Math.min(pageDesign.zones.branding.title_size || 24, 30)}px`,
-                  }}
-                  className="font-black tracking-wider uppercase font-mono drop-shadow-md"
-                >
-                  {pageDesign.zones.branding.title_text}
-                </span>
-              </div>
-            )}
-
-            {/* Header info */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <div className="flex items-center gap-3">
-                {pageDesign?.elements?.player_number?.selected !== false && (
-                  <span
-                    style={{
-                      color: pageDesign?.elements?.player_number?.colour || '#FFD54A',
-                    }}
-                    className="flex h-8 items-center justify-center rounded-lg bg-amber-500/20 font-mono text-sm font-bold px-2.5"
-                  >
-                    {pageDesign?.elements?.player_number?.show_label ? 'No. ' : '#'}
-                    {player?.serial_no || '—'}
-                  </span>
-                )}
-                {pageDesign?.elements?.player_category?.selected !== false && (
-                  <span
-                    style={{
-                      color: pageDesign?.elements?.player_category?.colour || '#FCD34D',
-                    }}
-                    className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider"
-                  >
-                    {pageDesign?.elements?.player_category?.show_label ? 'Category: ' : ''}
-                    {player?.category || 'General Pool'}
-                  </span>
-                )}
-                {pageDesign?.elements?.role?.selected !== false && (
-                  <span
-                    style={{
-                      color: pageDesign?.elements?.role?.colour || '#93C5FD',
-                    }}
-                    className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs font-semibold"
-                  >
-                    {pageDesign?.elements?.role?.show_label ? 'Role: ' : ''}
-                    {player?.role || 'All-Rounder'}
-                  </span>
-                )}
-              </div>
-
-              {/* Timer, Audio Toggle & Player Jump */}
-              <div className="flex items-center gap-2">
-                {/* 30s Countdown Timer Badge */}
-                <div
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-mono font-bold transition ${
-                    timerSeconds <= 5
-                      ? 'bg-rose-950/80 border-rose-500 text-rose-300 animate-pulse'
-                      : timerSeconds <= 10
-                      ? 'bg-amber-950/80 border-amber-500 text-amber-300'
-                      : 'bg-slate-900 border-slate-700 text-slate-200'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{timerSeconds}s</span>
-                  <button
-                    type="button"
-                    onClick={() => setTimerActive(!timerActive)}
-                    className="hover:text-white p-0.5 ml-0.5"
-                    title={timerActive ? 'Pause Timer' : 'Resume Timer'}
-                  >
-                    {timerActive ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTimerSeconds(30)}
-                    className="hover:text-white p-0.5"
-                    title="Reset to 30s"
-                  >
-                    <RotateCcw className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-
-                {/* Sound Effects Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className={`p-1.5 rounded-lg border text-xs transition ${
-                    soundEnabled
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                      : 'bg-slate-900 border-slate-800 text-slate-500'
-                  }`}
-                  title={soundEnabled ? 'Mute Stadium Audio' : 'Enable Stadium Audio'}
-                >
-                  {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-                </button>
-
-                {/* Category Selector & Next Player trigger in Standard Console */}
-                <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-2 py-1 rounded-xl">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Cat:</span>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                    className="bg-slate-900 border border-white/20 text-white font-bold text-xs rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer"
-                  >
-                    {categories.length > 0 ? (
-                      categories.map((c) => (
-                        <option key={c} value={c} className="bg-slate-900 text-white">
-                          {c}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="ALL" className="bg-slate-900 text-white">All Categories</option>
-                    )}
-                  </select>
-                  <Button
-                    size="sm"
-                    onClick={() => handleCategoryChange(selectedCategory)}
-                    disabled={actionLoading}
-                    className="h-7 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-2.5 rounded-lg shadow-xs"
-                    title="Bring next player from selected category to the auction block"
-                  >
-                    Next Player →
-                  </Button>
-                </div>
-
-                <Input
-                  type="number"
-                  placeholder="Player #"
-                  value={jumpPlayerNo}
-                  onChange={(e) => setJumpPlayerNo(e.target.value)}
-                  className="h-8 w-20 border-white/20 bg-white/5 text-xs text-white"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleJumpPlayer}
-                  disabled={actionLoading}
-                  className="h-8 border-amber-500/40 text-xs text-amber-400 hover:bg-amber-500/20"
-                >
-                  <Search className="h-3 w-3 mr-1" /> Jump
-                </Button>
-              </div>
-            </div>
-
-            {/* Active Player Card Details */}
-            {player ? (
-              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-12">
-                {/* Photo & Base price */}
-                {pageDesign?.elements?.player_photo?.selected !== false && (
-                  <div className="md:col-span-4 flex flex-col items-center">
-                    <div
-                      className="relative h-48 w-44 border-2 border-amber-500/40 bg-slate-800 shadow-xl"
-                      style={getPhotoShapeStyle(pageDesign?.elements?.player_photo?.shape || pageDesign?.elements?.player_photo?.photo_shape, pageDesign?.elements?.player_photo?.border_radius)}
-                    >
-                      {player.photo_url ? (
-                        <img
-                          src={player.photo_url}
-                          alt={player.player_name}
-                          className="h-full w-full object-cover"
-                          style={getPhotoShapeStyle(pageDesign?.elements?.player_photo?.shape || pageDesign?.elements?.player_photo?.photo_shape, pageDesign?.elements?.player_photo?.border_radius)}
-                        />
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center text-slate-500">
-                          <Trophy className="h-12 w-12 text-slate-600" />
-                          <span className="mt-2 text-xs font-semibold">NO PHOTO</span>
-                        </div>
-                      )}
-                      {pageDesign?.elements?.base_price?.selected !== false && (
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent p-2 text-center">
-                          <span className="text-[10px] uppercase tracking-wider text-slate-400">
-                            {pageDesign?.elements?.base_price?.show_label ? 'Base Price' : 'Base'}
-                          </span>
-                          <p
-                            style={{
-                              color: pageDesign?.elements?.base_price?.colour || '#FFD54A',
-                            }}
-                            className="font-mono text-sm font-bold"
-                          >
-                            ₹{player.base_price.toLocaleString()}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Player Stats & Live Bid display */}
-                <div
-                  className={`${
-                    pageDesign?.elements?.player_photo?.selected !== false ? 'md:col-span-8' : 'md:col-span-12'
-                  } flex flex-col justify-between`}
-                >
-                  <div>
-                    {pageDesign?.elements?.player_name?.selected !== false && (
-                      <h2
-                        style={{
-                          color: pageDesign?.elements?.player_name?.colour || '#FFFFFF',
-                          fontSize: `${
-                            pageDesign?.elements?.player_name?.font_size
-                              ? Math.min(pageDesign.elements.player_name.font_size, 46)
-                              : 32
-                          }px`,
-                        }}
-                        className="font-extrabold tracking-tight"
-                      >
-                        {pageDesign?.elements?.player_name?.show_label ? 'Player: ' : ''}
-                        {player.player_name}
-                      </h2>
-                    )}
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                      {pageDesign?.elements?.batting_style?.selected !== false && (
-                        <div className="rounded-lg bg-white/5 p-2">
-                          <span className="text-slate-400">
-                            {pageDesign?.elements?.batting_style?.show_label ? 'Batting Style: ' : 'Bat: '}
-                          </span>
-                          <p
-                            style={{
-                              color: pageDesign?.elements?.batting_style?.colour || '#E2E8F0',
-                            }}
-                            className="font-semibold"
-                          >
-                            {player.batting_style || 'Right Hand'}
-                          </p>
-                        </div>
-                      )}
-                      {pageDesign?.elements?.bowling_style?.selected !== false && (
-                        <div className="rounded-lg bg-white/5 p-2">
-                          <span className="text-slate-400">
-                            {pageDesign?.elements?.bowling_style?.show_label ? 'Bowling Style: ' : 'Bowl: '}
-                          </span>
-                          <p
-                            style={{
-                              color: pageDesign?.elements?.bowling_style?.colour || '#E2E8F0',
-                            }}
-                            className="font-semibold"
-                          >
-                            {player.bowling_style || 'Right Arm'}
-                          </p>
-                        </div>
-                      )}
-                      {player.location && pageDesign?.elements?.location?.selected !== false && (
-                        <div className="rounded-lg bg-white/5 p-2 col-span-2">
-                          <span className="text-slate-400">
-                            {pageDesign?.elements?.location?.show_label ? 'Location: ' : 'Loc: '}
-                          </span>
-                          <p
-                            style={{
-                              color: pageDesign?.elements?.location?.colour || '#E2E8F0',
-                            }}
-                            className="font-semibold"
-                          >
-                            {player.location}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Current Bid Display */}
-                  {pageDesign?.elements?.current_bid?.selected !== false && (
-                    <div
-                      className="mt-4 rounded-xl border border-amber-500/40 p-4"
-                      style={{
-                        backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                        backgroundImage: 'none',
-                        boxShadow: 'none',
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-xs uppercase tracking-wider text-amber-300/80">
-                            {pageDesign?.elements?.current_bid?.show_label ? 'Current Bid' : 'Bid'}
-                          </span>
-                          <p
-                            style={{
-                              color: pageDesign?.elements?.current_bid?.colour || '#FFD54A',
-                              fontSize: `${
-                                pageDesign?.elements?.current_bid?.font_size
-                                  ? Math.min(pageDesign.elements.current_bid.font_size, 48)
-                                  : 36
-                              }px`,
-                            }}
-                            className="font-mono font-extrabold text-amber-400"
-                          >
-                            ₹{currentBid.toLocaleString()}
-                          </p>
-                        </div>
-                        {highestBid && pageDesign?.elements?.bidder_name?.selected !== false && (
-                          <div className="text-right">
-                            <span className="text-xs uppercase tracking-wider text-slate-400">
-                              {pageDesign?.elements?.bidder_name?.show_label ? 'Bidder Team Name' : 'Bidder'}
-                            </span>
-                            <div className="flex items-center gap-2 justify-end">
-                              {highestBid.team_logo && pageDesign?.elements?.bidder_name?.show_team_logo !== false && (
-                                <img
-                                  src={resolveMediaUrl(highestBid.team_logo)}
-                                  alt={highestBid.team_name}
-                                  className="w-6 h-6 rounded-full object-contain border border-amber-400/40"
-                                />
-                              )}
-                              <p
-                                style={{
-                                  color: pageDesign?.elements?.bidder_name?.colour || '#FFFFFF',
-                                }}
-                                className="text-lg font-bold text-white"
-                              >
-                                {highestBid.team_name}
-                              </p>
-                            </div>
-                            <span className="text-xs text-emerald-400">({highestBid.bid_type})</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : upcomingQueue.length > 0 ? (
-              <div className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/20 via-slate-900 to-slate-950 shadow-2xl space-y-4 my-2">
-                <div className="w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs animate-pulse">
-                  <span className="flex items-center gap-2 font-black">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
-                    {customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleBringNextQueuedPlayer}
-                      className="px-2.5 py-1 rounded bg-amber-400 text-zinc-950 font-black text-xs hover:bg-amber-300 transition cursor-pointer"
-                    >
-                      Bring Now →
-                    </button>
-                    {autoAdvanceCountdown !== null && (
-                      <button
-                        onClick={() => setAutoAdvanceCountdown(null)}
-                        className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                    NEXT IN QUEUE • LOT #{upcomingQueue[0].serial_no || upcomingQueue[0].player_number || 1}
-                  </span>
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                    {upcomingQueue[0].category || 'General Pool'}
-                  </span>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-                  {upcomingQueue[0].photo ? (
-                    <img
-                      src={resolveMediaUrl(upcomingQueue[0].photo)}
-                      alt={upcomingQueue[0].name}
-                      className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-400/60 shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-2xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-2xl shadow-lg">
-                      🏏
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <h3 className="text-xl font-black text-white">{upcomingQueue[0].name}</h3>
-                    <p className="text-xs text-slate-400 font-semibold">
-                      Role: <strong className="text-slate-200">{upcomingQueue[0].role || 'Player'}</strong> • Base Price:{' '}
-                      <strong className="text-amber-400 font-mono">
-                        ₹{Number(upcomingQueue[0].base_price || 0).toLocaleString('en-IN')}
-                      </strong>
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      {upcomingQueue.length} player{upcomingQueue.length > 1 ? 's' : ''} waiting in current queue
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
-                  <Button
-                    onClick={handleBringNextQueuedPlayer}
-                    disabled={actionLoading}
-                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
-                  >
-                    <span>Bring to Auction Block</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowQueueDrawer(true)}
-                    className="border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl"
-                  >
-                    View Queue ({upcomingQueue.length})
-                  </Button>
-                </div>
-              </div>
-            ) : autoAdvanceCountdown !== null || queueLoading || actionLoading ? (
-              <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/20 via-slate-900 to-slate-950 shadow-2xl text-center space-y-4 my-2">
-                <div className="w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-lg animate-pulse">
-                  <Sparkles className="w-8 h-8 text-amber-400" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black text-white">
-                    {actionLoading ? 'Loading next player...' : customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
-                  </h3>
-                  <p className="text-xs text-slate-300 font-semibold max-w-md mx-auto">
-                    Preparing next player for the auction floor...
-                  </p>
-                </div>
-                <div className="flex items-center justify-center gap-3 pt-2">
-                  <Button
-                    onClick={handleBringNextQueuedPlayer}
-                    disabled={actionLoading}
-                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
-                  >
-                    <span>Bring Next Player Now →</span>
-                  </Button>
-                </div>
-              </div>
-            ) : totalRemainingInCategory > 0 || totalRemainingInAuction > 0 || upcomingQueue.length > 0 || ((state?.stats?.remaining_count ?? 0) > 0) ? (
-              <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/20 via-slate-900 to-slate-950 shadow-2xl text-center space-y-4 my-2">
-                <div className="w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-lg">
-                  <Sparkles className="w-8 h-8 text-amber-400" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black text-white">
-                    Ready for Next Player
-                  </h3>
-                  <p className="text-xs text-slate-300 font-semibold max-w-md mx-auto">
-                    {totalRemainingInCategory > 0
-                      ? `${totalRemainingInCategory} player${totalRemainingInCategory > 1 ? 's' : ''} available in "${categoryDisplayName}".`
-                      : `${totalRemainingInAuction || state?.stats?.remaining_count || upcomingQueue.length} player(s) available in tournament pool.`}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                  <Button
-                    onClick={handleBringNextQueuedPlayer}
-                    disabled={actionLoading}
-                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
-                  >
-                    <span>Bring Next Player to Floor →</span>
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-b from-emerald-950/20 via-slate-900 to-slate-950 shadow-2xl text-center space-y-4 my-2">
-                <div className="w-14 h-14 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto shadow-lg">
-                  <CheckCircle className="w-8 h-8 text-emerald-400" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black text-white">
-                    {customMessages.msg_category_complete}
-                  </h3>
-                  <p className="text-xs text-slate-300 font-semibold max-w-md mx-auto">
-                    Category <span className="text-amber-400 uppercase font-bold">"{categoryDisplayName}"</span> lots have been completed.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                  {(() => {
-                    const currentIdx = categories.indexOf(selectedCategory)
-                    const nextCat = currentIdx >= 0 && currentIdx < categories.length - 1 ? categories[currentIdx + 1] : null
-                    if (nextCat) {
-                      return (
-                        <Button
-                          onClick={() => handleCategoryChange(nextCat)}
-                          disabled={actionLoading}
-                          className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
-                        >
-                          <span>Move on to {nextCat} →</span>
-                        </Button>
-                      )
-                    }
-                    return null
-                  })()}
-                  <Button
-                    onClick={() => startReauction()}
-                    disabled={actionLoading}
-                    variant="outline"
-                    className="border-purple-500/50 bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 text-xs font-bold rounded-xl"
-                  >
-                    <span>{customMessages.msg_unsold_pool}</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Countdown Expiry Warning Banner */}
-            {timerSeconds === 0 && player && (
-              <div className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-950 via-rose-900 to-rose-950 border border-rose-500/60 p-2 text-xs font-bold text-rose-200 animate-pulse">
-                <AlertCircle className="w-4 h-4 text-rose-400" />
-                <span>GOING ONCE... GOING TWICE... TIMER EXPIRED — READY FOR HAMMER!</span>
-              </div>
-            )}
-
-            {/* Auction Action Pane (Hammer Controls) with Action Zone Width */}
-            <div
-              className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4"
-              style={{
-                maxWidth: pageDesign?.zones?.action_zone_width
-                  ? `${pageDesign.zones.action_zone_width}px`
-                  : undefined,
-              }}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                {actionButtons
-                  .filter((btn) => btn.visible !== false)
-                  .map((btn) => {
-                    switch (btn.id) {
-                      case 'sold':
-                        return (
-                          <Button
-                            key={btn.id}
-                            onClick={handleHammerSold}
-                            disabled={actionLoading || !player || !highestBid}
-                            className="bg-emerald-600 font-extrabold text-white hover:bg-emerald-500 text-xs px-4 py-2"
-                          >
-                            <Gavel className="h-4 w-4 mr-2" /> {btn.label}
-                          </Button>
-                        )
-                      case 'unsold':
-                        return (
-                          <Button
-                            key={btn.id}
-                            onClick={handleHammerUnsold}
-                            disabled={actionLoading || !player}
-                            className="bg-rose-600 font-extrabold text-white hover:bg-rose-500 text-xs px-4 py-2"
-                          >
-                            <XCircle className="h-4 w-4 mr-2" /> {btn.label}
-                          </Button>
-                        )
-                      case 'custom_bid':
-                        return (
-                          <Button
-                            key={btn.id}
-                            onClick={openCustomBidModal}
-                            disabled={actionLoading || !player}
-                            className="bg-amber-500 font-black text-zinc-950 hover:bg-amber-400 text-xs px-4 py-2"
-                          >
-                            <Flame className="h-4 w-4 mr-2 text-zinc-950" /> {btn.label}
-                          </Button>
-                        )
-                      case 'undo_sale':
-                        return (
-                          <Button
-                            key={btn.id}
-                            onClick={handleUndoSale}
-                            disabled={actionLoading}
-                            variant="ghost"
-                            className="text-xs text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-lg font-semibold"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> {btn.label}
-                          </Button>
-                        )
-                      case 'undo_bid':
-                        return (
-                          <Button
-                            key={btn.id}
-                            onClick={undoBid}
-                            disabled={actionLoading || !highestBid}
-                            variant="ghost"
-                            className="text-xs text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-lg font-semibold"
-                          >
-                            {btn.label}
-                          </Button>
-                        )
-                      case 'reset_bid':
-                        return (
-                          <Button
-                            key={btn.id}
-                            onClick={resetBid}
-                            disabled={actionLoading || !highestBid}
-                            variant="ghost"
-                            className="text-xs text-slate-200 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-lg font-semibold"
-                          >
-                            {btn.label}
-                          </Button>
-                        )
-                      default:
-                        return null
-                    }
-                  })}
-              </div>
-            </div>
-          </div>
-
-          {/* Franchise Quick Bid Grid with Dynamic Team Columns & Real-time Dropdown (Fallback only when hidden on stage) */}
-          {pageDesign?.elements?.franchise_stations?.selected === false && (
-            <div
-              className="rounded-2xl border border-slate-800 p-5 shadow-xl backdrop-blur-md"
-              style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617', backgroundImage: 'none', boxShadow: 'none' }}
-            >
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2.5">
-                <Shield className="h-4 w-4 text-amber-400" />
-                <h3 className="text-sm font-extrabold uppercase tracking-wider text-white">
-                  Franchise Bidding Stations ({pageDesign?.zones?.team_columns || 4} Columns)
-                </h3>
-                <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
-                  {state?.teams?.length || 0} Teams
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {/* Real-time Franchise Columns Dropdown Selector */}
-                <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 px-2.5 py-1 rounded-xl">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">Columns:</span>
-                  <select
-                    value={pageDesign?.zones?.team_columns || 4}
-                    onChange={(e) => handleUpdateColumns(Number(e.target.value))}
-                    className="bg-transparent text-amber-400 font-black text-xs cursor-pointer focus:outline-none"
-                  >
-                    <option value={2} className="bg-slate-900 text-white">2 Columns</option>
-                    <option value={3} className="bg-slate-900 text-white">3 Columns</option>
-                    <option value={4} className="bg-slate-900 text-white">4 Columns (Standard)</option>
-                    <option value={5} className="bg-slate-900 text-white">5 Columns</option>
-                    <option value={6} className="bg-slate-900 text-white">6 Columns</option>
-                    <option value={7} className="bg-slate-900 text-white">7 Columns</option>
-                    <option value={8} className="bg-slate-900 text-white">8 Columns</option>
-                    <option value={10} className="bg-slate-900 text-white">10 Columns</option>
-                    <option value={12} className="bg-slate-900 text-white">12 Columns</option>
-                    <option value={14} className="bg-slate-900 text-white">14 Columns</option>
-                  </select>
-                </div>
-
-                {/* My UI Preferences Popover (User-Account Only Customization) */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowMyUiMenu(!showMyUiMenu)}
-                    className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-indigo-500/20 hover:from-amber-500/30 hover:to-indigo-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-xl shadow-xs transition cursor-pointer"
-                    title="Customize font size, color and contrast for your account UI only"
-                  >
-                    <Palette className="w-3.5 h-3.5 text-amber-400" />
-                    <span>My UI</span>
-                    {userPrefs.useCustomColor && (
-                      <span className="w-2 h-2 rounded-full ring-1 ring-white/40" style={{ backgroundColor: userPrefs.fontColor }} />
-                    )}
-                  </button>
-
-                  {/* Popover */}
-                  {showMyUiMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-80 p-4 rounded-2xl bg-slate-950/98 border border-amber-500/50 shadow-2xl z-50 text-slate-200 backdrop-blur-xl space-y-3.5">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <div className="flex items-center gap-1.5">
-                          <Palette className="w-4 h-4 text-amber-400" />
-                          <span className="text-xs font-black uppercase tracking-wider text-white">My Account UI Settings</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowMyUiMenu(false)}
-                          className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 rounded cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-
-                      <div className="text-[10px] text-amber-400/90 font-mono bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 flex items-center justify-between">
-                        <span className="truncate max-w-[170px]">User: {userIdentifier}</span>
-                        <span className="text-emerald-400 font-bold shrink-0">Isolated to you</span>
-                      </div>
-
-                      {/* Font Size */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="text-slate-300">Shortcut Font Size:</span>
-                          <span className="font-mono text-amber-400">{userPrefs.fontSize || 20}px</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateUserPref('fontSize', Math.max(10, userPrefs.fontSize - 1))}
-                            className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
-                          >-</button>
-                          <input
-                            type="range"
-                            min={10}
-                            max={28}
-                            value={userPrefs.fontSize || 20}
-                            onChange={(e) => updateUserPref('fontSize', Number(e.target.value))}
-                            className="flex-1 accent-amber-500 cursor-pointer"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => updateUserPref('fontSize', Math.min(28, userPrefs.fontSize + 1))}
-                            className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
-                          >+</button>
-                        </div>
-                        <div className="flex items-center gap-1 pt-0.5">
-                          {[14, 16, 18, 20, 24].map((sz) => (
-                            <button
-                              key={sz}
-                              type="button"
-                              onClick={() => updateUserPref('fontSize', sz)}
-                              className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
-                                userPrefs.fontSize === sz
-                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                              }`}
-                            >
-                              {sz}px
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Text Color */}
-                      <div className="space-y-1.5 border-t border-white/10 pt-2">
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="text-slate-300">Text Color:</span>
-                          <span className="font-mono text-[11px]" style={{ color: userPrefs.useCustomColor ? userPrefs.fontColor : '#FBBF24' }}>
-                            {userPrefs.useCustomColor ? userPrefs.fontColor : 'Dynamic Palette'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateUserPref('useCustomColor', false)}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer ${
-                              !userPrefs.useCustomColor
-                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                            }`}
-                          >
-                            Team Palette
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateUserPref('useCustomColor', true)}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer flex items-center gap-1 ${
-                              userPrefs.useCustomColor
-                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                            }`}
-                          >
-                            Custom
-                          </button>
-                          {userPrefs.useCustomColor && (
-                            <input
-                              type="color"
-                              value={userPrefs.fontColor || '#FFFFFF'}
-                              onChange={(e) => updateUserPref('fontColor', e.target.value)}
-                              className="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
-                            />
-                          )}
-                        </div>
-                        {userPrefs.useCustomColor && (
-                          <div className="flex items-center gap-1 pt-1">
-                            {[
-                              { hex: '#FFFFFF', name: 'White' },
-                              { hex: '#00F0FF', name: 'Cyan' },
-                              { hex: '#FBBF24', name: 'Gold' },
-                              { hex: '#10B981', name: 'Emerald' },
-                              { hex: '#F43F5E', name: 'Pink' },
-                              { hex: '#A855F7', name: 'Violet' },
-                            ].map((c) => (
-                              <button
-                                key={c.hex}
-                                type="button"
-                                onClick={() => {
-                                  updateUserPref('fontColor', c.hex)
-                                  updateUserPref('useCustomColor', true)
-                                }}
-                                className={`flex-1 h-5 rounded border transition cursor-pointer ${
-                                  userPrefs.fontColor === c.hex ? 'ring-2 ring-white scale-110' : 'opacity-80 hover:opacity-100'
-                                }`}
-                                style={{ backgroundColor: c.hex }}
-                                title={c.name}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Card Atmosphere & Glow */}
-                      <div className="space-y-1.5 border-t border-white/10 pt-2">
-                        <span className="text-xs font-bold text-slate-300 block">Card Atmosphere:</span>
-                        <div className="flex items-center gap-1.5">
-                          {[
-                            { id: 'default', label: 'Default' },
-                            { id: 'oled', label: 'OLED' },
-                            { id: 'navy', label: 'Navy' },
-                            { id: 'carbon', label: 'Carbon' },
-                          ].map((atm) => (
-                            <button
-                              key={atm.id}
-                              type="button"
-                              onClick={() => updateUserPref('cardBg', atm.id as any)}
-                              className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                userPrefs.cardBg === atm.id
-                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                              }`}
-                            >
-                              {atm.label}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[11px] font-bold text-slate-300">Neon Border Glow:</span>
-                          <button
-                            type="button"
-                            onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
-                              userPrefs.borderGlow
-                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
-                                : 'bg-slate-900 text-slate-500 border-slate-800'
-                            }`}
-                          >
-                            {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Reset Button */}
-                      <div className="border-t border-white/10 pt-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={resetUserPrefs}
-                          className="text-[10px] text-slate-400 hover:text-white font-medium hover:underline cursor-pointer"
-                        >
-                          Reset My UI Defaults
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <span className="text-xs text-slate-300 font-medium hidden sm:inline">
-                  Tap card or press Key 1–{state?.teams?.length || 9} to bid (2s timeout or Enter)
-                </span>
-              </div>
-            </div>
-
-            {(!state?.teams || state.teams.length === 0) ? (
-              <div className="flex flex-col items-center justify-center p-8 text-center rounded-xl bg-slate-900/50 border border-dashed border-slate-800 text-slate-400 space-y-2">
-                <Shield className="w-8 h-8 text-amber-500/70" />
-                <p className="text-xs font-bold text-slate-200">No Franchise Teams Registered Yet</p>
-                <p className="text-[11px] text-slate-400 max-w-sm">
-                  Teams are loaded in real-time from your tournament database. Go to Team Setup to create franchise teams.
-                </p>
-              </div>
-            ) : (
-              <div
-                className="grid gap-3"
-                style={{
-                  gridTemplateColumns: `repeat(${Math.max(
-                    2,
-                    Math.min(14, pageDesign?.zones?.team_columns || 4)
-                  )}, minmax(0, 1fr))`,
-                }}
-              >
-                {state.teams.map((team, idx) => {
-                  const isLeading = highestBid?.team_id === team.team_id
-                  const playerCat = player?.category || selectedCategory
-                  const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
-                  const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
-                  const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
-                  const isSelected = selectedTeamId === team.team_id
-                  const theme = getTeamTheme(idx, state.teams.length)
-                  const shortcut = getTeamShortcut(team.team_name, team.short_name)
-                  const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
-                  const teamLogo = (team as any).team_logo || (team as any).logo || (team as any).custom_data?.logo_url
-                  const isNumBuffered = Boolean(numKeyBuffer && parseInt(numKeyBuffer, 10) === theme.sequenceNo)
-                  const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
-
-                  // Account-level UI customizations
-                  const effectiveFontSize = userPrefs.fontSize || 20
-                  const effectiveTextColor = isLeading
-                    ? '#FDE047'
-                    : isQuotaFull
-                    ? '#FDA4AF'
-                    : userPrefs.useCustomColor && userPrefs.fontColor
-                    ? userPrefs.fontColor
-                    : theme.pillText
-
-                  const effectiveBg = isLeading
-                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(180, 83, 9, 0.5) 100%)'
-                    : isNumBuffered
-                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.4) 100%)'
-                    : isQuotaFull || isBudgetExceeded
-                    ? 'rgba(15, 23, 42, 0.85)'
-                    : userPrefs.cardBg === 'oled'
-                    ? '#000000'
-                    : userPrefs.cardBg === 'navy'
-                    ? '#020617'
-                    : userPrefs.cardBg === 'carbon'
-                    ? '#18181b'
-                    : 'rgba(2, 19, 46, 0.95)'
-
-                  const effectiveGlow = isLeading
-                    ? '0 0 18px rgba(245, 158, 11, 0.5)'
-                    : isNumBuffered
-                    ? '0 0 20px rgba(251, 191, 36, 0.6)'
-                    : userPrefs.borderGlow
-                    ? `0 0 14px ${theme.glow}`
-                    : isSelected
-                    ? `0 0 14px ${theme.glow}`
-                    : `0 0 8px ${theme.glow}`
-
-                  return (
-                    <button
-                      key={team.team_id}
-                      onClick={() => handleTeamSelectAndBid(team.team_id)}
-                      disabled={isTeamDisabled}
-                      style={{
-                        background: effectiveBg,
-                        borderColor: isLeading
-                          ? '#F59E0B'
-                          : isNumBuffered
-                          ? '#FBBF24'
-                          : isQuotaFull
-                          ? '#EF4444'
-                          : isBudgetExceeded
-                          ? '#F59E0B'
-                          : isSelected
-                          ? theme.accentHover
-                          : (teamColor || theme.border),
-                        boxShadow: effectiveGlow,
-                        writingMode: 'horizontal-tb',
-                      }}
-                      className={`group relative flex flex-col items-center justify-between rounded-xl border-2 p-2.5 transition-all select-none min-h-[76px] ${
-                        isLeading
-                          ? 'ring-2 ring-amber-400'
-                          : isNumBuffered
-                          ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
-                          : isQuotaFull
-                          ? 'opacity-40 cursor-not-allowed border-rose-800'
-                          : isBudgetExceeded
-                          ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
-                          : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
-                      }`}
-                      title={`Team #${theme.sequenceNo}: ${team.team_name}\nShort Name: ${shortcut}\nPurse: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit Exceeded' : ''}`}
-                    >
-                      {/* Rich Hover Card: Team number, Full Name, Purse Balance, Max Bid */}
-                      <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-1 p-2.5 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[170px] backdrop-blur-md text-left">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-1 text-[10px]">
-                          <span className="font-extrabold text-amber-400">Team #{theme.sequenceNo}</span>
-                          <span className="font-mono text-slate-300 font-bold">{shortcut}</span>
-                        </div>
-                        <div className="font-bold text-xs text-white truncate">{team.team_name}</div>
-                        <div className="flex items-center justify-between text-[11px] pt-0.5">
-                          <span className="text-slate-400">Purse:</span>
-                          <span className="font-mono font-bold text-emerald-400">₹{Number(team.balance || 0).toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-slate-400">Max Bid:</span>
-                          <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
-                        </div>
-                        {catTarget > 0 && (
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 border-t border-white/10 pt-0.5 mt-0.5">
-                            <span>{playerCat}:</span>
-                            <span>{team.category_counts?.[playerCat] || 0}/{catTarget}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Top Row: Sequence Badge & Leading Indicator */}
-                      <div className="flex items-center justify-between w-full mb-1" style={{ writingMode: 'horizontal-tb' }}>
-                        <span
-                          style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
-                          className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black shadow-xs shrink-0"
-                        >
-                          #{theme.sequenceNo}
-                        </span>
-                        {isLeading && (
-                          <span className="px-1.5 py-0.2 rounded bg-amber-400 text-black font-black text-[8px] animate-pulse">
-                            LEADING
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Centered Shortcut Text + Team Logo (Strictly Horizontal) */}
-                      <div className="flex items-center justify-center gap-1.5 my-auto py-1 w-full truncate">
-                        {teamLogo && (
-                          <img
-                            src={resolveMediaUrl(teamLogo)}
-                            alt=""
-                            className="w-5 h-5 rounded-full object-cover shrink-0 border border-white/20 shadow-xs"
-                          />
-                        )}
-                        <span
-                          style={{
-                            color: effectiveTextColor,
-                            fontSize: `${effectiveFontSize}px`,
-                            writingMode: 'horizontal-tb',
-                            whiteSpace: 'nowrap',
-                            textOrientation: 'mixed',
-                          }}
-                          className="font-black font-mono tracking-wider drop-shadow-md truncate"
-                        >
-                          {shortcut}
-                        </span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Live Feed & Lot History with Bid History Width */}
-        <div
-          className="lg:col-span-4 space-y-4"
-          style={{
-            maxWidth: pageDesign?.zones?.bid_history_width
-              ? `${Math.max(260, pageDesign.zones.bid_history_width)}px`
-              : undefined,
-          }}
-        >
-          {/* Bid History Feed */}
-          <div
-            className="rounded-2xl border border-slate-800 p-5 backdrop-blur-md"
-            style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617', backgroundImage: 'none', boxShadow: 'none' }}
-          >
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2 mb-4 border-b border-white/10 pb-3">
-              <Clock className="h-4 w-4 text-blue-400" />
-              Live Bid Stream
-            </h3>
-
-            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-              {state?.bid_history && state.bid_history.length > 0 ? (
-                state.bid_history.map((bid, idx) => (
-                  <div
-                    key={bid.id || idx}
-                    className={`flex items-center justify-between rounded-lg p-2.5 text-xs transition-all ${
-                      idx === 0
-                        ? 'border border-amber-500/40 bg-amber-500/10 text-white font-semibold'
-                        : 'bg-white/5 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="font-mono text-[10px] text-slate-500">#{state.bid_history.length - idx}</span>
-                      {pageDesign?.elements?.bid_history?.show_short_name !== false && (
-                        <span className="font-mono font-black text-amber-400 bg-amber-500/20 px-1.5 py-0.2 rounded text-[10px] shrink-0">
-                          {getBidDisplayShort(bid)}
-                        </span>
-                      )}
-                      {pageDesign?.elements?.bid_history?.show_team_name !== false && (
-                        <span className="font-bold text-white truncate">{bid.team_name}</span>
-                      )}
-                    </div>
-                    {pageDesign?.elements?.bid_history?.show_bid_amount !== false && (
-                      <span className="font-mono font-bold text-amber-400 shrink-0 ml-1">₹{bid.amount.toLocaleString()}</span>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-xl border border-white/10 bg-black/40 py-8 px-4 text-center">
-                  <p className="text-xs text-slate-300 font-medium">No bids placed for this player yet.</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Tap a franchise station or enter custom bid to begin.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Re-auction Trigger */}
-          <div
-            className="rounded-2xl border border-slate-800 p-5 backdrop-blur-md"
-            style={{ backgroundColor: resolvedBgUrl ? 'rgba(3, 13, 28, 0.82)' : '#020617', backgroundImage: 'none', boxShadow: 'none' }}
-          >
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2 mb-2">
-              <Sparkles className="h-4 w-4 text-purple-400" />
-              Re-Auction Pool
-            </h3>
-            <p className="text-xs text-slate-300 font-medium mb-4">
-              Bring back unsold players to the bidding pool for a secondary round.
-            </p>
-            <Button
-              onClick={() => startReauction()}
-              disabled={actionLoading}
-              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-950/40 rounded-xl"
-            >
-              Start Re-Auction Round
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* FULL SCREEN ARENA OVERLAY (Matching Image 2) */}
-      {isFullScreen && (() => {
-        const leadingTeam = state?.teams?.find((t) => t.team_id === highestBid?.team_id)
+  // Unified 16:9 Canvas Stage (Exact Replica of Auction Page Designer in both Standard & Fullscreen views)
+  const renderArenaStage = (isFull: boolean) => {
+    const leadingTeam = state?.teams?.find((t) => t.team_id === highestBid?.team_id)
 
         return (
           <div
-            className="fixed inset-0 z-[100] text-white flex flex-col h-screen w-screen overflow-hidden select-none"
+            className={isFull ? "fixed inset-0 z-[100] text-white flex flex-col h-screen w-screen overflow-hidden select-none" : "w-full rounded-3xl border-2 border-slate-800 shadow-2xl bg-[#020b18] overflow-hidden relative text-white flex flex-col min-h-[640px] select-none my-4"}
             style={{
               backgroundColor: '#020b18',
               backgroundImage: resolvedBgUrl
@@ -2118,13 +774,26 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
           >
             {/* Top Bar */}
             <div className="flex items-center justify-between px-6 py-3 border-b border-blue-900/40 bg-[#031124] shrink-0">
-              {/* Left: Exit Button */}
-              <button
-                onClick={exitFullScreen}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs border border-white/15 transition shadow-2xs cursor-pointer"
-              >
-                ← Exit
-              </button>
+              {/* Left: Exit or Full Screen Button */}
+              {isFull ? (
+                <button
+                  onClick={exitFullScreen}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs border border-white/15 transition shadow-2xs cursor-pointer"
+                >
+                  ← Exit Full Screen
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setIsFullScreen(true)
+                    toggleBrowserFullscreen()
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs border border-amber-300 transition shadow-md cursor-pointer"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>Full Screen Arena</span>
+                </button>
+              )}
 
               {/* Center: Tournament Name & Pulsing Live Indicator */}
               <div className="text-center">
@@ -2505,7 +1174,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                     fontSize: `${el.font_size || 26}px`,
                                     color: el.colour || '#FFD54A',
                                   }}
-                                  className="font-black uppercase tracking-wider font-mono drop-shadow-md truncate"
+                                  className="font-black uppercase tracking-wider font-mono drop-shadow-md whitespace-nowrap"
                                 >
                                   {pageDesign?.zones?.branding?.title_text || auctionName || 'TURF PREMIER LEAGUE'}
                                 </span>
@@ -2558,15 +1227,18 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
                             {key === 'player_photo' && (
                               <div
-                                className="relative w-full h-full border-2 border-slate-700 bg-slate-900/90 shadow-2xl flex items-center justify-center"
+                                className="relative w-full h-full border-2 border-slate-700 bg-slate-900/90 shadow-2xl flex items-center justify-center overflow-hidden"
                                 style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius)}
                               >
                                 {player.photo_url ? (
                                   <img
                                     src={player.photo_url}
                                     alt={player.player_name}
-                                    className="h-full w-full object-cover"
-                                    style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius)}
+                                    className="h-full w-full pointer-events-none"
+                                    style={{
+                                      ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius),
+                                      objectFit: el?.object_fit || 'contain',
+                                    }}
                                   />
                                 ) : (
                                   <div className="flex flex-col items-center justify-center text-slate-500">
@@ -2586,7 +1258,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                     fontSize: `${el.font_size || 42}px`,
                                     color: el.colour || '#FFFFFF',
                                   }}
-                                  className="font-black uppercase tracking-tight drop-shadow-md truncate block leading-tight"
+                                  className="font-black uppercase tracking-tight drop-shadow-md whitespace-nowrap block leading-tight"
                                 >
                                   {player.player_name}
                                 </span>
@@ -2742,7 +1414,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                       textDecoration: el.underline ? 'underline' : 'none',
                                       whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
                                     }}
-                                    className="font-black uppercase tracking-wide truncate block"
+                                    className="font-black uppercase tracking-wide whitespace-nowrap block"
                                   >
                                     {highestBid ? highestBid.team_name : 'Awaiting first bid'}
                                   </span>
@@ -3100,19 +1772,21 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                       const theme = getTeamTheme(idx, state.teams.length)
                                       const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
                                       const assignedShortcut = ((team as any).shortcut_key || (team as any).custom_data?.shortcut_key || '').toUpperCase()
-                                      const badgeKey = assignedShortcut ? `${idx + 1} - ${assignedShortcut}` : `${idx + 1}`
-                                      const teamLogo = (team as any).team_logo || (team as any).logo || (team as any).custom_data?.logo_url
 
                                       // Account-level UI styling
-                                      const effectiveFontSize = userPrefs.fontSize || el.font_size || 13
-                                      const effectiveColor = isLeading ? '#FDE047' : userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : (el.colour || teamColor)
-                                      const effectiveCardBg = userPrefs.cardBg === 'oled'
+                                      const dynamicTeamBg = (team as any).card_bg || (team as any).logo_bg || (team as any).background_color || (team as any).custom_data?.card_bg || (team as any).custom_data?.logo_bg
+                                      const isLightBg = dynamicTeamBg && (dynamicTeamBg.toLowerCase() === '#ffffff' || dynamicTeamBg.toLowerCase() === 'white' || dynamicTeamBg.startsWith('rgb(255'))
+                                      const effectiveCardBg = dynamicTeamBg
+                                        ? dynamicTeamBg
+                                        : userPrefs.cardBg === 'oled'
                                         ? '#000000'
                                         : userPrefs.cardBg === 'navy'
                                         ? '#020617'
                                         : userPrefs.cardBg === 'carbon'
                                         ? '#18181b'
                                         : isSolid ? (isLeading ? 'rgba(245, 158, 11, 0.4)' : `${teamColor}25`) : 'transparent'
+                                      const effectiveFontSize = userPrefs.fontSize || el.font_size || 13
+                                      const effectiveColor = isLightBg ? '#020617' : (isLeading ? '#FDE047' : userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : (el.colour || teamColor))
                                       const effectiveGlow = isLeading
                                         ? '0 0 14px rgba(245, 158, 11, 0.5)'
                                         : userPrefs.borderGlow
@@ -3161,36 +1835,32 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                             className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
                                             style={{ writingMode: 'horizontal-tb' }}
                                           >
-                                            <span className="px-1.5 py-0.5 rounded-sm bg-black/70 font-mono text-[8px] font-extrabold text-white border border-white/15 shadow-2xs">
-                                              {badgeKey}
-                                            </span>
+                                            <span
+                                              style={{ backgroundColor: teamColor }}
+                                              className="w-1.5 h-1.5 rounded-full shadow-xs"
+                                            />
                                             {isLeading && (
                                               <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
                                                 LEADING
                                               </span>
                                             )}
                                           </div>
+                                          {/* Center: Number and Key Only (No Logo thumbnail as requested) */}
                                           <div
-                                            className="w-full flex items-center justify-center gap-1 font-black truncate my-auto px-0.5"
+                                            className="w-full flex items-center justify-center font-black my-auto px-0.5"
                                             style={{
                                               fontSize: `${effectiveFontSize}px`,
-                                              color: effectiveColor,
+                                              color: isLightBg ? '#020617' : effectiveColor,
                                               fontFamily: el.font_family || 'inherit',
                                               fontWeight: el.bold !== false ? 900 : 700,
                                               fontStyle: el.italic ? 'italic' : 'normal',
                                               writingMode: 'horizontal-tb',
                                               whiteSpace: 'nowrap',
-                                              textOrientation: 'mixed',
                                             }}
                                           >
-                                            {teamLogo && (
-                                              <img
-                                                src={resolveMediaUrl(teamLogo)}
-                                                alt=""
-                                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-white/20"
-                                              />
-                                            )}
-                                            <span className="truncate">{shortcut}</span>
+                                            <span className="font-mono tracking-wider font-black">
+                                              {idx + 1} - {assignedShortcut || shortcut}
+                                            </span>
                                           </div>
                                           {el.show_balance === true && (
                                             <div
@@ -3211,14 +1881,17 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                             {(el.type === 'photo' || key.startsWith('custom_photo')) && (
                               <div
                                 className="w-full h-full relative rounded-xl overflow-hidden shadow-md flex items-center justify-center select-none"
-                                style={{ borderRadius: `${el.border_radius ?? 12}px` }}
+                                style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius ?? 12)}
                               >
                                 {el.media_url ? (
                                   <img
                                     src={el.media_url}
                                     alt={el.label || 'Custom Photo'}
-                                    style={{ objectFit: el.object_fit || 'cover' }}
-                                    className="w-full h-full"
+                                    style={{
+                                      ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius ?? 12),
+                                      objectFit: el.object_fit || 'contain',
+                                    }}
+                                    className="w-full h-full pointer-events-none"
                                   />
                                 ) : null}
                               </div>
@@ -3264,7 +1937,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                     color: el.colour || '#FFFFFF',
                                     fontWeight: el.bold !== false ? 'bold' : 'normal',
                                   }}
-                                  className="uppercase tracking-wider block drop-shadow truncate"
+                                  className="uppercase tracking-wider block drop-shadow whitespace-nowrap"
                                 >
                                   {el.custom_text || el.label || ''}
                                 </span>
@@ -3712,7 +2385,257 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
           )}
         </div>
       )
-    })()}
+  }
+
+  return (
+    <div
+      className="space-y-6 rounded-3xl p-2 sm:p-4 transition-all"
+      style={
+        resolvedBgUrl
+          ? {
+              backgroundImage: `linear-gradient(rgba(3, 10, 24, 0.75), rgba(3, 10, 24, 0.88)), url(${resolvedBgUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundAttachment: 'fixed',
+            }
+          : undefined
+      }
+    >
+      {/* Top Banner Toolbar: Title & Full Screen Arena Mode Trigger */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-slate-800 bg-[#07162b] p-4 rounded-2xl shadow-xl">
+        <div>
+          <h2 className="text-xl font-black text-white flex items-center gap-2">
+            <Gavel className="w-5 h-5 text-amber-400" />
+            Live Broadcast Auction Arena
+          </h2>
+          <p className="text-xs text-slate-300 mt-0.5">
+            Real-time franchise bidding floor with live audio feedback, countdown timers, and instant lot settlement.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Multiple Bid Toggle (Yes / No) */}
+          <button
+            type="button"
+            onClick={async () => {
+              const nextVal = !allowMultipleBids
+              setAllowMultipleBids(nextVal)
+              try {
+                await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, {
+                  allow_multiple_bids: nextVal,
+                })
+              } catch (_) {}
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${
+              allowMultipleBids
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
+            }`}
+            title="Enable to permit a team to place consecutive bids (re-bidding / raising own bid)"
+          >
+            <span className="text-[10px] text-slate-400 uppercase">Multiple Bid:</span>
+            <span className={`font-black font-mono ${allowMultipleBids ? 'text-emerald-400' : 'text-slate-300'}`}>
+              {allowMultipleBids ? 'YES' : 'NO'}
+            </span>
+          </button>
+
+          {/* Auto Advance Queue Toggle (On / Off) */}
+          <button
+            type="button"
+            onClick={async () => {
+              const nextVal = !autoAdvanceQueue
+              setAutoAdvanceQueue(nextVal)
+              try {
+                await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, {
+                  auto_advance_queue: nextVal,
+                })
+              } catch (_) {}
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${
+              autoAdvanceQueue
+                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
+                : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
+            }`}
+            title="Automatically load the next player from the queue after SOLD or UNSOLD"
+          >
+            <span className="text-[10px] text-slate-400 uppercase">Auto Queue:</span>
+            <span className={`font-black font-mono ${autoAdvanceQueue ? 'text-indigo-400' : 'text-slate-300'}`}>
+              {autoAdvanceQueue ? 'ON' : 'OFF'}
+            </span>
+          </button>
+
+          {/* Up Next Queue Drawer Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowQueueDrawer(!showQueueDrawer)}
+            className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-2.5 py-1.5 rounded-xl border border-white/15 transition cursor-pointer"
+            title="View upcoming players in queue"
+          >
+            <Users className="w-3.5 h-3.5 text-amber-400" />
+            <span>Up Next ({upcomingQueue.length})</span>
+          </button>
+
+          {/* Category Selector */}
+          <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 px-2.5 py-1.5 rounded-xl">
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Cat:</span>
+            <select
+              value={selectedCategory}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="bg-transparent text-white font-extrabold text-xs cursor-pointer focus:outline-none"
+            >
+              <option value="ALL" className="bg-slate-900 text-white">All Categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c} className="bg-slate-900 text-white">
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => handleBringNextQueuedPlayer()}
+            disabled={actionLoading}
+            className="bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 font-bold text-xs px-3 py-1.5 rounded-xl border border-emerald-500/40 transition"
+            title="Bring next available player in queue"
+          >
+            <ChevronRight className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+            Next In Queue →
+          </Button>
+
+          <Button
+            onClick={() => {
+              setIsFullScreen(true)
+              toggleBrowserFullscreen()
+            }}
+            className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-400/20 cursor-pointer transition-all hover:scale-[1.02]"
+          >
+            <Maximize2 className="w-4 h-4" />
+            <span>Full Screen</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Auto-Advance Countdown Banner */}
+      {autoAdvanceCountdown !== null && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-2.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 font-bold text-xs shadow-xl animate-pulse border-2 border-amber-300">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-slate-950 animate-spin" />
+            <span>
+              🎉 Auto-loading next player from queue in <strong>{autoAdvanceCountdown}s</strong>...
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBringNextQueuedPlayer}
+              className="bg-slate-950 text-white hover:bg-slate-800 px-3 py-1 rounded-xl text-xs font-black shadow-xs cursor-pointer transition"
+            >
+              Bring Next Now →
+            </button>
+            <button
+              type="button"
+              onClick={() => setAutoAdvanceCountdown(null)}
+              className="bg-amber-600/40 text-slate-950 hover:bg-amber-600/60 px-2.5 py-1 rounded-xl text-xs font-bold cursor-pointer transition"
+            >
+              Cancel Auto-Advance
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Queue Drawer Strip */}
+      {showQueueDrawer && (
+        <div className="bg-[#040e1d] border border-amber-500/40 p-4 rounded-2xl shadow-2xl space-y-3">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-amber-400" />
+              <h3 className="font-extrabold text-xs text-white uppercase tracking-wider">
+                Upcoming Queue ({upcomingQueue.length} Players Waiting)
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowQueueDrawer(false)}
+              className="text-xs text-slate-400 hover:text-white"
+            >
+              Close ✕
+            </button>
+          </div>
+          {upcomingQueue.length === 0 ? (
+            <div className="text-center py-4 text-xs text-slate-400 italic">
+              No players currently queued in this category.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 max-h-48 overflow-y-auto pr-1">
+              {upcomingQueue.map((p, idx) => (
+                <div
+                  key={p.id || idx}
+                  className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-center justify-between text-xs hover:border-amber-400/50 transition group"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="font-mono text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                      #{p.serial_no || idx + 1}
+                    </span>
+                    <div className="truncate">
+                      <span className="font-bold text-white block truncate">{p.name}</span>
+                      <span className="text-[10px] text-slate-400">{p.role} • ₹{Number(p.base_price || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (p.serial_no) {
+                        await selectPlayerNo(p.serial_no)
+                      }
+                    }}
+                    className="opacity-0 group-hover:opacity-100 bg-amber-400 text-slate-950 font-bold text-[10px] px-2 py-1 rounded transition shrink-0 ml-1 cursor-pointer"
+                    title="Bring this player immediately"
+                  >
+                    Select
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Feedback Banner */}
+      <AnimatePresence>
+        {feedbackMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={`flex items-center justify-between rounded-xl border p-4 text-sm font-medium ${
+              feedbackMessage.type === 'success'
+                ? 'border-emerald-500/30 bg-emerald-950/40 text-emerald-300'
+                : 'border-red-500/30 bg-red-950/40 text-red-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {feedbackMessage.type === 'success' ? (
+                <CheckCircle className="h-5 w-5 text-emerald-400" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              )}
+              <span>{feedbackMessage.text}</span>
+            </div>
+            <button
+              onClick={() => setFeedbackMessage(null)}
+              className="rounded p-1 hover:bg-white/10"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Live Broadcast Arena Stage (Exact Replica of Auction Page Designer) */}
+      {!isFullScreen && renderArenaStage(false)}
+      {/* Fullscreen Overlay Replica */}
+      {isFullScreen && renderArenaStage(true)}
 
       {/* 2-Step Custom Bid Modal (Mounted at root with z-[99999] so it is visible in both fullscreen and normal modes) */}
       <AnimatePresence>

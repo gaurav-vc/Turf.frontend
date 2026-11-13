@@ -40,6 +40,7 @@ import AdminSettings from '@/pages/admin/AdminSettings'
 import AdminTurfs from '@/pages/admin/AdminTurfs'
 import AdminShop from '@/pages/admin/AdminShop'
 import AdminOrders from '@/pages/admin/AdminOrders'
+import PlatformApmTelemetry from '@/pages/admin/PlatformApmTelemetry'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -95,6 +96,12 @@ export default function App() {
           <Route path="turfs" element={<AdminTurfs />} />
           <Route path="shop" element={<AdminShop />} />
           <Route path="orders" element={<AdminOrders />} />
+          <Route path="apm" element={<PlatformApmTelemetry />} />
+        </Route>
+        
+        {/* Direct access matching reference URL /superadmin/audit */}
+        <Route path="/superadmin/audit" element={<AuthGuard><AdminLayout /></AuthGuard>}>
+          <Route index element={<PlatformApmTelemetry />} />
         </Route>
       </Routes>
     </BrowserRouter>

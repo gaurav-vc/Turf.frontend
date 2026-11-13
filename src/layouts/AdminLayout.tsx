@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/useAuthStore'
-import { LayoutDashboard, Users, LogOut, ArrowLeft, ChevronDown, Key, ShieldCheck, MapPin, ShoppingBag, Search, Bell, Check, Clock, Package, Trophy } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, ArrowLeft, ChevronDown, Key, ShieldCheck, MapPin, ShoppingBag, Search, Bell, Check, Clock, Package, Trophy, Activity, PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -45,6 +45,24 @@ export default function AdminLayout() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('turf_sidebar_collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem('turf_sidebar_collapsed', String(next))
+      } catch {}
+      return next
+    })
+  }
+
   const unreadCount = notifications.filter(n => !n.is_read).length
 
   if (!isAuthenticated || user?.role !== 'ADMIN') {
@@ -151,39 +169,85 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-muted/30 flex">
-      {/* Desktop Sidebar */}
-      <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col">
-        <div className="p-6 border-b border-border">
-          <Link to="/admin" className="text-2xl font-black tracking-tight text-foreground">
-            TURF<span className="text-brand">ARENA</span>
+      {/* Desktop Sidebar (Dual Mode: Full vs Slim Dark Icon Rail) */}
+      {sidebarCollapsed ? (
+        <aside className="w-16 bg-[#0b0f19] border-r border-slate-800 hidden md:flex flex-col items-center py-4 select-none shrink-0 z-20">
+          <Link to="/admin" className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand to-teal-400 flex items-center justify-center font-black text-slate-950 text-sm shadow-md mb-4 hover:scale-105 transition" title="Admin Panel">
+            TA
           </Link>
-          <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Admin Panel</div>
-        </div>
-        
-        <nav className="flex-1 p-4 space-y-2">
-          <Link to="/admin" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${location.pathname === '/admin' ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><LayoutDashboard className="w-5 h-5 mr-3" /> Dashboard</Link>
-          <Link to="/admin/sports" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/sports') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Trophy className="w-5 h-5 mr-3" /> Manage Sports</Link>
-          <Link to="/admin/orders" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/orders') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Package className="w-5 h-5 mr-3" /> Manage Orders</Link>
-          <Link to="/admin/shop" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/shop') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><ShoppingBag className="w-5 h-5 mr-3" /> Manage Shop</Link>
-          <Link to="/admin/turfs" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/turfs') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><MapPin className="w-5 h-5 mr-3" /> Manage Turfs</Link>
-          <Link to="/admin/users" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/users') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Users className="w-5 h-5 mr-3" /> Manage Users</Link>
-          <Link to="/admin/settings" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/settings') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><ShieldCheck className="w-5 h-5 mr-3" /> Assign Manager</Link>
-        </nav>
+          <nav className="flex-1 flex flex-col items-center gap-2 overflow-y-auto w-full px-2">
+            <Link to="/admin" title="Dashboard" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${location.pathname === '/admin' ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <LayoutDashboard className="w-5 h-5" />
+            </Link>
+            <Link to="/admin/sports" title="Manage Sports" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/admin/sports') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Trophy className="w-5 h-5" />
+            </Link>
+            <Link to="/admin/orders" title="Manage Orders" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/admin/orders') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Package className="w-5 h-5" />
+            </Link>
+            <Link to="/admin/shop" title="Manage Shop" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/admin/shop') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <ShoppingBag className="w-5 h-5" />
+            </Link>
+            <Link to="/admin/turfs" title="Manage Turfs" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/admin/turfs') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <MapPin className="w-5 h-5" />
+            </Link>
+            <Link to="/admin/users" title="Manage Users" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/admin/users') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Users className="w-5 h-5" />
+            </Link>
+            <Link to="/admin/settings" title="Assign Manager" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/admin/settings') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <ShieldCheck className="w-5 h-5" />
+            </Link>
+            <Link to="/admin/apm" title="Platform APM & Logs" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/admin/apm') ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-sm' : 'text-indigo-400/80 hover:text-indigo-300 hover:bg-slate-800/80'}`}>
+              <Activity className="w-5 h-5" />
+            </Link>
+          </nav>
+        </aside>
+      ) : (
+        <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col shrink-0">
+          <div className="p-6 border-b border-border">
+            <Link to="/admin" className="text-2xl font-black tracking-tight text-foreground">
+              TURF<span className="text-brand">ARENA</span>
+            </Link>
+            <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Admin Panel</div>
+          </div>
+          
+          <nav className="flex-1 p-4 space-y-2">
+            <Link to="/admin" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${location.pathname === '/admin' ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><LayoutDashboard className="w-5 h-5 mr-3" /> Dashboard</Link>
+            <Link to="/admin/sports" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/sports') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Trophy className="w-5 h-5 mr-3" /> Manage Sports</Link>
+            <Link to="/admin/orders" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/orders') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Package className="w-5 h-5 mr-3" /> Manage Orders</Link>
+            <Link to="/admin/shop" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/shop') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><ShoppingBag className="w-5 h-5 mr-3" /> Manage Shop</Link>
+            <Link to="/admin/turfs" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/turfs') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><MapPin className="w-5 h-5 mr-3" /> Manage Turfs</Link>
+            <Link to="/admin/users" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/users') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Users className="w-5 h-5 mr-3" /> Manage Users</Link>
+            <Link to="/admin/settings" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/settings') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><ShieldCheck className="w-5 h-5 mr-3" /> Assign Manager</Link>
+            <Link to="/admin/apm" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/admin/apm') ? 'bg-indigo-50 text-indigo-600 border border-indigo-200 shadow-sm' : 'hover:bg-muted hover:text-indigo-600'}`}><Activity className="w-5 h-5 mr-3 text-indigo-600" /> Platform APM & Logs</Link>
+          </nav>
 
-        <div className="p-4 border-t border-border">
-          <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50" onClick={logout}>
-            <LogOut className="w-5 h-5 mr-3" /> Sign Out
-          </Button>
-        </div>
-      </aside>
+          <div className="p-4 border-t border-border">
+            <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50" onClick={logout}>
+              <LogOut className="w-5 h-5 mr-3" /> Sign Out
+            </Button>
+          </div>
+        </aside>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="hidden md:flex h-16 bg-card border-b border-border items-center justify-between px-8 shrink-0">
-          <div className="flex items-center flex-1">
+          <div className="flex items-center flex-1 gap-3">
             <Button variant="outline" size="icon" className="border-brand text-muted-foreground hover:text-brand hover:bg-brand/10 transition-all group rounded-xl shrink-0" onClick={() => navigate(-1)}>
               <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             </Button>
+
+            {/* Menu Pill Button (matching Image 3) */}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-blue-600/80 bg-white hover:bg-blue-50 text-slate-700 text-xs font-bold transition shadow-xs cursor-pointer select-none"
+              title={sidebarCollapsed ? "Expand Sidebar" : "Collapse to Icon Rail"}
+            >
+              <PanelLeft className="w-3.5 h-3.5 text-blue-600" />
+              <span>Menu</span>
+            </button>
             
             {/* Global Search Bar */}
             <div className="hidden lg:block max-w-md w-full ml-4 relative">

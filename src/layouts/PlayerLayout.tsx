@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/useAuthStore'
-import { Home, Map, Trophy, Calendar, User, Users, ChevronDown, ChevronUp, Key, LogOut, Coins, ArrowLeft, Search, Bell, Check, Clock, Activity, ShoppingBag, Radio, Gavel, Package, Shield } from 'lucide-react'
+import { Home, Map, Trophy, Calendar, User, Users, ChevronDown, ChevronUp, Key, LogOut, Coins, ArrowLeft, Search, Bell, Check, Clock, Activity, ShoppingBag, Radio, Gavel, Package, Shield, PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,6 +46,24 @@ export default function PlayerLayout() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isAuctionDropdownOpen, setIsAuctionDropdownOpen] = useState(false)
+  
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('turf_sidebar_collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem('turf_sidebar_collapsed', String(next))
+      } catch {}
+      return next
+    })
+  }
   
   const unreadCount = notifications.filter(n => !n.is_read).length
 
@@ -157,98 +175,149 @@ export default function PlayerLayout() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row pb-16 md:pb-0">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card shadow-sm z-10">
-        <div className="h-16 flex items-center px-6 font-extrabold text-2xl tracking-tighter border-b border-border">TURF<span className="text-brand">ARENA</span></div>
-        <nav className="flex-1 px-4 space-y-1.5 mt-4 overflow-y-auto max-h-[calc(100vh-5.5rem)] pr-1">
-          <Link to="/" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${location.pathname === '/' ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Home className="w-5 h-5 mr-3" /> Dashboard</Link>
-          <Link to="/explore" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/explore') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Map className="w-5 h-5 mr-3" /> Explore</Link>
-          <Link to="/bookings" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/bookings') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Calendar className="w-5 h-5 mr-3" /> Bookings</Link>
-          <Link to="/teams" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/teams') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><User className="w-5 h-5 mr-3" /> Teams</Link>
-          <Link to="/tournaments" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/tournaments') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Trophy className="w-5 h-5 mr-3" /> Tournaments</Link>
+      {/* Desktop Sidebar (Dual Mode: Full vs Slim Dark Icon Rail) */}
+      {sidebarCollapsed ? (
+        <aside className="hidden md:flex flex-col w-16 bg-[#0b0f19] border-r border-slate-800 text-white shrink-0 z-20 items-center py-4 select-none">
+          {/* Logo Badge (TA) */}
+          <Link to="/" className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center font-black text-slate-950 text-sm shadow-md mb-4 hover:scale-105 transition" title="TurfArena">
+            TA
+          </Link>
 
-          {/* Live Auction Main Sidebar Section (Positioned Directly Below Tournaments) */}
-          <div className="rounded-xl overflow-hidden">
-            <button
-              type="button"
-              onClick={() => {
-                const nextState = !isAuctionDropdownOpen
-                setIsAuctionDropdownOpen(nextState)
-                if (nextState && !location.pathname.startsWith('/auction')) {
-                  navigate('/auction')
-                }
-              }}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-colors cursor-pointer text-left ${
-                isActive('/auction')
-                  ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm font-bold'
-                  : 'hover:bg-muted hover:text-brand'
-              }`}
-            >
-              <div className="flex items-center flex-1">
-                <Gavel className="w-5 h-5 mr-3 text-amber-500 shrink-0" />
-                <span className="truncate">Live Auction</span>
-              </div>
-              
-              <div className="p-0.5 shrink-0 ml-1">
-                {isAuctionDropdownOpen ? (
-                  <ChevronUp className="w-4 h-4 text-brand transition-transform duration-200" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200" />
-                )}
-              </div>
-            </button>
-
-            {/* Collapsible Dropdown List of Live Auction Pages */}
-            {isAuctionDropdownOpen && (
-              <div className="ml-3 pl-3 border-l-2 border-brand/40 my-1 space-y-0.5 py-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                {[
-                  { tab: 'overview', label: 'Command Center' },
-                  { tab: 'live', label: 'Live Broadcast' },
-                  // Setup Pipeline (Requested 1 to 7 sequence)
-                  { tab: 'rules', label: 'Master Setup & Rules' },
-                  { tab: 'all_teams', label: 'Team Setup' },
-                  { tab: 'fields', label: 'Custom Fields' },
-                  { tab: 'roster', label: 'Player Setup' },
-                  { tab: 'pdf_studio', label: 'PDF Designer' },
-                  { tab: 'designer', label: 'Auction Page Designer' },
-                  { tab: 'draw', label: 'Group Draw' },
-                  // Media & Utilities
-                  { tab: 'sponsors', label: 'Sponsors & Media' },
-                  { tab: 'overlays', label: 'OBS Overlays' },
-                  { tab: 'spectator', label: 'Public Viewer' },
-                  { tab: 'comms', label: 'WhatsApp Comms' },
-                ].map((item) => {
-                  const isCurrent =
-                    location.pathname.startsWith('/auction') &&
-                    (location.search.includes(`tab=${item.tab}`) ||
-                      (!location.search && item.tab === 'overview'))
-                  return (
-                    <Link
-                      key={item.tab}
-                      to={`/auction?tab=${item.tab}`}
-                      className={`block px-2.5 py-1 text-[11px] rounded-lg transition-all ${
-                        isCurrent
-                          ? 'bg-brand/15 text-brand font-extrabold shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium'
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
+          <nav className="flex-1 flex flex-col items-center gap-2 overflow-y-auto w-full px-2">
+            <Link to="/" title="Dashboard" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${location.pathname === '/' ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Home className="w-5 h-5" />
+            </Link>
+            <Link to="/explore" title="Explore" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/explore') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Map className="w-5 h-5" />
+            </Link>
+            <Link to="/bookings" title="Bookings" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/bookings') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Calendar className="w-5 h-5" />
+            </Link>
+            <Link to="/teams" title="Teams" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/teams') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <User className="w-5 h-5" />
+            </Link>
+            <Link to="/tournaments" title="Tournaments" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/tournaments') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Trophy className="w-5 h-5" />
+            </Link>
+            <Link to="/auction" title="Live Auction Suite" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/auction') ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-sm ring-1 ring-amber-500/30' : 'text-amber-400/80 hover:text-amber-300 hover:bg-slate-800/80'}`}>
+              <Gavel className="w-5 h-5" />
+            </Link>
+            <Link to="/clubs" title="Club" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/clubs') ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm' : 'text-emerald-400/80 hover:text-emerald-300 hover:bg-slate-800/80'}`}>
+              <Shield className="w-5 h-5" />
+            </Link>
+            <Link to="/lfp" title="Matchmaking" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/lfp') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Users className="w-5 h-5" />
+            </Link>
+            <Link to="/shop" title="TurfArena Shop" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/shop') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <ShoppingBag className="w-5 h-5" />
+            </Link>
+            <Link to="/orders" title="My Orders" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/orders') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Package className="w-5 h-5" />
+            </Link>
+            <Link to="/streams" title="Live Streams" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/streams') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Radio className="w-5 h-5" />
+            </Link>
+            <Link to="/toss" title="Toss Coin" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/toss') ? 'bg-brand/20 text-brand border border-brand/30 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-slate-800/80'}`}>
+              <Coins className="w-5 h-5" />
+            </Link>
+            <Link to="/scoreboard" title="Scoreboard" className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isActive('/scoreboard') ? 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-sm' : 'text-red-400/80 hover:text-red-300 hover:bg-slate-800/80'}`}>
+              <Activity className="w-5 h-5" />
+            </Link>
+          </nav>
+        </aside>
+      ) : (
+        <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card shadow-sm z-10 shrink-0">
+          <div className="h-16 flex items-center justify-between px-6 font-extrabold text-2xl tracking-tighter border-b border-border">
+            <span>TURF<span className="text-brand">ARENA</span></span>
           </div>
+          <nav className="flex-1 px-4 space-y-1.5 mt-4 overflow-y-auto max-h-[calc(100vh-5.5rem)] pr-1">
+            <Link to="/" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${location.pathname === '/' ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Home className="w-5 h-5 mr-3" /> Dashboard</Link>
+            <Link to="/explore" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/explore') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Map className="w-5 h-5 mr-3" /> Explore</Link>
+            <Link to="/bookings" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/bookings') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Calendar className="w-5 h-5 mr-3" /> Bookings</Link>
+            <Link to="/teams" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/teams') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><User className="w-5 h-5 mr-3" /> Teams</Link>
+            <Link to="/tournaments" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/tournaments') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Trophy className="w-5 h-5 mr-3" /> Tournaments</Link>
 
-          <Link to="/clubs" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/clubs') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Shield className="w-5 h-5 mr-3 text-emerald-400" /> Club</Link>
-          <Link to="/lfp" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/lfp') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Users className="w-5 h-5 mr-3" /> Matchmaking</Link>
-          <Link to="/shop" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/shop') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><ShoppingBag className="w-5 h-5 mr-3" /> TurfArena Shop</Link>
-          <Link to="/orders" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/orders') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Package className="w-5 h-5 mr-3" /> My Orders</Link>
-          <Link to="/streams" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/streams') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Radio className="w-5 h-5 mr-3" /> Live Streams</Link>
-          <Link to="/toss" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/toss') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Coins className="w-5 h-5 mr-3" /> Toss Coin</Link>
-          <Link to="/scoreboard" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/scoreboard') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Activity className="w-5 h-5 mr-3 text-red-500" /> Live Scoreboard</Link>
-        </nav>
-      </aside>
+            {/* Live Auction Main Sidebar Section (Positioned Directly Below Tournaments) */}
+            <div className="rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => {
+                  const nextState = !isAuctionDropdownOpen
+                  setIsAuctionDropdownOpen(nextState)
+                  if (nextState && !location.pathname.startsWith('/auction')) {
+                    navigate('/auction')
+                  }
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-colors cursor-pointer text-left ${
+                  isActive('/auction')
+                    ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm font-bold'
+                    : 'hover:bg-muted hover:text-brand'
+                }`}
+              >
+                <div className="flex items-center flex-1">
+                  <Gavel className="w-5 h-5 mr-3 text-amber-500 shrink-0" />
+                  <span className="truncate">Live Auction</span>
+                </div>
+                
+                <div className="p-0.5 shrink-0 ml-1">
+                  {isAuctionDropdownOpen ? (
+                    <ChevronUp className="w-4 h-4 text-brand transition-transform duration-200" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200" />
+                  )}
+                </div>
+              </button>
+
+              {/* Collapsible Dropdown List of Live Auction Pages */}
+              {isAuctionDropdownOpen && (
+                <div className="ml-3 pl-3 border-l-2 border-brand/40 my-1 space-y-0.5 py-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                  {[
+                    { tab: 'overview', label: 'Command Center' },
+                    { tab: 'live', label: 'Live Broadcast' },
+                    { tab: 'rules', label: 'Master Setup & Rules' },
+                    { tab: 'all_teams', label: 'Team Setup' },
+                    { tab: 'fields', label: 'Custom Fields' },
+                    { tab: 'roster', label: 'Player Setup' },
+                    { tab: 'pdf_studio', label: 'PDF Designer' },
+                    { tab: 'designer', label: 'Auction Page Designer' },
+                    { tab: 'draw', label: 'Group Draw' },
+                    { tab: 'sponsors', label: 'Sponsors & Media' },
+                    { tab: 'overlays', label: 'OBS Overlays' },
+                    { tab: 'spectator', label: 'Public Viewer' },
+                    { tab: 'comms', label: 'WhatsApp Comms' },
+                  ].map((item) => {
+                    const isCurrent =
+                      location.pathname.startsWith('/auction') &&
+                      (location.search.includes(`tab=${item.tab}`) ||
+                        (!location.search && item.tab === 'overview'))
+                    return (
+                      <Link
+                        key={item.tab}
+                        to={`/auction?tab=${item.tab}`}
+                        className={`block px-2.5 py-1 text-[11px] rounded-lg transition-all ${
+                          isCurrent
+                            ? 'bg-brand/15 text-brand font-extrabold shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium'
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <Link to="/clubs" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/clubs') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Shield className="w-5 h-5 mr-3 text-emerald-400" /> Club</Link>
+            <Link to="/lfp" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/lfp') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Users className="w-5 h-5 mr-3" /> Matchmaking</Link>
+            <Link to="/shop" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/shop') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><ShoppingBag className="w-5 h-5 mr-3" /> TurfArena Shop</Link>
+            <Link to="/orders" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/orders') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Package className="w-5 h-5 mr-3" /> My Orders</Link>
+            <Link to="/streams" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/streams') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Radio className="w-5 h-5 mr-3" /> Live Streams</Link>
+            <Link to="/toss" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/toss') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Coins className="w-5 h-5 mr-3" /> Toss Coin</Link>
+            <Link to="/scoreboard" className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${isActive('/scoreboard') ? 'bg-brand/10 text-brand border border-brand/20 shadow-sm' : 'hover:bg-muted hover:text-brand'}`}><Activity className="w-5 h-5 mr-3 text-red-500" /> Live Scoreboard</Link>
+          </nav>
+        </aside>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -257,6 +326,17 @@ export default function PlayerLayout() {
           <div className="flex items-center gap-2 sm:gap-4 flex-1">
             <button onClick={() => navigate(-1)} className="p-2 hover:bg-muted rounded-full transition-colors hidden sm:block" title="Go Back">
               <ArrowLeft className="w-5 h-5 text-muted-foreground hover:text-foreground" />
+            </button>
+
+            {/* Menu Pill Button (matching Image 3) */}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full border border-blue-600/80 bg-white hover:bg-blue-50 text-slate-700 text-xs font-bold transition shadow-xs cursor-pointer select-none"
+              title={sidebarCollapsed ? "Expand Sidebar" : "Collapse to Icon Rail"}
+            >
+              <PanelLeft className="w-3.5 h-3.5 text-blue-600" />
+              <span>Menu</span>
             </button>
             <div className="font-semibold text-lg sm:text-xl tracking-tight md:hidden">TURF<span className="text-brand">ARENA</span></div>
             
@@ -436,7 +516,7 @@ export default function PlayerLayout() {
         </header>
 
         {/* Scrollable Main Content */}
-        <main className="flex-1 overflow-y-auto bg-background">
+        <main className="flex-1 overflow-y-auto bg-background transition-all duration-300 w-full">
           <Outlet />
         </main>
       </div>

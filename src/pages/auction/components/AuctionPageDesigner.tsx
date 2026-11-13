@@ -6,11 +6,11 @@ import {
   Sliders, AlignLeft, AlignCenter, AlignRight,
   Gavel, XCircle, Flame, ArrowUp, ArrowDown,
   Maximize2, Sparkles, Bookmark, BookmarkPlus, X, EyeOff, Clock,
-  Video, Type, Plus, Upload, History, Move, User, Palette
+  Video, Type, Plus, Upload, History, Move, User, Palette, Columns3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { apiClient, resolveMediaUrl } from '@/api/apiClient'
+import { apiClient } from '@/api/apiClient'
 import { getTeamShortcut, getTeamTheme } from './teamThemeUtils'
 import { useUserUIPreferences } from './useUserUIPreferences'
 
@@ -389,9 +389,6 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
         return copy
       })
       setSelectedKey('action_bar')
-      if (canvasRef.current) {
-        canvasRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
       return
     }
 
@@ -422,9 +419,19 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
       video: 'Custom Video Stream',
       text: 'Custom Announcement Text',
     }
+    const existingCustomKeys = Object.keys(design.elements).filter((k) => k.startsWith('custom_'))
+    const colSlots = [
+      { x: 35, y: 38 }, // center column
+      { x: 72, y: 38 }, // right column
+      { x: 4, y: 68 },  // left column bottom
+      { x: 35, y: 68 }, // center column bottom
+      { x: 4, y: 38 },  // left column mid
+    ]
+    const slot = colSlots[existingCustomKeys.length % colSlots.length]
+
     const newEl: ElementConfig = {
-      x: 35,
-      y: 38,
+      x: slot.x,
+      y: slot.y,
       w: type === 'photo' || type === 'video' ? 32 : 28,
       h: type === 'photo' || type === 'video' ? 24 : 8,
       font_size: 18,
@@ -438,7 +445,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
       media_url: '',
       video_url: '',
       custom_text: type === 'text' ? 'NEW ANNOUNCEMENT' : undefined,
-      object_fit: 'cover',
+      object_fit: 'contain',
       border_radius: 12,
     }
     setDesign((prev) => ({
@@ -534,7 +541,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
         type: elKey,
         label: elKey === 'photo' ? 'Custom Photo Banner' : elKey === 'video' ? 'Custom Video Stream' : 'Custom Announcement Text',
         custom_text: elKey === 'text' ? 'NEW ANNOUNCEMENT' : undefined,
-        object_fit: 'cover',
+        object_fit: 'contain',
         border_radius: 12,
       }
       setDesign((prev) => ({
@@ -613,6 +620,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
 
   // Full Screen Arena vs Standard View Toggle
   const [previewArenaMode, setPreviewArenaMode] = useState<boolean>(true)
+  const [isFullScreenDesigner, setIsFullScreenDesigner] = useState<boolean>(false)
+  const [isChecklistCompressed, setIsChecklistCompressed] = useState<boolean>(false)
 
   // Templates Management State
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('default-arena')
@@ -820,6 +829,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
           ...res.data.design_json,
         }))
       }
+      try {
+        localStorage.setItem(`turf_auction_page_design_${auctionId}`, JSON.stringify(design))
+        window.dispatchEvent(new CustomEvent('auction_page_design_updated', { detail: { auctionId, design } }))
+      } catch (e) { }
       setSavedSuccess(true)
       setTimeout(() => setSavedSuccess(false), 2500)
     } catch (err) {
@@ -996,11 +1009,11 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
         el.w = newW
         el.h = newH
 
-        // Immediate proportional font scaling when making element bigger or smaller!
+        // PowerPoint Auto-Fit Proportional Font Scaling: text expands with box and auto-shrinks when decreased so it is always visible
         if (origFontSize) {
           const scaleW = newW / origW
           const scaleH = newH / origH
-          const scale = Math.max(scaleW, scaleH)
+          const scale = Math.sqrt(scaleW * scaleH)
           const newSize = Math.max(10, Math.min(96, Math.round(origFontSize * scale)))
           el.font_size = newSize
 
@@ -1309,1288 +1322,1325 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
       </div>
 
       {/* Main Studio: Left Config Panels + Right Live Canvas Stage */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* ================= LEFT CONFIGURATION PANEL (4 COLS) ================= */}
-        <div className="lg:col-span-4 space-y-4">
-          {/* Section Dropdown Selector (Matching PdfDesignStudio pattern) */}
-          <div className="bg-card border border-border p-3.5 rounded-2xl shadow-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Sliders className="w-3.5 h-3.5 text-amber-500" />
-                Designer Section Selector
-              </label>
-              <span className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full border border-amber-500/20">
-                Live Studio
-              </span>
-            </div>
-            <select
-              value={activeSection}
-              onChange={(e) => setActiveSection(e.target.value as any)}
-              className="w-full text-xs font-black bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+      <div className={`grid grid-cols-1 gap-6 ${isFullScreenDesigner ? 'fixed inset-0 z-50 bg-[#020b18] overflow-y-auto p-4 lg:grid-cols-12' : 'lg:grid-cols-12'}`}>
+        {/* ================= LEFT CONFIGURATION PANEL (4 COLS or COMPRESSED 1 COL) ================= */}
+        {isChecklistCompressed || isFullScreenDesigner ? (
+          <div className="lg:col-span-1 flex flex-col items-center gap-3 bg-card border border-border p-2 rounded-2xl shadow-sm h-fit">
+            <button
+              type="button"
+              onClick={() => {
+                setIsChecklistCompressed(false)
+                if (isFullScreenDesigner) setIsFullScreenDesigner(false)
+              }}
+              className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 flex items-center justify-center font-black text-xs cursor-pointer border border-amber-500/30 transition shadow-2xs"
+              title="Expand Section Checklist Panel"
             >
-              <option value="screen_elements">📺 01 What appears on screen ({selectedCount} selected)</option>
-              <option value="canvas">📐 02 Canvas (Mode & Snap Grid)</option>
-              <option value="zones">🏛️ 03 Fixed Auction Zones (Columns & Widths)</option>
-              <option value="hammer">🔨 04 Hammer Action Controls (Buttons & Order)</option>
-              <option value="branding">🏆 05 Broadcast Branding (Logos & Title)</option>
-              <option value="background">🎨 06 Background (Stadium & Themes)</option>
-            </select>
-            <p className="text-[10px] text-muted-foreground">
-              Selected section is displayed below; all others remain hidden.
-            </p>
+              ▶
+            </button>
+            <div className="w-full h-px bg-border my-0.5" />
+            <div className="flex flex-col gap-2 w-full items-center">
+              {[
+                { id: 'screen_elements', icon: '📺', label: `Screen Elements (${selectedCount})` },
+                { id: 'canvas', icon: '📐', label: 'Canvas Settings' },
+                { id: 'zones', icon: '🏛️', label: 'Fixed Zones' },
+                { id: 'hammer', icon: '🔨', label: 'Hammer Controls' },
+                { id: 'branding', icon: '🏆', label: 'Branding & Title' },
+                { id: 'background', icon: '🎨', label: 'Background Themes' },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveSection(s.id as any)
+                    setIsChecklistCompressed(false)
+                  }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition cursor-pointer ${activeSection === s.id
+                      ? 'bg-amber-500 text-zinc-950 font-black shadow-sm ring-2 ring-amber-400'
+                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  title={s.label}
+                >
+                  {s.icon}
+                </button>
+              ))}
+            </div>
           </div>
-
-          {/* 01: What Appears on Screen */}
-          {activeSection === 'screen_elements' && (
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between border-b border-border pb-2.5">
-                <div>
-                  <span className="text-[11px] font-mono font-bold uppercase text-amber-500">01</span>
-                  <h3 className="font-extrabold text-sm text-foreground">What appears on screen</h3>
-                </div>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/30">
-                  {selectedCount} selected
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Tick only what you need. Each selected item can then be moved and resized in the preview.
-              </p>
-
-            {/* Add Custom Boxes (Photo, Video, Bid History, Text) Action Row */}
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+        ) : (
+          <div className="lg:col-span-4 space-y-4">
+            {/* Section Dropdown Selector (Matching PdfDesignStudio pattern) */}
+            <div className="bg-card border border-border p-3.5 rounded-2xl shadow-xs space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
-                  <Plus className="w-3 h-3" /> Add Configurable Boxes
-                </span>
-                <span className="text-[9px] text-muted-foreground font-medium">Attach Photos, Videos & Stream</span>
+                <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-amber-500" />
+                  Designer Section Selector
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsChecklistCompressed(true)}
+                    className="text-[10px] font-bold bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-lg border border-border cursor-pointer transition"
+                    title="Compress Left Section to give 95%+ width to canvas"
+                  >
+                    ◀ Compress
+                  </button>
+                  <span className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    Live Studio
+                  </span>
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
-                <button
-                  type="button"
-                  draggable={true}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/turf-element', 'photo')
-                    e.dataTransfer.setData('text/plain', 'photo')
-                  }}
-                  onClick={() => handleAddCustomBox('photo')}
-                  className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-border text-[11px] font-bold text-foreground transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-amber-400"
-                  title="Drag onto canvas or click to add photo box"
-                >
-                  <ImageIcon className="w-3.5 h-3.5 text-amber-500" />
-                  <span>+ Photo</span>
-                </button>
-                <button
-                  type="button"
-                  draggable={true}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/turf-element', 'video')
-                    e.dataTransfer.setData('text/plain', 'video')
-                  }}
-                  onClick={() => handleAddCustomBox('video')}
-                  className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-border text-[11px] font-bold text-foreground transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-sky-400"
-                  title="Drag onto canvas or click to add video box"
-                >
-                  <Video className="w-3.5 h-3.5 text-sky-400" />
-                  <span>+ Video</span>
-                </button>
-                <button
-                  type="button"
-                  draggable={true}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/turf-element', 'bid_history')
-                    e.dataTransfer.setData('text/plain', 'bid_history')
-                  }}
-                  onClick={() => handleAddCustomBox('bid_history')}
-                  className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-border text-[11px] font-bold text-foreground transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-purple-400"
-                  title="Drag onto canvas or click to configure bid history panel"
-                >
-                  <History className="w-3.5 h-3.5 text-purple-400" />
-                  <span>+ Bid History</span>
-                </button>
-                <button
-                  type="button"
-                  draggable={true}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/turf-element', 'action_bar')
-                    e.dataTransfer.setData('text/plain', 'action_bar')
-                  }}
-                  onClick={() => handleAddCustomBox('action_bar')}
-                  className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-emerald-500/50 text-[11px] font-bold text-emerald-400 transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-emerald-400 hover:bg-emerald-500/10"
-                  title="Drag onto canvas or click to place Live Action Controls"
-                >
-                  <Gavel className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>+ Action Bar</span>
-                </button>
-                <button
-                  type="button"
-                  draggable={true}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/turf-element', 'text')
-                    e.dataTransfer.setData('text/plain', 'text')
-                  }}
-                  onClick={() => handleAddCustomBox('text')}
-                  className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-border text-[11px] font-bold text-foreground transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-blue-400"
-                  title="Drag onto canvas or click to add announcement text"
-                >
-                  <Type className="w-3.5 h-3.5 text-blue-400" />
-                  <span>+ Text</span>
-                </button>
-              </div>
+              <select
+                value={activeSection}
+                onChange={(e) => setActiveSection(e.target.value as any)}
+                className="w-full text-xs font-black bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-foreground shadow-2xs focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+              >
+                <option value="screen_elements">📺 01 What appears on screen ({selectedCount} selected)</option>
+                <option value="canvas">📐 02 Canvas (Mode & Snap Grid)</option>
+                <option value="zones">🏛️ 03 Fixed Auction Zones (Columns & Widths)</option>
+                <option value="hammer">🔨 04 Hammer Action Controls (Buttons & Order)</option>
+                <option value="branding">🏆 05 Broadcast Branding (Logos & Title)</option>
+                <option value="background">🎨 06 Background (Stadium & Themes)</option>
+              </select>
+              <p className="text-[10px] text-muted-foreground">
+                Selected section is displayed below; all others remain hidden.
+              </p>
             </div>
 
-            <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
-              {/* 1. Standard Arena Elements */}
-              {Object.entries(ELEMENT_LABELS).map(([key, meta]) => {
-                const el = design.elements[key]
-                const isChecked = el ? el.selected : false
-                const hasLabel = el ? el.show_label : meta.fieldNameDefault
-                const isSelected = selectedKey === key
-
-                return (
-                  <div key={key} className="space-y-1.5">
-                    <div
-                      onClick={() => setSelectedKey(key)}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
-                        isSelected
-                          ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-foreground font-bold'
-                          : isChecked
-                          ? 'border-amber-500/40 bg-amber-500/5 text-foreground hover:bg-amber-500/10'
-                          : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            e.stopPropagation()
-                            toggleElementSelected(key)
-                          }}
-                          className="rounded border-border text-amber-500 focus:ring-amber-500 h-4 w-4 cursor-pointer shrink-0"
-                        />
-                        <div className="truncate">
-                          <div className="flex items-center gap-1.5">
-                            {key === 'bid_history' && <History className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
-                            {key === 'action_bar' && <Gavel className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                            {key === 'player_photo' && <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
-                            <p className="text-xs font-bold leading-none truncate">{meta.label}</p>
-                            {key === 'bid_history' && (
-                              <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">
-                                STREAM
-                              </span>
-                            )}
-                            {key === 'action_bar' && (
-                              <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
-                                ACTION BAR
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">
-                            {key === 'bid_history' ? (
-                              'Live auction stream • Click to configure'
-                            ) : key === 'action_bar' ? (
-                              'Action & Hammer Controls • Click to configure & drag'
-                            ) : (
-                              <>
-                                Visible on screen • Field name:{' '}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    toggleElementLabel(key)
-                                  }}
-                                  className="font-bold underline text-amber-600 hover:text-amber-500 ml-0.5 cursor-pointer"
-                                >
-                                  {hasLabel ? 'Yes' : 'No'}
-                                </button>
-                              </>
-                            )}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {isSelected && (
-                          <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-400/40">
-                            Editing
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleElementSelected(key)
-                          }}
-                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full cursor-pointer transition ${
-                            isChecked
-                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 font-extrabold'
-                              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-                          }`}
-                        >
-                          {isChecked ? 'On' : 'Off'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Inline Config Drawer for Bid History */}
-                    {key === 'bid_history' && isSelected && (
-                      <div className="p-3 rounded-xl bg-slate-950/90 border border-purple-500/40 space-y-2.5 text-xs">
-                        <div className="flex items-center justify-between border-b border-purple-500/20 pb-1.5">
-                          <span className="font-bold text-purple-300 flex items-center gap-1.5 text-[11px]">
-                            <Sliders className="w-3 h-3" /> Bid History Stream Controls
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              updateElementProp('bid_history', 'x', 74)
-                              updateElementProp('bid_history', 'y', 9.5)
-                              updateElementProp('bid_history', 'w', 24)
-                              updateElementProp('bid_history', 'h', 77)
-                            }}
-                            className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition cursor-pointer"
-                          >
-                            Reset Right Panel
-                          </button>
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Header Title</label>
-                          <input
-                            type="text"
-                            value={el?.title || el?.label || 'BID HISTORY'}
-                            onChange={(e) => {
-                              updateElementProp('bid_history', 'title', e.target.value)
-                              updateElementProp('bid_history', 'label', e.target.value)
-                            }}
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs"
-                            placeholder="e.g. BID HISTORY"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Max Visible Bids</label>
-                            <div className="grid grid-cols-4 gap-1">
-                              {[5, 8, 12, 20].map((num) => (
-                                <button
-                                  key={num}
-                                  type="button"
-                                  onClick={() => updateElementProp('bid_history', 'max_bids', num)}
-                                  className={`py-1 rounded text-[11px] font-bold border transition cursor-pointer text-center ${
-                                    (el?.max_bids || 8) === num
-                                      ? 'bg-purple-500 text-white border-purple-400'
-                                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                                  }`}
-                                >
-                                  {num}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Panel Theme</label>
-                            <div className="grid grid-cols-3 gap-1">
-                              {[
-                                { id: 'cyber', label: 'Cyber' },
-                                { id: 'glass', label: 'Glass' },
-                                { id: 'solid', label: 'Solid' },
-                              ].map((t) => (
-                                <button
-                                  key={t.id}
-                                  type="button"
-                                  onClick={() => updateElementProp('bid_history', 'panel_theme', t.id)}
-                                  className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer text-center ${
-                                    (el?.panel_theme || 'cyber') === t.id
-                                      ? 'bg-purple-500 text-white border-purple-400'
-                                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                                  }`}
-                                >
-                                  {t.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        <p className="text-[10px] text-slate-400">
-                          💡 You can also drag & resize the Bid History panel directly on the canvas preview to make it bigger, wider, or reposition it anywhere.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Inline Config Drawer for Player Photo */}
-                    {key === 'player_photo' && isSelected && (
-                      <div className="p-3 rounded-xl bg-slate-950/90 border border-amber-500/40 space-y-2.5 text-xs">
-                        <div className="flex items-center justify-between border-b border-amber-500/20 pb-1.5">
-                          <span className="font-bold text-amber-400 flex items-center gap-1.5 text-[11px]">
-                            <ImageIcon className="w-3 h-3" /> Showcase Photo Shape & Frame
-                          </span>
-                          <span className="text-[10px] text-amber-300 font-mono uppercase font-bold">
-                            {el?.shape || 'Rounded'}
-                          </span>
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                            Photo Shape (Any Shape)
-                          </label>
-                          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                            {PHOTO_SHAPES.map((shp) => {
-                              const isCur = (el?.shape || 'rounded').toLowerCase() === shp.id
-                              return (
-                                <button
-                                  key={shp.id}
-                                  type="button"
-                                  onClick={() => updateElementProp('player_photo', 'shape', shp.id)}
-                                  className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 border cursor-pointer ${
-                                    isCur
-                                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
-                                      : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
-                                  }`}
-                                >
-                                  <span>{shp.icon}</span>
-                                  <span>{shp.label}</span>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-
-                        {(!el?.shape || el?.shape === 'rounded') && (
-                          <div className="flex items-center justify-between gap-3 pt-0.5">
-                            <label className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">
-                              Corner Radius: {el?.border_radius !== undefined ? el?.border_radius : 16}px
-                            </label>
-                            <input
-                              type="range"
-                              min="0"
-                              max="48"
-                              step="2"
-                              value={el?.border_radius !== undefined ? el?.border_radius : 16}
-                              onChange={(e) => updateElementProp('player_photo', 'border_radius', Number(e.target.value))}
-                              className="w-32 accent-amber-500 cursor-pointer"
-                            />
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => triggerBoxMediaUpload('player_photo', 'image')}
-                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs cursor-pointer transition shadow-2xs"
-                          >
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>Upload Custom Photo</span>
-                          </button>
-                          <input
-                            type="text"
-                            placeholder="Or paste photo URL..."
-                            value={el?.media_url || ''}
-                            onChange={(e) => updateElementProp('player_photo', 'media_url', e.target.value)}
-                            className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Inline Config Drawer for Action Bar */}
-                    {key === 'action_bar' && isSelected && (
-                      <div className="p-3 rounded-xl bg-slate-950/90 border border-emerald-500/40 space-y-2.5 text-xs">
-                        <div className="flex items-center justify-between border-b border-emerald-500/20 pb-1.5">
-                          <span className="font-bold text-emerald-400 flex items-center gap-1.5 text-[11px]">
-                            <Gavel className="w-3.5 h-3.5" /> Action Controls on Canvas Stage
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            {currentActionButtons.filter((b) => b.visible).length} Buttons Active
-                          </span>
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Canvas Snap Position</label>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateElementProp('action_bar', 'x', 2)
-                                updateElementProp('action_bar', 'y', 88)
-                                updateElementProp('action_bar', 'w', 96)
-                                updateElementProp('action_bar', 'h', 10)
-                              }}
-                              className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-[10px] text-center cursor-pointer transition"
-                            >
-                              Snap Bottom (Default)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateElementProp('action_bar', 'x', 2)
-                                updateElementProp('action_bar', 'y', 1.5)
-                                updateElementProp('action_bar', 'w', 96)
-                                updateElementProp('action_bar', 'h', 10)
-                              }}
-                              className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-[10px] text-center cursor-pointer transition"
-                            >
-                              Snap Top
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateElementProp('action_bar', 'x', 18)
-                                updateElementProp('action_bar', 'y', 86)
-                                updateElementProp('action_bar', 'w', 64)
-                                updateElementProp('action_bar', 'h', 11)
-                              }}
-                              className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-[10px] text-center cursor-pointer transition"
-                            >
-                              Floating Center
-                            </button>
-                          </div>
-                        </div>
-
-                        <p className="text-[10px] text-slate-400 leading-relaxed">
-                          💡 <strong>Drag & Drop:</strong> You can drag the Action Controls bar anywhere on the canvas stage to place it, and drag any edge handle to resize it.
-                        </p>
-                      </div>
-                    )}
+            {/* 01: What Appears on Screen */}
+            {activeSection === 'screen_elements' && (
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-border pb-2.5">
+                  <div>
+                    <span className="text-[11px] font-mono font-bold uppercase text-amber-500">01</span>
+                    <h3 className="font-extrabold text-sm text-foreground">What appears on screen</h3>
                   </div>
-                )
-              })}
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/30">
+                    {selectedCount} selected
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Tick only what you need. Each selected item can then be moved and resized in the preview.
+                </p>
 
-              {/* 2. Custom User-Added Boxes (Photos, Videos, Text) */}
-              {Object.entries(design.elements)
-                .filter(([k]) => !ELEMENT_LABELS[k])
-                .map(([key, el]) => {
-                  const isChecked = el ? el.selected : false
-                  const boxType = el.type || (key.includes('photo') ? 'photo' : key.includes('video') ? 'video' : 'text')
-                  const isSelected = selectedKey === key
+                {/* Add Custom Boxes (Photo, Video, Bid History, Text) Action Row */}
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
+                      <Plus className="w-3 h-3" /> Add Configurable Boxes
+                    </span>
+                    <span className="text-[9px] text-muted-foreground font-medium">Attach Photos, Videos & Stream</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                    <button
+                      type="button"
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/turf-element', 'photo')
+                        e.dataTransfer.setData('text/plain', 'photo')
+                      }}
+                      onClick={() => handleAddCustomBox('photo')}
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-border text-[11px] font-bold text-foreground transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-amber-400"
+                      title="Drag onto canvas or click to add photo box"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5 text-amber-500" />
+                      <span>+ Photo</span>
+                    </button>
+                    <button
+                      type="button"
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/turf-element', 'video')
+                        e.dataTransfer.setData('text/plain', 'video')
+                      }}
+                      onClick={() => handleAddCustomBox('video')}
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-border text-[11px] font-bold text-foreground transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-sky-400"
+                      title="Drag onto canvas or click to add video box"
+                    >
+                      <Video className="w-3.5 h-3.5 text-sky-400" />
+                      <span>+ Video</span>
+                    </button>
+                    <button
+                      type="button"
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/turf-element', 'bid_history')
+                        e.dataTransfer.setData('text/plain', 'bid_history')
+                      }}
+                      onClick={() => handleAddCustomBox('bid_history')}
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-border text-[11px] font-bold text-foreground transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-purple-400"
+                      title="Drag onto canvas or click to configure bid history panel"
+                    >
+                      <History className="w-3.5 h-3.5 text-purple-400" />
+                      <span>+ Bid History</span>
+                    </button>
+                    <button
+                      type="button"
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/turf-element', 'action_bar')
+                        e.dataTransfer.setData('text/plain', 'action_bar')
+                      }}
+                      onClick={() => handleAddCustomBox('action_bar')}
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-emerald-500/50 text-[11px] font-bold text-emerald-400 transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-emerald-400 hover:bg-emerald-500/10"
+                      title="Drag onto canvas or click to place Live Action Controls"
+                    >
+                      <Gavel className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>+ Action Bar</span>
+                    </button>
+                    <button
+                      type="button"
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/turf-element', 'text')
+                        e.dataTransfer.setData('text/plain', 'text')
+                      }}
+                      onClick={() => handleAddCustomBox('text')}
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg bg-card hover:bg-muted border border-border text-[11px] font-bold text-foreground transition cursor-grab active:cursor-grabbing shadow-2xs hover:border-blue-400"
+                      title="Drag onto canvas or click to add announcement text"
+                    >
+                      <Type className="w-3.5 h-3.5 text-blue-400" />
+                      <span>+ Text</span>
+                    </button>
+                  </div>
+                </div>
 
-                  return (
-                    <div key={key} className="space-y-1.5">
-                      <div
-                        onClick={() => setSelectedKey(key)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-foreground font-bold'
-                            : isChecked
-                            ? 'border-amber-500/40 bg-amber-500/5 text-foreground hover:bg-amber-500/10'
-                            : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 truncate">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              e.stopPropagation()
-                              toggleElementSelected(key)
-                            }}
-                            className="rounded border-border text-amber-500 focus:ring-amber-500 h-4 w-4 cursor-pointer shrink-0"
-                          />
-                          <div className="truncate">
-                            <div className="flex items-center gap-1.5">
-                              {boxType === 'photo' ? (
-                                <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                              ) : boxType === 'video' ? (
-                                <Video className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                              ) : (
-                                <Type className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              )}
-                              <p className="text-xs font-bold leading-none truncate">
-                                {el.label || (boxType === 'photo' ? 'Photo Box' : boxType === 'video' ? 'Video Box' : 'Text Box')}
-                              </p>
-                              <span
-                                className={`text-[9px] uppercase font-black px-1.5 py-0.2 rounded border shrink-0 ${
-                                  boxType === 'photo'
-                                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                                    : boxType === 'video'
-                                    ? 'bg-sky-500/20 text-sky-400 border-sky-500/30'
-                                    : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                }`}
-                              >
-                                {boxType}
+                <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
+                  {/* 1. Standard Arena Elements */}
+                  {Object.entries(ELEMENT_LABELS).map(([key, meta]) => {
+                    const el = design.elements[key]
+                    const isChecked = el ? el.selected : false
+                    const hasLabel = el ? el.show_label : meta.fieldNameDefault
+                    const isSelected = selectedKey === key
+
+                    return (
+                      <div key={key} className="space-y-1.5">
+                        <div
+                          onClick={() => setSelectedKey(key)}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${isSelected
+                              ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-foreground font-bold'
+                              : isChecked
+                                ? 'border-amber-500/40 bg-amber-500/5 text-foreground hover:bg-amber-500/10'
+                                : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                            }`}
+                        >
+                          <div className="flex items-center gap-2.5 truncate">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                e.stopPropagation()
+                                toggleElementSelected(key)
+                              }}
+                              className="rounded border-border text-amber-500 focus:ring-amber-500 h-4 w-4 cursor-pointer shrink-0"
+                            />
+                            <div className="truncate">
+                              <div className="flex items-center gap-1.5">
+                                {key === 'bid_history' && <History className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+                                {key === 'action_bar' && <Gavel className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                                {key === 'player_photo' && <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                                <p className="text-xs font-bold leading-none truncate">{meta.label}</p>
+                                {key === 'bid_history' && (
+                                  <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">
+                                    STREAM
+                                  </span>
+                                )}
+                                {key === 'action_bar' && (
+                                  <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                                    ACTION BAR
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-muted-foreground">
+                                {key === 'bid_history' ? (
+                                  'Live auction stream • Click to configure'
+                                ) : key === 'action_bar' ? (
+                                  'Action & Hammer Controls • Click to configure & drag'
+                                ) : (
+                                  <>
+                                    Visible on screen • Field name:{' '}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        toggleElementLabel(key)
+                                      }}
+                                      className="font-bold underline text-amber-600 hover:text-amber-500 ml-0.5 cursor-pointer"
+                                    >
+                                      {hasLabel ? 'Yes' : 'No'}
+                                    </button>
+                                  </>
+                                )}
                               </span>
                             </div>
-                            <span className="text-[10px] text-muted-foreground">
-                              {el.media_url || el.video_url ? (
-                                <span className="text-emerald-400 font-semibold">✓ Media attached</span>
-                              ) : (
-                                'No media attached • Click to configure'
-                              )}
-                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isSelected && (
+                              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-400/40">
+                                Editing
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleElementSelected(key)
+                              }}
+                              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full cursor-pointer transition ${isChecked
+                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 font-extrabold'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                }`}
+                            >
+                              {isChecked ? 'On' : 'Off'}
+                            </button>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {isSelected && (
-                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-400/40">
-                              Editing
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteCustomBox(key)
-                            }}
-                            className="p-1 rounded-md text-red-400 hover:bg-red-500/15 transition cursor-pointer"
-                            title="Delete Box"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              toggleElementSelected(key)
-                            }}
-                            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full cursor-pointer transition ${
-                              isChecked
-                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 font-extrabold'
-                                : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-                            }`}
-                          >
-                            {isChecked ? 'On' : 'Off'}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Inline Configuration Drawer for Custom Boxes */}
-                      {isSelected && (
-                        <div className="p-3 rounded-xl bg-slate-950/90 border border-amber-500/40 space-y-2.5 text-xs">
-                          {/* Box Title Rename */}
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Box Label Name</label>
-                            <input
-                              type="text"
-                              value={el.label || ''}
-                              onChange={(e) => updateElementProp(key, 'label', e.target.value)}
-                              placeholder={boxType === 'photo' ? 'e.g. Sponsor Banner' : boxType === 'video' ? 'e.g. Promo Clip' : 'e.g. Announcement'}
-                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs"
-                            />
-                          </div>
-
-                          {/* PHOTO BOX CONFIGURATION */}
-                          {boxType === 'photo' && (
-                            <div className="space-y-2.5">
-                              {el.media_url && (
-                                <div className="relative w-full h-24 rounded-lg overflow-hidden border border-slate-700 bg-black/40 flex items-center justify-center">
-                                  <img
-                                    src={el.media_url}
-                                    alt="Preview"
-                                    className="w-full h-full"
-                                    style={{ objectFit: el.object_fit || 'cover' }}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => updateElementProp(key, 'media_url', '')}
-                                    className="absolute top-1 right-1 p-1 bg-red-600/80 hover:bg-red-500 text-white rounded-md text-[10px] font-bold cursor-pointer"
-                                    title="Remove Photo"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => triggerBoxMediaUpload(key, 'image')}
-                                  className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs cursor-pointer transition shadow-2xs"
-                                >
-                                  <Upload className="w-3.5 h-3.5" />
-                                  <span>Upload Photo File...</span>
-                                </button>
-                                <input
-                                  type="text"
-                                  placeholder="Or paste image URL..."
-                                  value={el.media_url || ''}
-                                  onChange={(e) => updateElementProp(key, 'media_url', e.target.value)}
-                                  className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs"
-                                />
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-[10px] text-slate-400 font-bold block mb-1">Image Fit</label>
-                                  <div className="flex items-center gap-1">
-                                    {(['cover', 'contain', 'fill'] as const).map((fit) => (
-                                      <button
-                                        key={fit}
-                                        type="button"
-                                        onClick={() => updateElementProp(key, 'object_fit', fit)}
-                                        className={`flex-1 py-1 rounded text-[10px] font-bold capitalize border transition cursor-pointer ${
-                                          (el.object_fit || 'cover') === fit
-                                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                                        }`}
-                                      >
-                                        {fit}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <label className="text-[10px] text-slate-400 font-bold block mb-1">Corner Rounding</label>
-                                  <div className="flex items-center gap-1">
-                                    {[0, 8, 14, 24].map((rad) => (
-                                      <button
-                                        key={rad}
-                                        type="button"
-                                        onClick={() => updateElementProp(key, 'border_radius', rad)}
-                                        className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                          (el.border_radius ?? 12) === rad
-                                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                                        }`}
-                                      >
-                                        {rad}px
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
+                        {/* Inline Config Drawer for Bid History */}
+                        {key === 'bid_history' && isSelected && (
+                          <div className="p-3 rounded-xl bg-slate-950/90 border border-purple-500/40 space-y-2.5 text-xs">
+                            <div className="flex items-center justify-between border-b border-purple-500/20 pb-1.5">
+                              <span className="font-bold text-purple-300 flex items-center gap-1.5 text-[11px]">
+                                <Sliders className="w-3 h-3" /> Bid History Stream Controls
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateElementProp('bid_history', 'x', 74)
+                                  updateElementProp('bid_history', 'y', 9.5)
+                                  updateElementProp('bid_history', 'w', 24)
+                                  updateElementProp('bid_history', 'h', 77)
+                                }}
+                                className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 transition cursor-pointer"
+                              >
+                                Reset Right Panel
+                              </button>
                             </div>
-                          )}
 
-                          {/* VIDEO BOX CONFIGURATION */}
-                          {boxType === 'video' && (
-                            <div className="space-y-2.5">
-                              {(el.video_url || el.media_url) && (
-                                <div className="relative w-full h-28 rounded-lg overflow-hidden border border-sky-500/30 bg-black flex items-center justify-center">
-                                  <video
-                                    src={el.video_url || el.media_url}
-                                    autoPlay
-                                    loop
-                                    muted
-                                    playsInline
-                                    className="w-full h-full"
-                                    style={{ objectFit: el.object_fit || 'cover' }}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      updateElementProp(key, 'video_url', '')
-                                      updateElementProp(key, 'media_url', '')
-                                    }}
-                                    className="absolute top-1 right-1 p-1 bg-red-600/80 hover:bg-red-500 text-white rounded-md text-[10px] font-bold cursor-pointer"
-                                    title="Remove Video"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => triggerBoxMediaUpload(key, 'video')}
-                                  className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-zinc-950 font-bold text-xs cursor-pointer transition shadow-2xs"
-                                >
-                                  <Upload className="w-3.5 h-3.5" />
-                                  <span>Upload Video (MP4)...</span>
-                                </button>
-                                <input
-                                  type="text"
-                                  placeholder="Or paste video URL (MP4)..."
-                                  value={el.video_url || el.media_url || ''}
-                                  onChange={(e) => {
-                                    updateElementProp(key, 'video_url', e.target.value)
-                                    updateElementProp(key, 'media_url', e.target.value)
-                                  }}
-                                  className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs"
-                                />
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-[10px] text-slate-400 font-bold block mb-1">Video Fit</label>
-                                  <div className="flex items-center gap-1">
-                                    {(['cover', 'contain'] as const).map((fit) => (
-                                      <button
-                                        key={fit}
-                                        type="button"
-                                        onClick={() => updateElementProp(key, 'object_fit', fit)}
-                                        className={`flex-1 py-1 rounded text-[10px] font-bold capitalize border transition cursor-pointer ${
-                                          (el.object_fit || 'cover') === fit
-                                            ? 'bg-sky-500 text-zinc-950 border-sky-400'
-                                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                                        }`}
-                                      >
-                                        {fit}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <label className="text-[10px] text-slate-400 font-bold block mb-1">Corner Rounding</label>
-                                  <div className="flex items-center gap-1">
-                                    {[0, 8, 14, 24].map((rad) => (
-                                      <button
-                                        key={rad}
-                                        type="button"
-                                        onClick={() => updateElementProp(key, 'border_radius', rad)}
-                                        className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                          (el.border_radius ?? 12) === rad
-                                            ? 'bg-sky-500 text-zinc-950 border-sky-400'
-                                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                                        }`}
-                                      >
-                                        {rad}px
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
+                            <div>
+                              <label className="text-[10px] text-slate-400 font-bold block mb-1">Header Title</label>
+                              <input
+                                type="text"
+                                value={el?.title || el?.label || 'BID HISTORY'}
+                                onChange={(e) => {
+                                  updateElementProp('bid_history', 'title', e.target.value)
+                                  updateElementProp('bid_history', 'label', e.target.value)
+                                }}
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs"
+                                placeholder="e.g. BID HISTORY"
+                              />
                             </div>
-                          )}
 
-                          {/* TEXT BOX CONFIGURATION */}
-                          {boxType === 'text' && (
-                            <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="text-[10px] text-slate-400 font-bold block mb-1">Text Content</label>
+                                <label className="text-[10px] text-slate-400 font-bold block mb-1">Max Visible Bids</label>
+                                <div className="grid grid-cols-4 gap-1">
+                                  {[5, 8, 12, 20].map((num) => (
+                                    <button
+                                      key={num}
+                                      type="button"
+                                      onClick={() => updateElementProp('bid_history', 'max_bids', num)}
+                                      className={`py-1 rounded text-[11px] font-bold border transition cursor-pointer text-center ${(el?.max_bids || 8) === num
+                                          ? 'bg-purple-500 text-white border-purple-400'
+                                          : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                        }`}
+                                    >
+                                      {num}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] text-slate-400 font-bold block mb-1">Panel Theme</label>
+                                <div className="grid grid-cols-3 gap-1">
+                                  {[
+                                    { id: 'cyber', label: 'Cyber' },
+                                    { id: 'glass', label: 'Glass' },
+                                    { id: 'solid', label: 'Solid' },
+                                  ].map((t) => (
+                                    <button
+                                      key={t.id}
+                                      type="button"
+                                      onClick={() => updateElementProp('bid_history', 'panel_theme', t.id)}
+                                      className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer text-center ${(el?.panel_theme || 'cyber') === t.id
+                                          ? 'bg-purple-500 text-white border-purple-400'
+                                          : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                        }`}
+                                    >
+                                      {t.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="text-[10px] text-slate-400">
+                              💡 You can also drag & resize the Bid History panel directly on the canvas preview to make it bigger, wider, or reposition it anywhere.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Inline Config Drawer for Player Photo */}
+                        {key === 'player_photo' && isSelected && (
+                          <div className="p-3 rounded-xl bg-slate-950/90 border border-amber-500/40 space-y-2.5 text-xs">
+                            <div className="flex items-center justify-between border-b border-amber-500/20 pb-1.5">
+                              <span className="font-bold text-amber-400 flex items-center gap-1.5 text-[11px]">
+                                <ImageIcon className="w-3 h-3" /> Showcase Photo Shape & Frame
+                              </span>
+                              <span className="text-[10px] text-amber-300 font-mono uppercase font-bold">
+                                {el?.shape || 'Rounded'}
+                              </span>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                                Photo Shape (Any Shape)
+                              </label>
+                              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                                {PHOTO_SHAPES.map((shp) => {
+                                  const isCur = (el?.shape || 'rounded').toLowerCase() === shp.id
+                                  return (
+                                    <button
+                                      key={shp.id}
+                                      type="button"
+                                      onClick={() => updateElementProp('player_photo', 'shape', shp.id)}
+                                      className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 border cursor-pointer ${isCur
+                                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                                          : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                                        }`}
+                                    >
+                                      <span>{shp.icon}</span>
+                                      <span>{shp.label}</span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+
+                            {(!el?.shape || el?.shape === 'rounded') && (
+                              <div className="flex items-center justify-between gap-3 pt-0.5">
+                                <label className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">
+                                  Corner Radius: {el?.border_radius !== undefined ? el?.border_radius : 16}px
+                                </label>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="48"
+                                  step="2"
+                                  value={el?.border_radius !== undefined ? el?.border_radius : 16}
+                                  onChange={(e) => updateElementProp('player_photo', 'border_radius', Number(e.target.value))}
+                                  className="w-32 accent-amber-500 cursor-pointer"
+                                />
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => triggerBoxMediaUpload('player_photo', 'image')}
+                                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs cursor-pointer transition shadow-2xs"
+                              >
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>Upload Custom Photo</span>
+                              </button>
+                              <input
+                                type="text"
+                                placeholder="Or paste photo URL..."
+                                value={el?.media_url || ''}
+                                onChange={(e) => updateElementProp('player_photo', 'media_url', e.target.value)}
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Inline Config Drawer for Action Bar */}
+                        {key === 'action_bar' && isSelected && (
+                          <div className="p-3 rounded-xl bg-slate-950/90 border border-emerald-500/40 space-y-2.5 text-xs">
+                            <div className="flex items-center justify-between border-b border-emerald-500/20 pb-1.5">
+                              <span className="font-bold text-emerald-400 flex items-center gap-1.5 text-[11px]">
+                                <Gavel className="w-3.5 h-3.5" /> Action Controls on Canvas Stage
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {currentActionButtons.filter((b) => b.visible).length} Buttons Active
+                              </span>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] text-slate-400 font-bold block mb-1">Canvas Snap Position</label>
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateElementProp('action_bar', 'x', 2)
+                                    updateElementProp('action_bar', 'y', 88)
+                                    updateElementProp('action_bar', 'w', 96)
+                                    updateElementProp('action_bar', 'h', 10)
+                                  }}
+                                  className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-[10px] text-center cursor-pointer transition"
+                                >
+                                  Snap Bottom (Default)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateElementProp('action_bar', 'x', 2)
+                                    updateElementProp('action_bar', 'y', 1.5)
+                                    updateElementProp('action_bar', 'w', 96)
+                                    updateElementProp('action_bar', 'h', 10)
+                                  }}
+                                  className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-[10px] text-center cursor-pointer transition"
+                                >
+                                  Snap Top
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateElementProp('action_bar', 'x', 18)
+                                    updateElementProp('action_bar', 'y', 86)
+                                    updateElementProp('action_bar', 'w', 64)
+                                    updateElementProp('action_bar', 'h', 11)
+                                  }}
+                                  className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold text-[10px] text-center cursor-pointer transition"
+                                >
+                                  Floating Center
+                                </button>
+                              </div>
+                            </div>
+
+                            <p className="text-[10px] text-slate-400 leading-relaxed">
+                              💡 <strong>Drag & Drop:</strong> You can drag the Action Controls bar anywhere on the canvas stage to place it, and drag any edge handle to resize it.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {/* 2. Custom User-Added Boxes (Photos, Videos, Text) */}
+                  {Object.entries(design.elements)
+                    .filter(([k]) => !ELEMENT_LABELS[k])
+                    .map(([key, el]) => {
+                      const isChecked = el ? el.selected : false
+                      const boxType = el.type || (key.includes('photo') ? 'photo' : key.includes('video') ? 'video' : 'text')
+                      const isSelected = selectedKey === key
+
+                      return (
+                        <div key={key} className="space-y-1.5">
+                          <div
+                            onClick={() => setSelectedKey(key)}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${isSelected
+                                ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-foreground font-bold'
+                                : isChecked
+                                  ? 'border-amber-500/40 bg-amber-500/5 text-foreground hover:bg-amber-500/10'
+                                  : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                              }`}
+                          >
+                            <div className="flex items-center gap-2.5 truncate">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  toggleElementSelected(key)
+                                }}
+                                className="rounded border-border text-amber-500 focus:ring-amber-500 h-4 w-4 cursor-pointer shrink-0"
+                              />
+                              <div className="truncate">
+                                <div className="flex items-center gap-1.5">
+                                  {boxType === 'photo' ? (
+                                    <ImageIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                  ) : boxType === 'video' ? (
+                                    <Video className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                                  ) : (
+                                    <Type className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  )}
+                                  <p className="text-xs font-bold leading-none truncate">
+                                    {el.label || (boxType === 'photo' ? 'Photo Box' : boxType === 'video' ? 'Video Box' : 'Text Box')}
+                                  </p>
+                                  <span
+                                    className={`text-[9px] uppercase font-black px-1.5 py-0.2 rounded border shrink-0 ${boxType === 'photo'
+                                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                        : boxType === 'video'
+                                          ? 'bg-sky-500/20 text-sky-400 border-sky-500/30'
+                                          : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                      }`}
+                                  >
+                                    {boxType}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {el.media_url || el.video_url ? (
+                                    <span className="text-emerald-400 font-semibold">✓ Media attached</span>
+                                  ) : (
+                                    'No media attached • Click to configure'
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {isSelected && (
+                                <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-400/40">
+                                  Editing
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteCustomBox(key)
+                                }}
+                                className="p-1 rounded-md text-red-400 hover:bg-red-500/15 transition cursor-pointer"
+                                title="Delete Box"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toggleElementSelected(key)
+                                }}
+                                className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full cursor-pointer transition ${isChecked
+                                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 font-extrabold'
+                                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                  }`}
+                              >
+                                {isChecked ? 'On' : 'Off'}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Inline Configuration Drawer for Custom Boxes */}
+                          {isSelected && (
+                            <div className="p-3 rounded-xl bg-slate-950/90 border border-amber-500/40 space-y-2.5 text-xs">
+                              {/* Box Title Rename */}
+                              <div>
+                                <label className="text-[10px] text-slate-400 font-bold block mb-1">Box Label Name</label>
                                 <input
                                   type="text"
-                                  value={el.custom_text || ''}
-                                  onChange={(e) => updateElementProp(key, 'custom_text', e.target.value)}
-                                  placeholder="e.g. POWER PLAY LOT - 2026"
+                                  value={el.label || ''}
+                                  onChange={(e) => updateElementProp(key, 'label', e.target.value)}
+                                  placeholder={boxType === 'photo' ? 'e.g. Sponsor Banner' : boxType === 'video' ? 'e.g. Promo Clip' : 'e.g. Announcement'}
                                   className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs"
                                 />
                               </div>
+
+                              {/* PHOTO BOX CONFIGURATION */}
+                              {boxType === 'photo' && (
+                                <div className="space-y-2.5">
+                                  {el.media_url && (
+                                    <div className="relative w-full h-24 rounded-lg overflow-hidden border border-slate-700 bg-black/40 flex items-center justify-center">
+                                      <img
+                                        src={el.media_url}
+                                        alt="Preview"
+                                        className="w-full h-full"
+                                        style={{ objectFit: el.object_fit || 'cover' }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => updateElementProp(key, 'media_url', '')}
+                                        className="absolute top-1 right-1 p-1 bg-red-600/80 hover:bg-red-500 text-white rounded-md text-[10px] font-bold cursor-pointer"
+                                        title="Remove Photo"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => triggerBoxMediaUpload(key, 'image')}
+                                      className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs cursor-pointer transition shadow-2xs"
+                                    >
+                                      <Upload className="w-3.5 h-3.5" />
+                                      <span>Upload Photo File...</span>
+                                    </button>
+                                    <input
+                                      type="text"
+                                      placeholder="Or paste image URL..."
+                                      value={el.media_url || ''}
+                                      onChange={(e) => updateElementProp(key, 'media_url', e.target.value)}
+                                      className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs"
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] text-slate-400 font-bold block mb-1">Image Fit</label>
+                                      <div className="flex items-center gap-1">
+                                        {(['cover', 'contain', 'fill'] as const).map((fit) => (
+                                          <button
+                                            key={fit}
+                                            type="button"
+                                            onClick={() => updateElementProp(key, 'object_fit', fit)}
+                                            className={`flex-1 py-1 rounded text-[10px] font-bold capitalize border transition cursor-pointer ${(el.object_fit || 'cover') === fit
+                                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                                : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                              }`}
+                                          >
+                                            {fit}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <label className="text-[10px] text-slate-400 font-bold block mb-1">Corner Rounding</label>
+                                      <div className="flex items-center gap-1">
+                                        {[0, 8, 14, 24].map((rad) => (
+                                          <button
+                                            key={rad}
+                                            type="button"
+                                            onClick={() => updateElementProp(key, 'border_radius', rad)}
+                                            className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${(el.border_radius ?? 12) === rad
+                                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                                : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                              }`}
+                                          >
+                                            {rad}px
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* VIDEO BOX CONFIGURATION */}
+                              {boxType === 'video' && (
+                                <div className="space-y-2.5">
+                                  {(el.video_url || el.media_url) && (
+                                    <div className="relative w-full h-28 rounded-lg overflow-hidden border border-sky-500/30 bg-black flex items-center justify-center">
+                                      <video
+                                        src={el.video_url || el.media_url}
+                                        autoPlay
+                                        loop
+                                        muted
+                                        playsInline
+                                        className="w-full h-full"
+                                        style={{ objectFit: el.object_fit || 'cover' }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          updateElementProp(key, 'video_url', '')
+                                          updateElementProp(key, 'media_url', '')
+                                        }}
+                                        className="absolute top-1 right-1 p-1 bg-red-600/80 hover:bg-red-500 text-white rounded-md text-[10px] font-bold cursor-pointer"
+                                        title="Remove Video"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => triggerBoxMediaUpload(key, 'video')}
+                                      className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-zinc-950 font-bold text-xs cursor-pointer transition shadow-2xs"
+                                    >
+                                      <Upload className="w-3.5 h-3.5" />
+                                      <span>Upload Video (MP4)...</span>
+                                    </button>
+                                    <input
+                                      type="text"
+                                      placeholder="Or paste video URL (MP4)..."
+                                      value={el.video_url || el.media_url || ''}
+                                      onChange={(e) => {
+                                        updateElementProp(key, 'video_url', e.target.value)
+                                        updateElementProp(key, 'media_url', e.target.value)
+                                      }}
+                                      className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs"
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] text-slate-400 font-bold block mb-1">Video Fit</label>
+                                      <div className="flex items-center gap-1">
+                                        {(['cover', 'contain'] as const).map((fit) => (
+                                          <button
+                                            key={fit}
+                                            type="button"
+                                            onClick={() => updateElementProp(key, 'object_fit', fit)}
+                                            className={`flex-1 py-1 rounded text-[10px] font-bold capitalize border transition cursor-pointer ${(el.object_fit || 'cover') === fit
+                                                ? 'bg-sky-500 text-zinc-950 border-sky-400'
+                                                : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                              }`}
+                                          >
+                                            {fit}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <label className="text-[10px] text-slate-400 font-bold block mb-1">Corner Rounding</label>
+                                      <div className="flex items-center gap-1">
+                                        {[0, 8, 14, 24].map((rad) => (
+                                          <button
+                                            key={rad}
+                                            type="button"
+                                            onClick={() => updateElementProp(key, 'border_radius', rad)}
+                                            className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${(el.border_radius ?? 12) === rad
+                                                ? 'bg-sky-500 text-zinc-950 border-sky-400'
+                                                : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                              }`}
+                                          >
+                                            {rad}px
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* TEXT BOX CONFIGURATION */}
+                              {boxType === 'text' && (
+                                <div className="space-y-2">
+                                  <div>
+                                    <label className="text-[10px] text-slate-400 font-bold block mb-1">Text Content</label>
+                                    <input
+                                      type="text"
+                                      value={el.custom_text || ''}
+                                      onChange={(e) => updateElementProp(key, 'custom_text', e.target.value)}
+                                      placeholder="e.g. POWER PLAY LOT - 2026"
+                                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
+                                <span className="text-[10px] text-slate-500">
+                                  Resize & drag box on stage preview
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCustomBox(key)}
+                                  className="text-[10px] text-red-400 hover:text-red-300 font-bold flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3 h-3" /> Remove Box
+                                </button>
+                              </div>
                             </div>
                           )}
-
-                          <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
-                            <span className="text-[10px] text-slate-500">
-                              Resize & drag box on stage preview
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteCustomBox(key)}
-                              className="text-[10px] text-red-400 hover:text-red-300 font-bold flex items-center gap-1 cursor-pointer"
-                            >
-                              <Trash2 className="w-3 h-3" /> Remove Box
-                            </button>
-                          </div>
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
-            </div>
-          </div>
-          )}
-
-          {/* 02: Canvas */}
-          {activeSection === 'canvas' && (
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-            <div className="border-b border-border pb-2.5">
-              <span className="text-[11px] font-mono font-bold uppercase text-amber-500">02</span>
-              <h3 className="font-extrabold text-sm text-foreground">Canvas</h3>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setDesign((prev) => ({ ...prev, canvas_mode: 'professional' }))}
-                className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${
-                  design.canvas_mode === 'professional'
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-extrabold'
-                    : 'border-border text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                Professional
-              </button>
-              <button
-                type="button"
-                onClick={() => setDesign((prev) => ({ ...prev, canvas_mode: 'compact' }))}
-                className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${
-                  design.canvas_mode === 'compact'
-                    ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-extrabold'
-                    : 'border-border text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                Compact
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <div>
-                <label className="text-xs font-bold text-foreground">Snap grid</label>
-                <p className="text-[10px] text-muted-foreground">Align elements automatically</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={design.snap_grid}
-                  onChange={(e) => setDesign((prev) => ({ ...prev, snap_grid: Number(e.target.value) }))}
-                  className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground"
-                >
-                  <option value={1}>None (1%)</option>
-                  <option value={2}>2%</option>
-                  <option value={5}>5%</option>
-                  <option value={10}>10%</option>
-                </select>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setDesign((prev) => ({ ...prev, grid_visible: !prev.grid_visible }))}
-                  className={`rounded-xl text-xs font-bold ${
-                    design.grid_visible
-                      ? 'border-amber-500/40 text-amber-600 bg-amber-500/10'
-                      : 'border-border text-muted-foreground'
-                  }`}
-                >
-                  <Grid className="w-3.5 h-3.5 mr-1" />
-                  {design.grid_visible ? 'Grid On' : 'Grid Off'}
-                </Button>
-              </div>
-            </div>
-          </div>
-          )}
-
-          {/* 03: Fixed Auction Zones */}
-          {activeSection === 'zones' && (
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-            <div className="border-b border-border pb-2.5">
-              <span className="text-[11px] font-mono font-bold uppercase text-amber-500">03</span>
-              <h3 className="font-extrabold text-sm text-foreground">Fixed Auction Zones</h3>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              The player canvas remains the visual focus. Team buttons, action controls and bid history use fixed zones so they never collide.
-            </p>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-xs font-bold text-foreground block">Franchise columns</label>
-                  <span className="text-[10px] text-muted-foreground">Grid layout for bidding stations</span>
+                      )
+                    })}
                 </div>
-                <select
-                  value={design.zones?.team_columns || 4}
-                  onChange={(e) =>
-                    setDesign((prev) => ({
-                      ...prev,
-                      zones: { ...prev.zones, team_columns: Number(e.target.value) },
-                    }))
-                  }
-                  className="rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-black text-amber-500 cursor-pointer h-8 shadow-xs"
-                >
-                  <option value={2}>2 Columns</option>
-                  <option value={3}>3 Columns</option>
-                  <option value={4}>4 Columns (Standard)</option>
-                  <option value={5}>5 Columns</option>
-                  <option value={6}>6 Columns</option>
-                  <option value={7}>7 Columns</option>
-                  <option value={8}>8 Columns</option>
-                  <option value={10}>10 Columns</option>
-                  <option value={12}>12 Columns</option>
-                  <option value={14}>14 Columns</option>
-                </select>
               </div>
+            )}
 
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-foreground">Action zone width (px)</label>
-                <Input
-                  type="number"
-                  value={design.zones?.action_zone_width || 455}
-                  onChange={(e) =>
-                    setDesign((prev) => ({
-                      ...prev,
-                      zones: { ...prev.zones, action_zone_width: Number(e.target.value) },
-                    }))
-                  }
-                  className="w-20 text-xs font-mono font-bold text-center h-8"
-                />
-              </div>
+            {/* 02: Canvas */}
+            {activeSection === 'canvas' && (
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+                <div className="border-b border-border pb-2.5">
+                  <span className="text-[11px] font-mono font-bold uppercase text-amber-500">02</span>
+                  <h3 className="font-extrabold text-sm text-foreground">Canvas</h3>
+                </div>
 
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-foreground">Bid history width (px)</label>
-                <Input
-                  type="number"
-                  value={design.zones?.bid_history_width || 300}
-                  onChange={(e) =>
-                    setDesign((prev) => ({
-                      ...prev,
-                      zones: { ...prev.zones, bid_history_width: Number(e.target.value) },
-                    }))
-                  }
-                  className="w-20 text-xs font-mono font-bold text-center h-8"
-                />
-              </div>
-            </div>
-          </div>
-          )}
-
-          {/* 04: Hammer Action Controls */}
-          {activeSection === 'hammer' && (
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <div>
-                <span className="text-[11px] font-mono font-bold uppercase text-amber-500">04</span>
-                <h3 className="font-extrabold text-sm text-foreground">Hammer Action Controls</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  draggable={true}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/turf-element', 'action_bar')
-                    e.dataTransfer.setData('text/plain', 'action_bar')
-                  }}
-                  onClick={() => handleAddCustomBox('action_bar')}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition cursor-grab active:cursor-grabbing"
-                  title="Drag onto Canvas or click to place"
-                >
-                  <Move className="w-3 h-3" />
-                  <span>🎯 Drag to Canvas Stage</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetActionButtons}
-                  className="text-[10px] font-bold text-amber-600 hover:text-amber-500 hover:underline cursor-pointer"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Rearrange button order (↑ / ↓), toggle visibility, and rename labels for the live auction console.
-            </p>
-
-            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-              {currentActionButtons.map((btn, idx) => {
-                const getBtnIcon = () => {
-                  switch (btn.id) {
-                    case 'sold':
-                      return <Gavel className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    case 'unsold':
-                      return <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                    case 'custom_bid':
-                      return <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    case 'undo_sale':
-                      return <RotateCcw className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    case 'undo_bid':
-                      return <RefreshCw className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    case 'reset_bid':
-                      return <RefreshCw className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    default:
-                      return null
-                  }
-                }
-
-                return (
-                  <div
-                    key={btn.id}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all ${
-                      btn.visible
-                        ? 'border-border bg-card shadow-2xs'
-                        : 'border-border/60 bg-muted/30 opacity-60'
-                    }`}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDesign((prev) => ({ ...prev, canvas_mode: 'professional' }))}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${design.canvas_mode === 'professional'
+                        ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-extrabold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
                   >
-                    {/* Reorder Buttons Up/Down */}
-                    <div className="flex flex-col gap-0.5 shrink-0">
-                      <button
-                        type="button"
-                        disabled={idx === 0}
-                        onClick={() => handleMoveActionButton(idx, 'up')}
-                        className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed text-foreground cursor-pointer"
-                        title="Move Up"
-                      >
-                        <ArrowUp className="w-3 h-3" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={idx === currentActionButtons.length - 1}
-                        onClick={() => handleMoveActionButton(idx, 'down')}
-                        className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed text-foreground cursor-pointer"
-                        title="Move Down"
-                      >
-                        <ArrowDown className="w-3 h-3" />
-                      </button>
-                    </div>
+                    Professional
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDesign((prev) => ({ ...prev, canvas_mode: 'compact' }))}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${design.canvas_mode === 'compact'
+                        ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-extrabold'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                      }`}
+                  >
+                    Compact
+                  </button>
+                </div>
 
-                    {/* Visibility Checkbox */}
-                    <input
-                      type="checkbox"
-                      checked={btn.visible}
-                      onChange={() => handleToggleActionButtonVisibility(btn.id)}
-                      className="rounded border-border text-amber-500 focus:ring-amber-500 h-4 w-4 cursor-pointer shrink-0"
-                      title={btn.visible ? 'Visible' : 'Hidden'}
-                    />
-
-                    {/* Icon */}
-                    {getBtnIcon()}
-
-                    {/* Editable Label */}
-                    <div className="flex-1 min-w-0">
-                      <Input
-                        type="text"
-                        value={btn.label}
-                        onChange={(e) => handleUpdateActionButtonLabel(btn.id, e.target.value)}
-                        placeholder="Button label..."
-                        className="h-8 text-xs font-bold bg-background"
-                      />
-                    </div>
-
-                    <span className="text-[10px] font-mono text-muted-foreground shrink-0 w-4 text-right">
-                      #{idx + 1}
-                    </span>
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <div>
+                    <label className="text-xs font-bold text-foreground">Snap grid</label>
+                    <p className="text-[10px] text-muted-foreground">Align elements automatically</p>
                   </div>
-                )
-              })}
-            </div>
-          </div>
-          )}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={design.snap_grid}
+                      onChange={(e) => setDesign((prev) => ({ ...prev, snap_grid: Number(e.target.value) }))}
+                      className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground"
+                    >
+                      <option value={1}>None (1%)</option>
+                      <option value={2}>2%</option>
+                      <option value={5}>5%</option>
+                      <option value={10}>10%</option>
+                    </select>
 
-          {/* 05: Broadcast Branding */}
-          {activeSection === 'branding' && (
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-            <div className="border-b border-border pb-2.5">
-              <span className="text-[11px] font-mono font-bold uppercase text-amber-500">05</span>
-              <h3 className="font-extrabold text-sm text-foreground">Broadcast Branding</h3>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-[11px] font-bold text-foreground">Logo count</label>
-                <Input
-                  type="number"
-                  value={branding.logo_count}
-                  onChange={(e) =>
-                    setDesign((prev) => ({
-                      ...prev,
-                      zones: {
-                        ...prev.zones,
-                        branding: { ...prev.zones.branding!, logo_count: Number(e.target.value) },
-                      },
-                    }))
-                  }
-                  className="h-8 text-xs font-mono text-center mt-1"
-                />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setDesign((prev) => ({ ...prev, grid_visible: !prev.grid_visible }))}
+                      className={`rounded-xl text-xs font-bold ${design.grid_visible
+                          ? 'border-amber-500/40 text-amber-600 bg-amber-500/10'
+                          : 'border-border text-muted-foreground'
+                        }`}
+                    >
+                      <Grid className="w-3.5 h-3.5 mr-1" />
+                      {design.grid_visible ? 'Grid On' : 'Grid Off'}
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-[11px] font-bold text-foreground">Logo size</label>
-                <Input
-                  type="number"
-                  value={branding.logo_size}
-                  onChange={(e) =>
-                    setDesign((prev) => ({
-                      ...prev,
-                      zones: {
-                        ...prev.zones,
-                        branding: { ...prev.zones.branding!, logo_size: Number(e.target.value) },
-                      },
-                    }))
-                  }
-                  className="h-8 text-xs font-mono text-center mt-1"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-foreground">Logo placement</label>
-                <select
-                  value={branding.logo_position}
-                  onChange={(e) =>
-                    setDesign((prev) => ({
-                      ...prev,
-                      zones: {
-                        ...prev.zones,
-                        branding: { ...prev.zones.branding!, logo_position: e.target.value as any },
-                      },
-                    }))
-                  }
-                  className="h-8 text-xs font-bold rounded-xl border border-border bg-background px-2 w-full mt-1"
-                >
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
-                </select>
-              </div>
-            </div>
+            )}
 
-            <div>
-              <label className="text-xs font-bold text-foreground">Tournament title text</label>
-              <Input
-                type="text"
-                value={branding.title_text}
-                onChange={(e) => {
-                  const val = e.target.value
-                  setDesign((prev) => ({
-                    ...prev,
-                    zones: {
-                      ...prev.zones,
-                      branding: { ...prev.zones.branding!, title_text: val },
-                    },
-                    elements: {
-                      ...prev.elements,
-                      tournament_title: {
-                        ...(prev.elements.tournament_title || { x: 20, y: 2, w: 60, h: 7, font_size: 26, selected: true }),
-                      },
-                    },
-                  }))
-                }}
-                placeholder="e.g. Test Tournament"
-                className="h-8 text-xs mt-1"
-              />
-            </div>
+            {/* 03: Fixed Auction Zones */}
+            {activeSection === 'zones' && (
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+                <div className="border-b border-border pb-2.5">
+                  <span className="text-[11px] font-mono font-bold uppercase text-amber-500">03</span>
+                  <h3 className="font-extrabold text-sm text-foreground">Fixed Auction Zones</h3>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  The player canvas remains the visual focus. Team buttons, action controls and bid history use fixed zones so they never collide.
+                </p>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] font-bold text-foreground">Tournament name size</label>
-                <Input
-                  type="number"
-                  value={design.elements.tournament_title?.font_size || branding.title_size || 26}
-                  onChange={(e) => {
-                    const sz = Number(e.target.value)
-                    setDesign((prev) => ({
-                      ...prev,
-                      zones: {
-                        ...prev.zones,
-                        branding: { ...prev.zones.branding!, title_size: sz },
-                      },
-                      elements: {
-                        ...prev.elements,
-                        tournament_title: {
-                          ...(prev.elements.tournament_title || { x: 20, y: 2, w: 60, h: 7, selected: true }),
-                          font_size: sz,
-                        },
-                      },
-                    }))
-                  }}
-                  className="h-8 text-xs font-mono mt-1"
-                />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-xs font-bold text-foreground block">Franchise columns</label>
+                      <span className="text-[10px] text-muted-foreground">Grid layout for bidding stations</span>
+                    </div>
+                    <select
+                      value={design.zones?.team_columns || 4}
+                      onChange={(e) =>
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: { ...prev.zones, team_columns: Number(e.target.value) },
+                        }))
+                      }
+                      className="rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-black text-amber-500 cursor-pointer h-8 shadow-xs"
+                    >
+                      <option value={2}>2 Columns</option>
+                      <option value={3}>3 Columns</option>
+                      <option value={4}>4 Columns (Standard)</option>
+                      <option value={5}>5 Columns</option>
+                      <option value={6}>6 Columns</option>
+                      <option value={7}>7 Columns</option>
+                      <option value={8}>8 Columns</option>
+                      <option value={10}>10 Columns</option>
+                      <option value={12}>12 Columns</option>
+                      <option value={14}>14 Columns</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-foreground">Action zone width (px)</label>
+                    <Input
+                      type="number"
+                      value={design.zones?.action_zone_width || 455}
+                      onChange={(e) =>
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: { ...prev.zones, action_zone_width: Number(e.target.value) },
+                        }))
+                      }
+                      className="w-20 text-xs font-mono font-bold text-center h-8"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-foreground">Bid history width (px)</label>
+                    <Input
+                      type="number"
+                      value={design.zones?.bid_history_width || 300}
+                      onChange={(e) =>
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: { ...prev.zones, bid_history_width: Number(e.target.value) },
+                        }))
+                      }
+                      className="w-20 text-xs font-mono font-bold text-center h-8"
+                    />
+                  </div>
+                </div>
               </div>
+            )}
 
-              <div>
-                <label className="text-[11px] font-bold text-foreground">Title colour</label>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <input
-                    type="color"
-                    value={design.elements.tournament_title?.colour || branding.title_colour || '#FFD54A'}
-                    onChange={(e) => {
-                      const clr = e.target.value
-                      setDesign((prev) => ({
-                        ...prev,
-                        zones: {
-                          ...prev.zones,
-                          branding: { ...prev.zones.branding!, title_colour: clr },
-                        },
-                        elements: {
-                          ...prev.elements,
-                          tournament_title: {
-                            ...(prev.elements.tournament_title || { x: 20, y: 2, w: 60, h: 7, selected: true }),
-                            colour: clr,
+            {/* 04: Hammer Action Controls */}
+            {activeSection === 'hammer' && (
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-border pb-2.5">
+                  <div>
+                    <span className="text-[11px] font-mono font-bold uppercase text-amber-500">04</span>
+                    <h3 className="font-extrabold text-sm text-foreground">Hammer Action Controls</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/turf-element', 'action_bar')
+                        e.dataTransfer.setData('text/plain', 'action_bar')
+                      }}
+                      onClick={() => handleAddCustomBox('action_bar')}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition cursor-grab active:cursor-grabbing"
+                      title="Drag onto Canvas or click to place"
+                    >
+                      <Move className="w-3 h-3" />
+                      <span>🎯 Drag to Canvas Stage</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetActionButtons}
+                      className="text-[10px] font-bold text-amber-600 hover:text-amber-500 hover:underline cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Rearrange button order (↑ / ↓), toggle visibility, and rename labels for the live auction console.
+                </p>
+
+                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                  {currentActionButtons.map((btn, idx) => {
+                    const getBtnIcon = () => {
+                      switch (btn.id) {
+                        case 'sold':
+                          return <Gavel className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        case 'unsold':
+                          return <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        case 'custom_bid':
+                          return <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        case 'undo_sale':
+                          return <RotateCcw className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                        case 'undo_bid':
+                          return <RefreshCw className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        case 'reset_bid':
+                          return <RefreshCw className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        default:
+                          return null
+                      }
+                    }
+
+                    return (
+                      <div
+                        key={btn.id}
+                        className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all ${btn.visible
+                            ? 'border-border bg-card shadow-2xs'
+                            : 'border-border/60 bg-muted/30 opacity-60'
+                          }`}
+                      >
+                        {/* Reorder Buttons Up/Down */}
+                        <div className="flex flex-col gap-0.5 shrink-0">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveActionButton(idx, 'up')}
+                            className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed text-foreground cursor-pointer"
+                            title="Move Up"
+                          >
+                            <ArrowUp className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === currentActionButtons.length - 1}
+                            onClick={() => handleMoveActionButton(idx, 'down')}
+                            className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed text-foreground cursor-pointer"
+                            title="Move Down"
+                          >
+                            <ArrowDown className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Visibility Checkbox */}
+                        <input
+                          type="checkbox"
+                          checked={btn.visible}
+                          onChange={() => handleToggleActionButtonVisibility(btn.id)}
+                          className="rounded border-border text-amber-500 focus:ring-amber-500 h-4 w-4 cursor-pointer shrink-0"
+                          title={btn.visible ? 'Visible' : 'Hidden'}
+                        />
+
+                        {/* Icon */}
+                        {getBtnIcon()}
+
+                        {/* Editable Label */}
+                        <div className="flex-1 min-w-0">
+                          <Input
+                            type="text"
+                            value={btn.label}
+                            onChange={(e) => handleUpdateActionButtonLabel(btn.id, e.target.value)}
+                            placeholder="Button label..."
+                            className="h-8 text-xs font-bold bg-background"
+                          />
+                        </div>
+
+                        <span className="text-[10px] font-mono text-muted-foreground shrink-0 w-4 text-right">
+                          #{idx + 1}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 05: Broadcast Branding */}
+            {activeSection === 'branding' && (
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+                <div className="border-b border-border pb-2.5">
+                  <span className="text-[11px] font-mono font-bold uppercase text-amber-500">05</span>
+                  <h3 className="font-extrabold text-sm text-foreground">Broadcast Branding</h3>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[11px] font-bold text-foreground">Logo count</label>
+                    <Input
+                      type="number"
+                      value={branding.logo_count}
+                      onChange={(e) =>
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: {
+                            ...prev.zones,
+                            branding: { ...prev.zones.branding!, logo_count: Number(e.target.value) },
                           },
-                        },
-                      }))
-                    }}
-                    className="h-8 w-8 rounded-lg cursor-pointer border-0 bg-transparent p-0"
-                  />
+                        }))
+                      }
+                      className="h-8 text-xs font-mono text-center mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-foreground">Logo size</label>
+                    <Input
+                      type="number"
+                      value={branding.logo_size}
+                      onChange={(e) =>
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: {
+                            ...prev.zones,
+                            branding: { ...prev.zones.branding!, logo_size: Number(e.target.value) },
+                          },
+                        }))
+                      }
+                      className="h-8 text-xs font-mono text-center mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-foreground">Logo placement</label>
+                    <select
+                      value={branding.logo_position}
+                      onChange={(e) =>
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: {
+                            ...prev.zones,
+                            branding: { ...prev.zones.branding!, logo_position: e.target.value as any },
+                          },
+                        }))
+                      }
+                      className="h-8 text-xs font-bold rounded-xl border border-border bg-background px-2 w-full mt-1"
+                    >
+                      <option value="left">Left</option>
+                      <option value="center">Center</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-foreground">Tournament title text</label>
                   <Input
                     type="text"
-                    value={design.elements.tournament_title?.colour || branding.title_colour}
+                    value={branding.title_text}
                     onChange={(e) => {
-                      const clr = e.target.value
+                      const val = e.target.value
                       setDesign((prev) => ({
                         ...prev,
                         zones: {
                           ...prev.zones,
-                          branding: { ...prev.zones.branding!, title_colour: clr },
+                          branding: { ...prev.zones.branding!, title_text: val },
                         },
                         elements: {
                           ...prev.elements,
                           tournament_title: {
-                            ...(prev.elements.tournament_title || { x: 20, y: 2, w: 60, h: 7, selected: true }),
-                            colour: clr,
+                            ...(prev.elements.tournament_title || { x: 20, y: 2, w: 60, h: 7, font_size: 26, selected: true }),
                           },
                         },
                       }))
                     }}
-                    className="h-8 text-xs font-mono uppercase"
+                    placeholder="e.g. Test Tournament"
+                    className="h-8 text-xs mt-1"
                   />
                 </div>
-              </div>
-            </div>
 
-            {/* Tournament Title Image Upload */}
-            <div className="space-y-1.5 pt-1">
-              <label className="text-[11px] font-bold text-foreground">Upload tournament name image</label>
-              <div className="flex items-center gap-2">
-                <input
-                  ref={titleFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleUploadTournamentImage}
-                  disabled={uploadingTitleImage}
-                  className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border file:border-border file:text-xs file:font-bold file:bg-muted hover:file:bg-muted/80 cursor-pointer"
-                />
-                {uploadingTitleImage && <RefreshCw className="w-4 h-4 animate-spin text-amber-500" />}
-              </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-bold text-foreground">Tournament name size</label>
+                    <Input
+                      type="number"
+                      value={design.elements.tournament_title?.font_size || branding.title_size || 26}
+                      onChange={(e) => {
+                        const sz = Number(e.target.value)
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: {
+                            ...prev.zones,
+                            branding: { ...prev.zones.branding!, title_size: sz },
+                          },
+                          elements: {
+                            ...prev.elements,
+                            tournament_title: {
+                              ...(prev.elements.tournament_title || { x: 20, y: 2, w: 60, h: 7, selected: true }),
+                              font_size: sz,
+                            },
+                          },
+                        }))
+                      }}
+                      className="h-8 text-xs font-mono mt-1"
+                    />
+                  </div>
 
-              <label className="flex items-center gap-2 pt-1 text-xs cursor-pointer text-muted-foreground hover:text-foreground">
-                <input
-                  type="checkbox"
-                  checked={branding.remove_title_bg}
-                  onChange={(e) =>
-                    setDesign((prev) => ({
-                      ...prev,
-                      zones: {
-                        ...prev.zones,
-                        branding: { ...prev.zones.branding!, remove_title_bg: e.target.checked },
-                      },
-                    }))
-                  }
-                  className="rounded border-border text-amber-500 focus:ring-amber-500"
-                />
-                <span>Remove uploaded title image background</span>
-              </label>
-            </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-foreground">Title colour</label>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <input
+                        type="color"
+                        value={design.elements.tournament_title?.colour || branding.title_colour || '#FFD54A'}
+                        onChange={(e) => {
+                          const clr = e.target.value
+                          setDesign((prev) => ({
+                            ...prev,
+                            zones: {
+                              ...prev.zones,
+                              branding: { ...prev.zones.branding!, title_colour: clr },
+                            },
+                            elements: {
+                              ...prev.elements,
+                              tournament_title: {
+                                ...(prev.elements.tournament_title || { x: 20, y: 2, w: 60, h: 7, selected: true }),
+                                colour: clr,
+                              },
+                            },
+                          }))
+                        }}
+                        className="h-8 w-8 rounded-lg cursor-pointer border-0 bg-transparent p-0"
+                      />
+                      <Input
+                        type="text"
+                        value={design.elements.tournament_title?.colour || branding.title_colour}
+                        onChange={(e) => {
+                          const clr = e.target.value
+                          setDesign((prev) => ({
+                            ...prev,
+                            zones: {
+                              ...prev.zones,
+                              branding: { ...prev.zones.branding!, title_colour: clr },
+                            },
+                            elements: {
+                              ...prev.elements,
+                              tournament_title: {
+                                ...(prev.elements.tournament_title || { x: 20, y: 2, w: 60, h: 7, selected: true }),
+                                colour: clr,
+                              },
+                            },
+                          }))
+                        }}
+                        className="h-8 text-xs font-mono uppercase"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tournament Title Image Upload */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-[11px] font-bold text-foreground">Upload tournament name image</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={titleFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadTournamentImage}
+                      disabled={uploadingTitleImage}
+                      className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border file:border-border file:text-xs file:font-bold file:bg-muted hover:file:bg-muted/80 cursor-pointer"
+                    />
+                    {uploadingTitleImage && <RefreshCw className="w-4 h-4 animate-spin text-amber-500" />}
+                  </div>
+
+                  <label className="flex items-center gap-2 pt-1 text-xs cursor-pointer text-muted-foreground hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={branding.remove_title_bg}
+                      onChange={(e) =>
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: {
+                            ...prev.zones,
+                            branding: { ...prev.zones.branding!, remove_title_bg: e.target.checked },
+                          },
+                        }))
+                      }
+                      className="rounded border-border text-amber-500 focus:ring-amber-500"
+                    />
+                    <span>Remove uploaded title image background</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* 06: Background */}
+            {activeSection === 'background' && (
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
+                <div className="border-b border-border pb-2.5">
+                  <span className="text-[11px] font-mono font-bold uppercase text-amber-500">06</span>
+                  <h3 className="font-extrabold text-sm text-foreground">Background</h3>
+                </div>
+
+                <div className="space-y-2">
+                  <select
+                    value={design.background_mode}
+                    onChange={(e) => setDesign((prev) => ({ ...prev, background_mode: e.target.value }))}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground"
+                  >
+                    <option value="stadium">Stadium Arena</option>
+                    <option value="dark_neon">Dark Neon Blue</option>
+                    <option value="classic_turf">Turf Cricket Field</option>
+                    <option value="custom">Custom Uploaded</option>
+                  </select>
+
+                  <div className="pt-1">
+                    <input
+                      ref={bgFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadBackgroundImage}
+                      disabled={uploadingBgImage}
+                      className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border file:border-border file:text-xs file:font-bold file:bg-muted hover:file:bg-muted/80 cursor-pointer"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Upload here to replace the live auction background.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-          )}
+        )}
 
-          {/* 06: Background */}
-          {activeSection === 'background' && (
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
-            <div className="border-b border-border pb-2.5">
-              <span className="text-[11px] font-mono font-bold uppercase text-amber-500">06</span>
-              <h3 className="font-extrabold text-sm text-foreground">Background</h3>
-            </div>
-
-            <div className="space-y-2">
-              <select
-                value={design.background_mode}
-                onChange={(e) => setDesign((prev) => ({ ...prev, background_mode: e.target.value }))}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground"
-              >
-                <option value="stadium">Stadium Arena</option>
-                <option value="dark_neon">Dark Neon Blue</option>
-                <option value="classic_turf">Turf Cricket Field</option>
-                <option value="custom">Custom Uploaded</option>
-              </select>
-
-              <div className="pt-1">
-                <input
-                  ref={bgFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleUploadBackgroundImage}
-                  disabled={uploadingBgImage}
-                  className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-xl file:border file:border-border file:text-xs file:font-bold file:bg-muted hover:file:bg-muted/80 cursor-pointer"
-                />
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Upload here to replace the live auction background.
-                </p>
-              </div>
-            </div>
-          </div>
-          )}
-        </div>
-
-        {/* ================= RIGHT LIVE PREVIEW & DRAG-AND-DROP CANVAS (8 COLS) ================= */}
-        <div className="lg:col-span-8 space-y-3">
+        {/* ================= RIGHT LIVE PREVIEW & DRAG-AND-DROP CANVAS ================= */}
+        <div className={`${isChecklistCompressed || isFullScreenDesigner ? 'lg:col-span-11' : 'lg:col-span-8'} space-y-3 transition-all duration-300`}>
           {/* Canvas Sub-Header */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card border border-border p-3 shadow-xs">
             <div className="flex flex-wrap items-center gap-3">
@@ -2606,31 +2656,57 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                 </h4>
               </div>
 
-              {/* View Switcher: Full Screen Arena vs Standard View */}
-              <div className="flex items-center bg-muted/70 p-1 rounded-xl border border-border">
+              {/* View Switcher: Full Screen Designer, Compress Checklist, Arena vs Standard */}
+              <div className="flex items-center flex-wrap gap-1.5 bg-muted/70 p-1 rounded-xl border border-border">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isFullScreenDesigner
+                    setIsFullScreenDesigner(next)
+                    if (next) setIsChecklistCompressed(true)
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${isFullScreenDesigner
+                      ? 'bg-amber-400 text-zinc-950 font-black shadow-xs ring-2 ring-amber-300'
+                      : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  title="Edit Auction Page Designer in Full Screen"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>{isFullScreenDesigner ? 'Exit Full Screen' : 'Full Screen'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsChecklistCompressed((prev) => !prev)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer border ${isChecklistCompressed
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold'
+                      : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                    }`}
+                  title={isChecklistCompressed ? 'Expand Checklist Section' : 'Compress Checklist Section (95% Canvas Width)'}
+                >
+                  <Sliders className="w-3 h-3" />
+                  <span>{isChecklistCompressed ? 'Expand Checklist' : 'Compress Checklist'}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setPreviewArenaMode(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    previewArenaMode
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${previewArenaMode
                       ? 'bg-amber-500 text-zinc-950 font-black shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
-                  <span>Full Screen Arena Frame</span>
+                  <span>Arena Frame</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPreviewArenaMode(false)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    !previewArenaMode
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${!previewArenaMode
                       ? 'bg-amber-500 text-zinc-950 font-black shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   <Layout className="w-3.5 h-3.5" />
-                  <span>Isolated Canvas</span>
+                  <span>Canvas Only</span>
                 </button>
               </div>
             </div>
@@ -2662,1187 +2738,6 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               >
                 ✕
               </button>
-            </div>
-          )}
-
-          {/* Active Element Quick-Editor Toolbar when an element is tapped/selected */}
-          {selectedKey && design.elements[selectedKey] && (
-            <div className="rounded-2xl border-2 border-amber-500/60 bg-slate-900/95 p-3.5 shadow-2xl text-white space-y-3 ring-2 ring-amber-500/20 backdrop-blur-md">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-amber-500 text-slate-950 font-black text-xs">
-                    <Sliders className="w-3.5 h-3.5" />
-                  </span>
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-2">
-                      Editing: {ELEMENT_LABELS[selectedKey]?.label || selectedKey}
-                      <span className="text-[10px] text-slate-400 font-mono font-normal">
-                        ({Math.round(design.elements[selectedKey].x)}%, {Math.round(design.elements[selectedKey].y)}%)
-                      </span>
-                    </h4>
-                    <span className="text-[10px] text-slate-400">
-                      Drag on canvas to position or resize • Use controls below to customize width, height, font, colour & labels
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelectedKey(null)}
-                    className="h-7 text-xs font-bold border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg px-2.5"
-                  >
-                    <Check className="w-3.5 h-3.5 mr-1 text-emerald-400" /> Done
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => toggleElementSelected(selectedKey)}
-                    className={`h-7 text-xs font-bold rounded-lg px-2.5 transition cursor-pointer ${
-                      design.elements[selectedKey]?.selected
-                        ? 'border-red-500/40 text-red-400 hover:bg-red-500/10'
-                        : 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
-                    }`}
-                  >
-                    {design.elements[selectedKey]?.selected ? (
-                      <>
-                        <EyeOff className="w-3.5 h-3.5 mr-1" /> Hide
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="w-3.5 h-3.5 mr-1 text-emerald-400" /> Show on Screen
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Inspector Control Pods */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 text-xs">
-                {/* Pod 1: Dimensions & Position */}
-                <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                      <Move className="w-3.5 h-3.5" />
-                      Dimensions & Position
-                    </span>
-                    <span className="text-[10px] text-slate-300 font-mono font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                      X: {Math.round(design.elements[selectedKey].x)}% • Y: {Math.round(design.elements[selectedKey].y)}%
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                    {/* Width (W: %) */}
-                    <div className="flex-1 min-w-[105px]">
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Width (W: %)
-                      </label>
-                      <div className="flex items-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateElementProp(
-                              selectedKey,
-                              'w',
-                              Math.max(5, (design.elements[selectedKey].w || 20) - 2)
-                            )
-                          }
-                          className="w-7 h-7 rounded-l bg-slate-800 hover:bg-slate-700 border border-r-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
-                          title="Make narrower (-2%)"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          min={5}
-                          max={100}
-                          value={Math.round(design.elements[selectedKey].w || 20)}
-                          onChange={(e) => updateElementProp(selectedKey, 'w', Math.max(5, Math.min(100, Number(e.target.value))))}
-                          className="w-12 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateElementProp(
-                              selectedKey,
-                              'w',
-                              Math.min(100, (design.elements[selectedKey].w || 20) + 2)
-                            )
-                          }
-                          className="w-7 h-7 rounded-r bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
-                          title="Make wider (+2%)"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Height (H: %) */}
-                    <div className="flex-1 min-w-[105px]">
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Height (H: %)
-                      </label>
-                      <div className="flex items-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateElementProp(
-                              selectedKey,
-                              'h',
-                              Math.max(3, (design.elements[selectedKey].h || 10) - 2)
-                            )
-                          }
-                          className="w-7 h-7 rounded-l bg-slate-800 hover:bg-slate-700 border border-r-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
-                          title="Make shorter (-2%)"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          min={3}
-                          max={100}
-                          value={Math.round(design.elements[selectedKey].h || 10)}
-                          onChange={(e) => updateElementProp(selectedKey, 'h', Math.max(3, Math.min(100, Number(e.target.value))))}
-                          className="w-12 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateElementProp(
-                              selectedKey,
-                              'h',
-                              Math.min(100, (design.elements[selectedKey].h || 10) + 2)
-                            )
-                          }
-                          className="w-7 h-7 rounded-r bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
-                          title="Make taller (+2%)"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Nudge D-Pad */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Nudge Position
-                      </label>
-                      <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
-                        <button
-                          type="button"
-                          onClick={() => nudgeElement(selectedKey, -2, 0)}
-                          className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
-                          title="Nudge Left"
-                        >
-                          ←
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => nudgeElement(selectedKey, 2, 0)}
-                          className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
-                          title="Nudge Right"
-                        >
-                          →
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => nudgeElement(selectedKey, 0, -2)}
-                          className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
-                          title="Nudge Up"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => nudgeElement(selectedKey, 0, 2)}
-                          className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
-                          title="Nudge Down"
-                        >
-                          ↓
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pod 2: Typography & Appearance OR Photo Shape & Mask */}
-                {selectedKey === 'player_photo' ? (
-                  <div className="bg-slate-950/70 border border-amber-500/30 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-amber-500/10">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5" />
-                        Showcase Photo Shape & Frame
-                      </span>
-                      <span className="text-[10px] text-amber-300 font-mono uppercase font-bold">
-                        {design.elements.player_photo?.shape || 'Rounded'}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2 pt-0.5">
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                          Select Photo Shape (Any Shape)
-                        </label>
-                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-                          {PHOTO_SHAPES.map((shp) => {
-                            const isCur = (design.elements.player_photo?.shape || 'rounded').toLowerCase() === shp.id
-                            return (
-                              <button
-                                key={shp.id}
-                                type="button"
-                                onClick={() => updateElementProp('player_photo', 'shape', shp.id)}
-                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 border cursor-pointer ${
-                                  isCur
-                                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
-                                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
-                                }`}
-                              >
-                                <span>{shp.icon}</span>
-                                <span>{shp.label}</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Corner Curve / Radius slider */}
-                      {(!design.elements.player_photo?.shape || design.elements.player_photo?.shape === 'rounded') && (
-                        <div className="flex items-center justify-between gap-3 pt-1">
-                          <label className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">
-                            Corner Radius: {design.elements.player_photo?.border_radius !== undefined ? design.elements.player_photo?.border_radius : 16}px
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="48"
-                            step="2"
-                            value={design.elements.player_photo?.border_radius !== undefined ? design.elements.player_photo?.border_radius : 16}
-                            onChange={(e) => updateElementProp('player_photo', 'border_radius', Number(e.target.value))}
-                            className="w-32 accent-amber-500 cursor-pointer"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                      <Type className="w-3.5 h-3.5" />
-                      Typography & Style
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      Font & Controls
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                    {/* Font Family Picker */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Font Family
-                      </label>
-                      <select
-                        value={design.elements[selectedKey].font_family || 'Inter'}
-                        onChange={(e) => updateElementProp(selectedKey, 'font_family', e.target.value)}
-                        className="h-7 px-2 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs cursor-pointer focus:outline-none focus:border-amber-400"
-                      >
-                        <option value="Inter">Inter</option>
-                        <option value="Roboto">Roboto</option>
-                        <option value="Montserrat">Montserrat</option>
-                        <option value="Oswald">Oswald</option>
-                        <option value="Impact">Impact</option>
-                        <option value="Arial">Arial</option>
-                        <option value="Georgia">Georgia</option>
-                        <option value="system-ui">System</option>
-                      </select>
-                    </div>
-
-                    {/* Font Size (px) */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Size (px)
-                      </label>
-                      <div className="flex items-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateElementProp(
-                              selectedKey,
-                              'font_size',
-                              Math.max(8, (design.elements[selectedKey].font_size || 20) - 2)
-                            )
-                          }
-                          className="w-7 h-7 rounded-l bg-slate-800 hover:bg-slate-700 border border-r-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
-                          title="Decrease font size"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          min={8}
-                          max={96}
-                          value={design.elements[selectedKey].font_size || 20}
-                          onChange={(e) => updateElementProp(selectedKey, 'font_size', Number(e.target.value))}
-                          className="w-11 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateElementProp(
-                              selectedKey,
-                              'font_size',
-                              Math.min(96, (design.elements[selectedKey].font_size || 20) + 2)
-                            )
-                          }
-                          className="w-7 h-7 rounded-r bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
-                          title="Increase font size"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Bold, Italic, Underline Toggles */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Style
-                      </label>
-                      <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
-                        <button
-                          type="button"
-                          onClick={() => updateElementProp(selectedKey, 'bold', !(design.elements[selectedKey].bold !== false))}
-                          className={`px-2 h-6 rounded text-xs font-black transition cursor-pointer ${
-                            design.elements[selectedKey].bold !== false ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
-                          }`}
-                          title="Bold"
-                        >
-                          B
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateElementProp(selectedKey, 'italic', !design.elements[selectedKey].italic)}
-                          className={`px-2 h-6 rounded text-xs font-bold italic transition cursor-pointer ${
-                            design.elements[selectedKey].italic ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
-                          }`}
-                          title="Italic"
-                        >
-                          I
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateElementProp(selectedKey, 'underline', !design.elements[selectedKey].underline)}
-                          className={`px-2 h-6 rounded text-xs font-bold underline transition cursor-pointer ${
-                            design.elements[selectedKey].underline ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
-                          }`}
-                          title="Underline"
-                        >
-                          U
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Fit to Size Toggle */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Fit to Size
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => updateElementProp(selectedKey, 'fit_to_size', !design.elements[selectedKey].fit_to_size)}
-                        className={`h-7 px-2 rounded-lg border text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
-                          design.elements[selectedKey].fit_to_size
-                            ? 'bg-amber-500/20 text-amber-300 border-amber-400'
-                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                        }`}
-                        title="Auto-shrink font size to prevent overlapping or hiding text"
-                      >
-                        Fit {design.elements[selectedKey].fit_to_size ? '✓' : ''}
-                      </button>
-                    </div>
-
-                    {/* Text Colour */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Colour
-                      </label>
-                      <div className="flex items-center gap-1.5 h-7">
-                        <input
-                          type="color"
-                          value={design.elements[selectedKey].colour || '#FFFFFF'}
-                          onChange={(e) => updateElementProp(selectedKey, 'colour', e.target.value)}
-                          className="w-7 h-7 rounded-lg border border-slate-700 bg-transparent cursor-pointer p-0 shrink-0"
-                          title="Custom Colour Picker"
-                        />
-                        <div className="flex items-center gap-1">
-                          {['#FFFFFF', '#FFD54A', '#10B981', '#38BDF8', '#EF4444'].map((c) => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => updateElementProp(selectedKey, 'colour', c)}
-                              style={{ backgroundColor: c }}
-                              className={`w-3.5 h-3.5 rounded-full border border-slate-900 shadow-xs hover:scale-125 transition cursor-pointer ${
-                                (design.elements[selectedKey].colour || '#FFFFFF').toUpperCase() === c.toUpperCase()
-                                  ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-900'
-                                  : ''
-                              }`}
-                              title={c}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Alignment */}
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Align
-                      </label>
-                      <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
-                        <button
-                          type="button"
-                          onClick={() => updateElementProp(selectedKey, 'align', 'left')}
-                          className={`p-1 rounded transition cursor-pointer ${
-                            design.elements[selectedKey].align === 'left'
-                              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                              : 'text-slate-400 hover:text-white'
-                          }`}
-                          title="Left Align"
-                        >
-                          <AlignLeft className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateElementProp(selectedKey, 'align', 'center')}
-                          className={`p-1 rounded transition cursor-pointer ${
-                            design.elements[selectedKey].align === 'center'
-                              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                              : 'text-slate-400 hover:text-white'
-                          }`}
-                          title="Center Align"
-                        >
-                          <AlignCenter className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateElementProp(selectedKey, 'align', 'right')}
-                          className={`p-1 rounded transition cursor-pointer ${
-                            design.elements[selectedKey].align === 'right'
-                              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                              : 'text-slate-400 hover:text-white'
-                          }`}
-                          title="Right Align"
-                        >
-                          <AlignRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                )}
-
-                {/* Pod 3: Labels & Content Override */}
-                <div className="md:col-span-2 xl:col-span-1 bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                      <Sliders className="w-3.5 h-3.5" />
-                      Labels & Content Override
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      Text Customization
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 pt-0.5">
-                    {/* Row 1: Show Label Toggle + Label Name */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="w-24 shrink-0">
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                          Show Label
-                        </label>
-                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
-                          <button
-                            type="button"
-                            onClick={() => updateElementProp(selectedKey, 'show_label', true)}
-                            className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${
-                              design.elements[selectedKey].show_label
-                                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            Yes
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateElementProp(selectedKey, 'show_label', false)}
-                            className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${
-                              !design.elements[selectedKey].show_label
-                                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            No
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 min-w-[130px]">
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                          Label Name
-                        </label>
-                        <input
-                          type="text"
-                          value={design.elements[selectedKey].custom_label ?? (ELEMENT_LABELS[selectedKey]?.label || '')}
-                          onChange={(e) => updateElementProp(selectedKey, 'custom_label', e.target.value)}
-                          placeholder="Custom Label"
-                          className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Row 2: Custom Content Override */}
-                    <div className="w-full">
-                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
-                        Custom Content Override
-                      </label>
-                      <input
-                        type="text"
-                        value={design.elements[selectedKey].custom_text || ''}
-                        onChange={(e) => updateElementProp(selectedKey, 'custom_text', e.target.value)}
-                        placeholder="Override default display text..."
-                        className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hidden File Input for Custom Box Photo/Video Upload */}
-              <input
-                ref={customMediaInputRef}
-                type="file"
-                accept={customMediaTypeToUpload === 'video' ? 'video/*' : 'image/*'}
-                onChange={handleCustomMediaFileSelected}
-                className="hidden"
-              />
-
-              {/* Custom Box Content Configuration Sub-Panel */}
-              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history' || selectedKey === 'bidder_name' || selectedKey === 'franchise_stations' || selectedKey === 'action_bar') && (
-                <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/30 space-y-2.5 mt-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                        <Sliders className="w-3.5 h-3.5" />
-                        {selectedKey === 'bid_history'
-                          ? 'Bid History Stream Settings'
-                          : selectedKey === 'bidder_name'
-                          ? 'Bidder Team Name & Logo Settings'
-                          : selectedKey === 'franchise_stations'
-                          ? 'Franchise Bidding Stations (Option 4)'
-                          : selectedKey === 'action_bar'
-                          ? 'Action & Hammer Controls Settings'
-                          : (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))
-                          ? 'Photo Box Configuration'
-                          : (design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video'))
-                          ? 'Video Stream Configuration'
-                          : 'Custom Box Configuration'}
-                      </span>
-                      {selectedKey.startsWith('custom_') && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCustomBox(selectedKey)}
-                          className="flex items-center gap-1 text-[10px] font-bold text-red-400 hover:text-red-300 bg-red-950/40 hover:bg-red-900/50 px-2 py-0.5 rounded border border-red-500/30 cursor-pointer transition"
-                        >
-                          <Trash2 className="w-3 h-3" /> Delete Box
-                        </button>
-                      )}
-                    </div>
-
-                    {/* If Bidder Team Name */}
-                    {selectedKey === 'bidder_name' && (
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-800">
-                        <span className="text-xs text-slate-300 font-semibold">
-                          Show Bidding Team Logo next to team name
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateElementProp(
-                              'bidder_name',
-                              'show_team_logo',
-                              !(design.elements.bidder_name?.show_team_logo !== false)
-                            )
-                          }
-                          className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                            design.elements.bidder_name?.show_team_logo !== false
-                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                          }`}
-                        >
-                          {design.elements.bidder_name?.show_team_logo !== false ? 'Team Logo: ON' : 'Team Logo: OFF'}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* If Franchise Bidding Stations (Option 4) */}
-                    {selectedKey === 'franchise_stations' && (
-                      <div className="space-y-2.5 pt-1 border-t border-slate-800 text-xs">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                              Grid Preset (Rows × Cols)
-                            </label>
-                            <div className="grid grid-cols-3 gap-1">
-                              {[
-                                { r: 2, c: 7, l: '2 × 7' },
-                                { r: 1, c: 14, l: '1 × 14' },
-                                { r: 14, c: 1, l: '14 × 1' },
-                              ].map((g) => (
-                                <button
-                                  key={g.l}
-                                  type="button"
-                                  onClick={() => {
-                                    updateElementProp('franchise_stations', 'grid_rows', g.r)
-                                    updateElementProp('franchise_stations', 'grid_cols', g.c)
-                                  }}
-                                  className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                    design.elements.franchise_stations?.grid_rows === g.r &&
-                                    design.elements.franchise_stations?.grid_cols === g.c
-                                      ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                                  }`}
-                                >
-                                  {g.l}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Box Color Style</label>
-                            <div className="grid grid-cols-2 gap-1">
-                              {[
-                                { id: 'solid', l: 'Full Solid' },
-                                { id: 'outline', l: 'Outline Only' },
-                              ].map((st) => (
-                                <button
-                                  key={st.id}
-                                  type="button"
-                                  onClick={() => updateElementProp('franchise_stations', 'box_style', st.id)}
-                                  className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                    (design.elements.franchise_stations?.box_style || 'solid') === st.id
-                                      ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                                  }`}
-                                >
-                                  {st.l}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                              Equidistant Box Spacing (Gap: px)
-                            </label>
-                            <div className="flex items-center gap-1">
-                              {[2, 4, 6, 8, 12].map((gp) => (
-                                <button
-                                  key={gp}
-                                  type="button"
-                                  onClick={() => {
-                                    updateElementProp('franchise_stations', 'gap_x', gp)
-                                    updateElementProp('franchise_stations', 'gap_y', gp)
-                                  }}
-                                  className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                    (design.elements.franchise_stations?.gap_x || 6) === gp
-                                      ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                      : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                                  }`}
-                                >
-                                  {gp}px
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-slate-800">
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                            Content Inside Box (Strictly contained within boundaries • Horizontal orientation)
-                          </label>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateElementProp(
-                                  'franchise_stations',
-                                  'show_number',
-                                  !(design.elements.franchise_stations?.show_number !== false)
-                                )
-                              }
-                              className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                design.elements.franchise_stations?.show_number !== false
-                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400'
-                                  : 'bg-slate-900 text-slate-400 border-slate-700'
-                              }`}
-                            >
-                              Team Number: {design.elements.franchise_stations?.show_number !== false ? 'ON' : 'OFF'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateElementProp(
-                                  'franchise_stations',
-                                  'show_short_name',
-                                  !(design.elements.franchise_stations?.show_short_name !== false)
-                                )
-                              }
-                              className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                design.elements.franchise_stations?.show_short_name !== false
-                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400'
-                                  : 'bg-slate-900 text-slate-400 border-slate-700'
-                              }`}
-                            >
-                              Short Name: {design.elements.franchise_stations?.show_short_name !== false ? 'ON' : 'OFF'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateElementProp(
-                                  'franchise_stations',
-                                  'show_balance',
-                                  !design.elements.franchise_stations?.show_balance
-                                )
-                              }
-                              className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                design.elements.franchise_stations?.show_balance
-                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400'
-                                  : 'bg-slate-900 text-slate-400 border-slate-700'
-                              }`}
-                            >
-                              Purse Balance: {design.elements.franchise_stations?.show_balance ? 'ON' : 'OFF'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* If Action Bar */}
-                    {selectedKey === 'action_bar' && (
-                      <div className="space-y-3 rounded-xl bg-slate-950/70 border border-emerald-500/30 p-3.5 shadow-sm">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                          <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
-                            <Gavel className="w-3.5 h-3.5" /> Action Controls Inspector & Buttons
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            {currentActionButtons.filter((b) => b.visible).length} / {currentActionButtons.length} Active
-                          </span>
-                        </div>
-
-                        {/* Quick Placement Snap Presets */}
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                            Quick Snap Positions on Canvas
-                          </label>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateElementProp('action_bar', 'x', 2)
-                                updateElementProp('action_bar', 'y', 88)
-                                updateElementProp('action_bar', 'w', 96)
-                                updateElementProp('action_bar', 'h', 10)
-                              }}
-                              className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-200 border border-slate-700 transition cursor-pointer text-center"
-                            >
-                              Bottom Bar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateElementProp('action_bar', 'x', 2)
-                                updateElementProp('action_bar', 'y', 1.5)
-                                updateElementProp('action_bar', 'w', 96)
-                                updateElementProp('action_bar', 'h', 10)
-                              }}
-                              className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-200 border border-slate-700 transition cursor-pointer text-center"
-                            >
-                              Top Ticker
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateElementProp('action_bar', 'x', 18)
-                                updateElementProp('action_bar', 'y', 86)
-                                updateElementProp('action_bar', 'w', 64)
-                                updateElementProp('action_bar', 'h', 11)
-                              }}
-                              className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-200 border border-slate-700 transition cursor-pointer text-center"
-                            >
-                              Floating Center
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Button Visibility Toggles & Order */}
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1.5">
-                            Action Buttons Configuration & Visibility
-                          </label>
-                          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                            {currentActionButtons.map((btn, index) => (
-                              <div
-                                key={btn.id}
-                                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs"
-                              >
-                                <label className="flex items-center gap-2 cursor-pointer text-slate-200 font-medium">
-                                  <input
-                                    type="checkbox"
-                                    checked={btn.visible}
-                                    onChange={(e) => {
-                                      const updated = currentActionButtons.map((b) =>
-                                        b.id === btn.id ? { ...b, visible: e.target.checked } : b
-                                      )
-                                      setDesign((prev) => ({
-                                        ...prev,
-                                        zones: {
-                                          ...prev.zones,
-                                          action_buttons: updated,
-                                        },
-                                      }))
-                                    }}
-                                    className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400 w-3.5 h-3.5 cursor-pointer"
-                                  />
-                                  <span>{btn.label}</span>
-                                </label>
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    disabled={index === 0}
-                                    onClick={() => {
-                                      if (index === 0) return
-                                      const updated = [...currentActionButtons]
-                                      const temp = updated[index - 1]
-                                      updated[index - 1] = updated[index]
-                                      updated[index] = temp
-                                      setDesign((prev) => ({
-                                        ...prev,
-                                        zones: { ...prev.zones, action_buttons: updated },
-                                      }))
-                                    }}
-                                    className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
-                                  >
-                                    ↑
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={index === currentActionButtons.length - 1}
-                                    onClick={() => {
-                                      if (index === currentActionButtons.length - 1) return
-                                      const updated = [...currentActionButtons]
-                                      const temp = updated[index + 1]
-                                      updated[index + 1] = updated[index]
-                                      updated[index] = temp
-                                      setDesign((prev) => ({
-                                        ...prev,
-                                        zones: { ...prev.zones, action_buttons: updated },
-                                      }))
-                                    }}
-                                    className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
-                                  >
-                                    ↓
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {(design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo')) && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-center">
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Attach Photo</label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCustomMediaTypeToUpload('image')
-                              customMediaInputRef.current?.click()
-                            }}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 cursor-pointer transition shadow-2xs hover:border-amber-400"
-                          >
-                            <Upload className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Choose Image File...</span>
-                          </button>
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Or Paste Image URL</label>
-                          <input
-                            type="text"
-                            placeholder="https://.../photo.png"
-                            value={design.elements[selectedKey]?.media_url || ''}
-                            onChange={(e) => updateElementProp(selectedKey, 'media_url', e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Image Fit</label>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => updateElementProp(selectedKey, 'object_fit', 'cover')}
-                              className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${
-                                (design.elements[selectedKey]?.object_fit || 'cover') === 'cover'
-                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                              }`}
-                            >
-                              Cover
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => updateElementProp(selectedKey, 'object_fit', 'contain')}
-                              className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${
-                                design.elements[selectedKey]?.object_fit === 'contain'
-                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                              }`}
-                            >
-                              Contain
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* If Video Box */}
-                    {(design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video')) && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-center">
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Attach Video File</label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCustomMediaTypeToUpload('video')
-                              customMediaInputRef.current?.click()
-                            }}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 cursor-pointer transition shadow-2xs hover:border-sky-400"
-                          >
-                            <Upload className="w-3.5 h-3.5 text-sky-400" />
-                            <span>Choose Video (MP4)...</span>
-                          </button>
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Or Paste Video URL</label>
-                          <input
-                            type="text"
-                            placeholder="https://.../video.mp4"
-                            value={design.elements[selectedKey]?.video_url || design.elements[selectedKey]?.media_url || ''}
-                            onChange={(e) => {
-                              updateElementProp(selectedKey, 'video_url', e.target.value)
-                              updateElementProp(selectedKey, 'media_url', e.target.value)
-                            }}
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Video Fit</label>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => updateElementProp(selectedKey, 'object_fit', 'cover')}
-                              className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${
-                                (design.elements[selectedKey]?.object_fit || 'cover') === 'cover'
-                                  ? 'bg-sky-500 text-zinc-950 border-sky-400'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                              }`}
-                            >
-                              Cover
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => updateElementProp(selectedKey, 'object_fit', 'contain')}
-                              className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${
-                                design.elements[selectedKey]?.object_fit === 'contain'
-                                  ? 'bg-sky-500 text-zinc-950 border-sky-400'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                              }`}
-                            >
-                              Contain
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* If Custom Text Box */}
-                    {(design.elements[selectedKey]?.type === 'text' || selectedKey.includes('text')) && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 items-center">
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Text Content</label>
-                          <input
-                            type="text"
-                            value={design.elements[selectedKey]?.custom_text || ''}
-                            onChange={(e) => updateElementProp(selectedKey, 'custom_text', e.target.value)}
-                            placeholder="e.g. POWER PLAY LOT"
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white font-bold focus:outline-none focus:border-emerald-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Box Label Name</label>
-                          <input
-                            type="text"
-                            value={design.elements[selectedKey]?.label || ''}
-                            onChange={(e) => updateElementProp(selectedKey, 'label', e.target.value)}
-                            placeholder="Title in list"
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-400"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* If Bid History Box */}
-                    {selectedKey === 'bid_history' && (
-                      <div className="space-y-2 text-xs text-slate-300">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] text-purple-400 font-bold">Live Stream Panel:</span>
-                            <span>Position and stretch this box anywhere on the canvas to display live bids during the auction.</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              updateElementProp('bid_history', 'x', 74)
-                              updateElementProp('bid_history', 'y', 9.5)
-                              updateElementProp('bid_history', 'w', 24)
-                              updateElementProp('bid_history', 'h', 77)
-                            }}
-                            className="px-2.5 py-1 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30 font-bold text-xs cursor-pointer transition"
-                          >
-                            Reset Right Panel Position
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-800">
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Header Title</label>
-                            <input
-                              type="text"
-                              value={design.elements.bid_history?.title || design.elements.bid_history?.label || 'BID HISTORY'}
-                              onChange={(e) => {
-                                updateElementProp('bid_history', 'title', e.target.value)
-                                updateElementProp('bid_history', 'label', e.target.value)
-                              }}
-                              className="w-full px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white font-bold"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Max Visible Bids</label>
-                            <div className="flex items-center gap-1">
-                              {[5, 8, 12, 20].map((num) => (
-                                <button
-                                  key={num}
-                                  type="button"
-                                  onClick={() => updateElementProp('bid_history', 'max_bids', num)}
-                                  className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${
-                                    (design.elements.bid_history?.max_bids || 8) === num
-                                      ? 'bg-purple-500 text-white border-purple-400'
-                                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                                  }`}
-                                >
-                                  {num}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Panel Theme</label>
-                            <div className="flex items-center gap-1">
-                              {[
-                                { id: 'cyber', label: 'Cyber' },
-                                { id: 'glass', label: 'Glass' },
-                                { id: 'solid', label: 'Solid' },
-                              ].map((t) => (
-                                <button
-                                  key={t.id}
-                                  type="button"
-                                  onClick={() => updateElementProp('bid_history', 'panel_theme', t.id)}
-                                  className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${
-                                    (design.elements.bid_history?.panel_theme || 'cyber') === t.id
-                                      ? 'bg-purple-500 text-white border-purple-400'
-                                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                                  }`}
-                                >
-                                  {t.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] text-slate-400 font-bold block mb-1">Visible Columns</label>
-                            <div className="grid grid-cols-3 gap-1">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateElementProp(
-                                    'bid_history',
-                                    'show_short_name',
-                                    design.elements.bid_history?.show_short_name === false ? true : false
-                                  )
-                                }
-                                className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${
-                                  design.elements.bid_history?.show_short_name !== false
-                                    ? 'bg-purple-500 text-white border-purple-400'
-                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                                }`}
-                              >
-                                Short Name
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateElementProp(
-                                    'bid_history',
-                                    'show_team_name',
-                                    design.elements.bid_history?.show_team_name === false ? true : false
-                                  )
-                                }
-                                className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${
-                                  design.elements.bid_history?.show_team_name !== false
-                                    ? 'bg-purple-500 text-white border-purple-400'
-                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                                }`}
-                              >
-                                Team Name
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateElementProp(
-                                    'bid_history',
-                                    'show_bid_amount',
-                                    design.elements.bid_history?.show_bid_amount === false ? true : false
-                                  )
-                                }
-                                className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${
-                                  design.elements.bid_history?.show_bid_amount !== false
-                                    ? 'bg-purple-500 text-white border-purple-400'
-                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                                }`}
-                              >
-                                Bid Amount
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
             </div>
           )}
 
@@ -3885,11 +2780,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                 }
               }}
               onDrop={handleCanvasDrop}
-              className={`relative aspect-video w-full select-none cursor-default overflow-hidden p-2 transition-all ${
-                isDraggingOverCanvas
+              className={`relative aspect-video w-full select-none cursor-default overflow-hidden p-2 transition-all ${isDraggingOverCanvas
                   ? 'ring-4 ring-amber-400 bg-amber-500/10 shadow-2xl'
                   : ''
-              }`}
+                }`}
               style={{
                 backgroundImage: design.grid_visible
                   ? `radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)`
@@ -3929,11 +2823,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     }))
                     setSelectedKey('franchise_stations')
                   }}
-                  className={`px-2.5 py-1 rounded border cursor-pointer font-bold transition flex items-center gap-1.5 shadow-md ${
-                    selectedKey === 'franchise_stations'
+                  className={`px-2.5 py-1 rounded border cursor-pointer font-bold transition flex items-center gap-1.5 shadow-md ${selectedKey === 'franchise_stations'
                       ? 'bg-amber-500 text-zinc-950 border-amber-400'
                       : 'bg-slate-900/90 hover:bg-slate-800 text-amber-400 border-amber-500/50'
-                  }`}
+                    }`}
                   title="Click to select & edit Franchise Team Stations and Columns"
                 >
                   <Shield className="w-3 h-3 text-current" />
@@ -3945,11 +2838,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     e.stopPropagation()
                     setSelectedKey('action_bar')
                   }}
-                  className={`px-2 py-0.5 rounded border cursor-pointer font-bold transition ${
-                    selectedKey === 'action_bar'
+                  className={`px-2 py-0.5 rounded border cursor-pointer font-bold transition ${selectedKey === 'action_bar'
                       ? 'bg-emerald-500 text-zinc-950 border-emerald-400'
                       : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800'
-                  }`}
+                    }`}
                   title="Click to edit Action Controls"
                 >
                   Action Zone: {design.zones.action_zone_width}px
@@ -3960,11 +2852,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     e.stopPropagation()
                     setSelectedKey('bid_history')
                   }}
-                  className={`px-2 py-0.5 rounded border cursor-pointer font-bold transition ${
-                    selectedKey === 'bid_history'
+                  className={`px-2 py-0.5 rounded border cursor-pointer font-bold transition ${selectedKey === 'bid_history'
                       ? 'bg-blue-500 text-zinc-950 border-blue-400'
                       : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800'
-                  }`}
+                    }`}
                   title="Click to edit Bid History"
                 >
                   Bid History: {design.zones.bid_history_width}px
@@ -3996,13 +2887,12 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       height: `${el.h}%`,
                       color: el.colour || '#FFFFFF',
                     }}
-                    className={`absolute flex items-center justify-center cursor-move transition-shadow rounded-lg ${
-                      isSelected
+                    className={`absolute flex items-center justify-center cursor-move transition-shadow rounded-lg ${isSelected
                         ? isHidden
                           ? 'border-2 border-dashed border-red-400/80 bg-red-500/10 shadow-lg ring-2 ring-red-400/30 z-30'
                           : 'border-2 border-dashed border-amber-400 bg-amber-500/20 shadow-xl ring-2 ring-amber-400/50 z-30'
                         : 'border border-transparent hover:border-amber-400/50 hover:bg-white/5 z-10'
-                    }`}
+                      }`}
                   >
                     {isHidden && isSelected && (
                       <span className="absolute -top-4 left-1 bg-red-600 text-white text-[9px] font-black uppercase px-1.5 py-0.2 rounded-xs shadow pointer-events-none z-40">
@@ -4035,7 +2925,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               color: el.colour || branding.title_colour || '#FFD54A',
                               fontFamily: el.font_family || 'Arial',
                             }}
-                            className="font-black uppercase tracking-wider font-mono drop-shadow-md truncate pointer-events-none"
+                            className="font-black uppercase tracking-wider font-mono drop-shadow-md whitespace-nowrap pointer-events-none"
                           >
                             {branding.title_text || 'Test Tournament'}
                           </span>
@@ -4043,12 +2933,19 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       )}
 
                       {key === 'player_photo' && (
-                        <div className="w-full h-full flex flex-col items-center justify-center rounded-xl border border-white/20 bg-slate-900/90 overflow-hidden shadow-inner">
+                        <div
+                          className="w-full h-full flex flex-col items-center justify-center border border-white/20 bg-slate-900/90 overflow-hidden shadow-inner"
+                          style={getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius)}
+                        >
                           {samplePlayerData.photo_url ? (
                             <img
                               src={samplePlayerData.photo_url}
                               alt="Player"
-                              className="w-full h-full object-cover"
+                              style={{
+                                ...getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius),
+                                objectFit: el?.object_fit || 'contain',
+                              }}
+                              className="w-full h-full pointer-events-none"
                             />
                           ) : (
                             <div className="text-center p-2">
@@ -4248,8 +3145,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               el.align === 'center'
                                 ? 'center'
                                 : el.align === 'left'
-                                ? 'flex-start'
-                                : 'flex-end',
+                                  ? 'flex-start'
+                                  : 'flex-end',
                             textAlign: el.align || 'right',
                           }}
                         >
@@ -4279,7 +3176,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 textDecoration: el.underline ? 'underline' : 'none',
                                 whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
                               }}
-                              className="font-black uppercase tracking-wide truncate block"
+                              className="font-black uppercase tracking-wide whitespace-nowrap block"
                             >
                               {el.custom_text || samplePlayerData.bidder_name}
                             </span>
@@ -4383,13 +3280,12 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       {/* Bid History Stream Panel Element (Configurable / Draggable / Resizable) */}
                       {key === 'bid_history' && (
                         <div
-                          className={`w-full h-full flex flex-col justify-between rounded-2xl p-3 shadow-2xl select-none overflow-hidden ${
-                            el.panel_theme === 'glass'
+                          className={`w-full h-full flex flex-col justify-between rounded-2xl p-3 shadow-2xl select-none overflow-hidden ${el.panel_theme === 'glass'
                               ? 'bg-slate-900/60 backdrop-blur-md border border-white/20'
                               : el.panel_theme === 'solid'
-                              ? 'bg-black/95 border border-amber-500/30'
-                              : 'bg-[#030f1e]/95 border border-blue-900/60 backdrop-blur-xs'
-                          }`}
+                                ? 'bg-black/95 border border-amber-500/30'
+                                : 'bg-[#030f1e]/95 border border-blue-900/60 backdrop-blur-xs'
+                            }`}
                           style={{ borderRadius: `${el.border_radius ?? 16}px` }}
                         >
                           <div className="space-y-2 overflow-hidden flex-1 flex flex-col">
@@ -4570,20 +3466,30 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 const tShortcut = t.short_name || t.code || getTeamShortcut(t.team_name || t.name, '')
                                 const assignedShortcut = ((t as any).shortcut_key || (t as any).custom_data?.shortcut_key || '').toUpperCase()
                                 const badgeKey = assignedShortcut ? `${idx + 1} - ${assignedShortcut}` : `${idx + 1}`
-                                const tLogo = (t as any).team_logo || (t as any).logo || (t as any).logo_url || (t as any).custom_data?.logo_url
                                 const tBalance = t.balance != null ? (typeof t.balance === 'number' ? `₹${t.balance.toLocaleString('en-IN')}` : t.balance) : '₹0'
                                 const tMaxBid = t.max_bid != null ? (typeof t.max_bid === 'number' ? `₹${t.max_bid.toLocaleString('en-IN')}` : t.max_bid) : '₹0'
                                 const teamFullName = t.name || t.team_name || `Team #${idx + 1}`
 
                                 // User Account UI Preference Overrides (Isolated to this user's account)
                                 const effectiveFontSize = userPrefs.fontSize || el.font_size || 14
-                                const effectiveColor = userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : (el.colour && el.colour !== '#FFFFFF' ? el.colour : tColor)
-                                const effectiveBg = userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : (isSolid ? `${tColor}18` : 'rgba(2, 19, 46, 0.95)')
+                                const dynamicTeamBg = (t as any).card_bg || (t as any).logo_bg || (t as any).background_color || (t as any).custom_data?.card_bg || (t as any).custom_data?.logo_bg
+                                const isLightBg = dynamicTeamBg && (dynamicTeamBg.toLowerCase() === '#ffffff' || dynamicTeamBg.toLowerCase() === 'white' || dynamicTeamBg.startsWith('rgb(255'))
+                                const effectiveColor = isLightBg ? '#020617' : (userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : (el.colour && el.colour !== '#FFFFFF' ? el.colour : tColor))
+                                const effectiveBg = dynamicTeamBg
+                                  ? dynamicTeamBg
+                                  : userPrefs.cardBg === 'oled' ? '#000000'
+                                    : userPrefs.cardBg === 'navy' ? '#020617'
+                                      : userPrefs.cardBg === 'carbon' ? '#18181b'
+                                        : (isSolid ? `${tColor}18` : 'rgba(2, 19, 46, 0.95)')
                                 const effectiveGlow = userPrefs.borderGlow ? `0 0 10px ${tColor}35` : 'none'
 
                                 return (
                                   <div
                                     key={t.id || t.team_id || idx}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setSelectedKey('franchise_stations')
+                                    }}
                                     className="group relative flex flex-col justify-between p-1.5 rounded-xl transition-all select-none min-w-0 cursor-pointer hover:scale-105 active:scale-95"
                                     style={{
                                       backgroundColor: effectiveBg,
@@ -4612,24 +3518,20 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       </div>
                                     </div>
 
-                                    {/* Top Row: #{badgeKey} Badge */}
+                                    {/* Top Row: Clean indicator */}
                                     <div
                                       className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
                                       style={{ writingMode: 'horizontal-tb' }}
                                     >
-                                      {el.show_number !== false && (
-                                        <span
-                                          style={{ backgroundColor: tColor }}
-                                          className="px-1.5 py-0.2 rounded font-mono text-[8px] font-black text-white shadow-xs"
-                                        >
-                                          #{badgeKey}
-                                        </span>
-                                      )}
+                                      <span
+                                        style={{ backgroundColor: tColor }}
+                                        className="w-1.5 h-1.5 rounded-full shadow-xs"
+                                      />
                                     </div>
 
-                                    {/* Center: Team Logo + Short Name */}
+                                    {/* Center: Number and Key Only (No Logo thumbnail as requested) */}
                                     <div
-                                      className="w-full flex items-center justify-center gap-1 font-black truncate my-auto px-0.5"
+                                      className="w-full flex items-center justify-center font-black my-auto px-0.5"
                                       style={{
                                         fontSize: `${effectiveFontSize}px`,
                                         color: effectiveColor,
@@ -4637,14 +3539,9 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                         whiteSpace: 'nowrap',
                                       }}
                                     >
-                                      {tLogo && (
-                                        <img
-                                          src={resolveMediaUrl(tLogo)}
-                                          alt=""
-                                          className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-white/30"
-                                        />
-                                      )}
-                                      <span className="font-mono tracking-wider">{tShortcut}</span>
+                                      <span className="font-mono tracking-wider font-black">
+                                        {badgeKey}
+                                      </span>
                                     </div>
 
                                     {el.show_balance === true && (
@@ -4667,13 +3564,16 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       {(el.type === 'photo' || key.startsWith('custom_photo')) && (
                         <div
                           className="w-full h-full relative rounded-xl overflow-hidden border border-white/20 bg-slate-900/80 shadow-md flex items-center justify-center select-none"
-                          style={{ borderRadius: `${el.border_radius ?? 12}px` }}
+                          style={getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius ?? 12)}
                         >
                           {el.media_url ? (
                             <img
                               src={el.media_url}
                               alt={el.label || 'Custom Photo'}
-                              style={{ objectFit: el.object_fit || 'cover' }}
+                              style={{
+                                ...getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius ?? 12),
+                                objectFit: el.object_fit || 'contain',
+                              }}
                               className="w-full h-full pointer-events-none"
                             />
                           ) : (
@@ -4683,7 +3583,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 {el.label || 'Custom Photo Box'}
                               </span>
                               <span className="text-[9px] text-slate-400 pointer-events-none">
-                                Click to attach photo in toolbar
+                                Click to configure frame & photo
                               </span>
                             </div>
                           )}
@@ -4730,8 +3630,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               el.align === 'left'
                                 ? 'flex-start'
                                 : el.align === 'right'
-                                ? 'flex-end'
-                                : 'center',
+                                  ? 'flex-end'
+                                  : 'center',
                           }}
                         >
                           <span
@@ -4740,7 +3640,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               color: el.colour || '#FFFFFF',
                               fontWeight: el.bold !== false ? 'bold' : 'normal',
                             }}
-                            className="uppercase tracking-wider block drop-shadow truncate pointer-events-none"
+                            className="uppercase tracking-wider block drop-shadow whitespace-nowrap pointer-events-none"
                           >
                             {el.custom_text || el.label || 'Custom Announcement'}
                           </span>
@@ -4800,6 +3700,1310 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               })}
             </div>
           </div>
+
+
+          {/* Quick Column & Zone Navigation Bar: Tap any column to make visible & edit */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-950/85 border border-slate-800 shadow-lg text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+              <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1 mr-1 shrink-0">
+                <Columns3 className="w-3.5 h-3.5 text-amber-400" /> Columns & Zones:
+              </span>
+              {[
+                { key: 'player_photo', label: '📷 Player Photo' },
+                { key: 'player_name', label: '👤 Player Name' },
+                { key: 'current_bid', label: '💰 Current Bid' },
+                { key: 'franchise_stations', label: '🛡️ Team Columns' },
+                { key: 'bid_history', label: '📜 Bid History' },
+                { key: 'action_bar', label: '🔨 Action Bar' },
+              ].map((zone) => {
+                const isCur = selectedKey === zone.key
+                const isShown = design.elements[zone.key]?.selected !== false
+                return (
+                  <button
+                    key={zone.key}
+                    type="button"
+                    onClick={() => {
+                      if (!design.elements[zone.key]?.selected) {
+                        updateElementProp(zone.key, 'selected', true)
+                      }
+                      setSelectedKey(zone.key)
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border cursor-pointer ${
+                      isCur
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                        : isShown
+                          ? 'bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500 hover:text-white'
+                          : 'bg-slate-900/50 text-slate-400 border-dashed border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    <span>{zone.label}</span>
+                    {!isShown && <span className="text-[9px] text-red-400 font-normal">(hidden)</span>}
+                  </button>
+                )
+              })}
+
+              {/* Dynamic list of custom boxes added across columns */}
+              {Object.entries(design.elements)
+                .filter(([k]) => k.startsWith('custom_'))
+                .map(([k, el]) => {
+                  const isCur = selectedKey === k
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => {
+                        if (!el.selected) {
+                          updateElementProp(k, 'selected', true)
+                        }
+                        setSelectedKey(k)
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border cursor-pointer ${
+                        isCur
+                          ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-xs font-black'
+                          : 'bg-slate-900 text-sky-300 border-sky-800/80 hover:border-sky-500'
+                      }`}
+                    >
+                      <span>{el.type === 'photo' ? '🖼️' : el.type === 'video' ? '🎬' : '📝'} {el.label || k}</span>
+                    </button>
+                  )
+                })}
+            </div>
+
+            {/* Quick Add Box into other columns */}
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[10px] text-slate-400 font-bold uppercase hidden sm:inline mr-1">Add to Column:</span>
+              <button
+                type="button"
+                onClick={() => handleAddCustomBox('photo')}
+                className="px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 text-[10px] font-bold transition cursor-pointer"
+                title="Add photo box into columns"
+              >
+                + Photo
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddCustomBox('video')}
+                className="px-2 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 border border-sky-500/30 text-[10px] font-bold transition cursor-pointer"
+                title="Add video stream box into columns"
+              >
+                + Video
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddCustomBox('text')}
+                className="px-2 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 text-[10px] font-bold transition cursor-pointer"
+                title="Add text announcement into columns"
+              >
+                + Text
+              </button>
+            </div>
+          </div>
+
+          {/* Active Element Quick-Editor Toolbar when an element is tapped/selected */}
+          {selectedKey && design.elements[selectedKey] && (
+            <div className="rounded-2xl border-2 border-amber-500/60 bg-slate-900/95 p-3.5 shadow-2xl text-white space-y-3 ring-2 ring-amber-500/20 backdrop-blur-md">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-amber-500 text-slate-950 font-black text-xs">
+                    <Sliders className="w-3.5 h-3.5" />
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                      Editing: {ELEMENT_LABELS[selectedKey]?.label || selectedKey}
+                      <span className="text-[10px] text-slate-400 font-mono font-normal">
+                        ({Math.round(design.elements[selectedKey].x)}%, {Math.round(design.elements[selectedKey].y)}%)
+                      </span>
+                    </h4>
+                    <span className="text-[10px] text-slate-400">
+                      Drag on canvas to position or resize • Use controls below to customize width, height, font, colour & labels
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedKey(null)}
+                    className="h-7 text-xs font-bold border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg px-2.5"
+                  >
+                    <Check className="w-3.5 h-3.5 mr-1 text-emerald-400" /> Done
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => toggleElementSelected(selectedKey)}
+                    className={`h-7 text-xs font-bold rounded-lg px-2.5 transition cursor-pointer ${design.elements[selectedKey]?.selected
+                        ? 'border-red-500/40 text-red-400 hover:bg-red-500/10'
+                        : 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
+                      }`}
+                  >
+                    {design.elements[selectedKey]?.selected ? (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 mr-1" /> Hide
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3.5 h-3.5 mr-1 text-emerald-400" /> Show on Screen
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Inspector Control Pods */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 text-xs">
+                {/* Pod 1: Dimensions & Position */}
+                <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                      <Move className="w-3.5 h-3.5" />
+                      Dimensions & Position
+                    </span>
+                    <span className="text-[10px] text-slate-300 font-mono font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                      X: {Math.round(design.elements[selectedKey].x)}% • Y: {Math.round(design.elements[selectedKey].y)}%
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                    {/* Width (W: %) */}
+                    <div className="flex-1 min-w-[105px]">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                        Width (W: %)
+                      </label>
+                      <div className="flex items-center">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateElementProp(
+                              selectedKey,
+                              'w',
+                              Math.max(5, (design.elements[selectedKey].w || 20) - 2)
+                            )
+                          }
+                          className="w-7 h-7 rounded-l bg-slate-800 hover:bg-slate-700 border border-r-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                          title="Make narrower (-2%)"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min={5}
+                          max={100}
+                          value={Math.round(design.elements[selectedKey].w || 20)}
+                          onChange={(e) => updateElementProp(selectedKey, 'w', Math.max(5, Math.min(100, Number(e.target.value))))}
+                          className="w-12 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateElementProp(
+                              selectedKey,
+                              'w',
+                              Math.min(100, (design.elements[selectedKey].w || 20) + 2)
+                            )
+                          }
+                          className="w-7 h-7 rounded-r bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                          title="Make wider (+2%)"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Height (H: %) */}
+                    <div className="flex-1 min-w-[105px]">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                        Height (H: %)
+                      </label>
+                      <div className="flex items-center">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateElementProp(
+                              selectedKey,
+                              'h',
+                              Math.max(3, (design.elements[selectedKey].h || 10) - 2)
+                            )
+                          }
+                          className="w-7 h-7 rounded-l bg-slate-800 hover:bg-slate-700 border border-r-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                          title="Make shorter (-2%)"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min={3}
+                          max={100}
+                          value={Math.round(design.elements[selectedKey].h || 10)}
+                          onChange={(e) => updateElementProp(selectedKey, 'h', Math.max(3, Math.min(100, Number(e.target.value))))}
+                          className="w-12 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateElementProp(
+                              selectedKey,
+                              'h',
+                              Math.min(100, (design.elements[selectedKey].h || 10) + 2)
+                            )
+                          }
+                          className="w-7 h-7 rounded-r bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                          title="Make taller (+2%)"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Nudge D-Pad */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                        Nudge Position
+                      </label>
+                      <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => nudgeElement(selectedKey, -2, 0)}
+                          className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
+                          title="Nudge Left"
+                        >
+                          ←
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => nudgeElement(selectedKey, 2, 0)}
+                          className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
+                          title="Nudge Right"
+                        >
+                          →
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => nudgeElement(selectedKey, 0, -2)}
+                          className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
+                          title="Nudge Up"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => nudgeElement(selectedKey, 0, 2)}
+                          className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded text-xs font-bold text-slate-200 flex items-center justify-center active:bg-amber-500 active:text-slate-950 transition cursor-pointer"
+                          title="Nudge Down"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pod 2: Typography & Appearance OR Photo Shape & Frame */}
+                {selectedKey === 'player_photo' || (selectedKey && (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))) ? (
+                  <div className="bg-slate-950/70 border border-amber-500/30 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-amber-500/10">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        {selectedKey === 'player_photo' ? 'Player Photo Shape & Frame' : 'Photo Box Shape & Frame'}
+                      </span>
+                      <span className="text-[10px] text-amber-300 font-mono uppercase font-bold">
+                        {design.elements[selectedKey]?.shape || 'Rounded'} • {(design.elements[selectedKey]?.object_fit || 'contain').toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 pt-0.5">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                          Select Photo Shape (Any Shape)
+                        </label>
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                          {PHOTO_SHAPES.map((shp) => {
+                            const isCur = (design.elements[selectedKey]?.shape || 'rounded').toLowerCase() === shp.id
+                            return (
+                              <button
+                                key={shp.id}
+                                type="button"
+                                onClick={() => updateElementProp(selectedKey, 'shape', shp.id)}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 border cursor-pointer ${isCur
+                                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                                  }`}
+                              >
+                                <span>{shp.icon}</span>
+                                <span>{shp.label}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Corner Curve / Radius slider */}
+                      {(!design.elements[selectedKey]?.shape || design.elements[selectedKey]?.shape === 'rounded') && (
+                        <div className="flex items-center justify-between gap-3 pt-1">
+                          <label className="text-[10px] font-bold uppercase text-slate-400 whitespace-nowrap">
+                            Corner Radius: {design.elements[selectedKey]?.border_radius !== undefined ? design.elements[selectedKey]?.border_radius : 16}px
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="48"
+                            step="2"
+                            value={design.elements[selectedKey]?.border_radius !== undefined ? design.elements[selectedKey]?.border_radius : 16}
+                            onChange={(e) => updateElementProp(selectedKey, 'border_radius', Number(e.target.value))}
+                            className="w-32 accent-amber-500 cursor-pointer"
+                          />
+                        </div>
+                      )}
+
+                      {/* Photo Frame Auto-Adjustment / Fit */}
+                      <div className="pt-2 border-t border-slate-800">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                          Photo Frame Auto-Adjust & Image Fit
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { id: 'contain', label: 'Auto-Fit (Contain)', desc: 'Scales to frame cleanly without cropping' },
+                            { id: 'cover', label: 'Fill Frame (Cover)', desc: 'Fills entire frame, clips overflow' },
+                            { id: 'fill', label: 'Stretch (Fill)', desc: 'Stretches exactly to frame width & height' },
+                          ].map((fitMode) => {
+                            const curFit = design.elements[selectedKey]?.object_fit || 'contain'
+                            const isCur = curFit === fitMode.id
+                            return (
+                              <button
+                                key={fitMode.id}
+                                type="button"
+                                onClick={() => updateElementProp(selectedKey, 'object_fit', fitMode.id)}
+                                className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition flex flex-col items-center justify-center border cursor-pointer ${
+                                  isCur
+                                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                                }`}
+                                title={fitMode.desc}
+                              >
+                                <span>{fitMode.label}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <Type className="w-3.5 h-3.5" />
+                        Typography & Style
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Font & Controls
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                      {/* Font Family Picker */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Font Family
+                        </label>
+                        <select
+                          value={design.elements[selectedKey].font_family || 'Inter'}
+                          onChange={(e) => updateElementProp(selectedKey, 'font_family', e.target.value)}
+                          className="h-7 px-2 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs cursor-pointer focus:outline-none focus:border-amber-400"
+                        >
+                          <option value="Inter">Inter</option>
+                          <option value="Roboto">Roboto</option>
+                          <option value="Montserrat">Montserrat</option>
+                          <option value="Oswald">Oswald</option>
+                          <option value="Impact">Impact</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="system-ui">System</option>
+                        </select>
+                      </div>
+
+                      {/* Font Size (px) */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Size (px)
+                        </label>
+                        <div className="flex items-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                selectedKey,
+                                'font_size',
+                                Math.max(8, (design.elements[selectedKey].font_size || 20) - 2)
+                              )
+                            }
+                            className="w-7 h-7 rounded-l bg-slate-800 hover:bg-slate-700 border border-r-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                            title="Decrease font size"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={8}
+                            max={96}
+                            value={design.elements[selectedKey].font_size || 20}
+                            onChange={(e) => updateElementProp(selectedKey, 'font_size', Number(e.target.value))}
+                            className="w-11 h-7 text-center bg-slate-950 border border-slate-700 text-amber-300 font-mono font-bold text-xs focus:outline-none focus:border-amber-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                selectedKey,
+                                'font_size',
+                                Math.min(96, (design.elements[selectedKey].font_size || 20) + 2)
+                              )
+                            }
+                            className="w-7 h-7 rounded-r bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 font-black text-slate-200 flex items-center justify-center text-sm active:bg-slate-600 transition cursor-pointer"
+                            title="Increase font size"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bold, Italic, Underline Toggles */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Style
+                        </label>
+                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'bold', !(design.elements[selectedKey].bold !== false))}
+                            className={`px-2 h-6 rounded text-xs font-black transition cursor-pointer ${design.elements[selectedKey].bold !== false ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                              }`}
+                            title="Bold"
+                          >
+                            B
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'italic', !design.elements[selectedKey].italic)}
+                            className={`px-2 h-6 rounded text-xs font-bold italic transition cursor-pointer ${design.elements[selectedKey].italic ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                              }`}
+                            title="Italic"
+                          >
+                            I
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'underline', !design.elements[selectedKey].underline)}
+                            className={`px-2 h-6 rounded text-xs font-bold underline transition cursor-pointer ${design.elements[selectedKey].underline ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-white'
+                              }`}
+                            title="Underline"
+                          >
+                            U
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Fit to Size Toggle */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Fit to Size
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => updateElementProp(selectedKey, 'fit_to_size', !design.elements[selectedKey].fit_to_size)}
+                          className={`h-7 px-2 rounded-lg border text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${design.elements[selectedKey].fit_to_size
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                            }`}
+                          title="Auto-shrink font size to prevent overlapping or hiding text"
+                        >
+                          Fit {design.elements[selectedKey].fit_to_size ? '✓' : ''}
+                        </button>
+                      </div>
+
+                      {/* Text Colour */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Colour
+                        </label>
+                        <div className="flex items-center gap-1.5 h-7">
+                          <input
+                            type="color"
+                            value={design.elements[selectedKey].colour || '#FFFFFF'}
+                            onChange={(e) => updateElementProp(selectedKey, 'colour', e.target.value)}
+                            className="w-7 h-7 rounded-lg border border-slate-700 bg-transparent cursor-pointer p-0 shrink-0"
+                            title="Custom Colour Picker"
+                          />
+                          <div className="flex items-center gap-1">
+                            {['#FFFFFF', '#FFD54A', '#10B981', '#38BDF8', '#EF4444'].map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => updateElementProp(selectedKey, 'colour', c)}
+                                style={{ backgroundColor: c }}
+                                className={`w-3.5 h-3.5 rounded-full border border-slate-900 shadow-xs hover:scale-125 transition cursor-pointer ${(design.elements[selectedKey].colour || '#FFFFFF').toUpperCase() === c.toUpperCase()
+                                    ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-900'
+                                    : ''
+                                  }`}
+                                title={c}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Alignment */}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Align
+                        </label>
+                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'align', 'left')}
+                            className={`p-1 rounded transition cursor-pointer ${design.elements[selectedKey].align === 'left'
+                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                              }`}
+                            title="Left Align"
+                          >
+                            <AlignLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'align', 'center')}
+                            className={`p-1 rounded transition cursor-pointer ${design.elements[selectedKey].align === 'center'
+                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                              }`}
+                            title="Center Align"
+                          >
+                            <AlignCenter className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'align', 'right')}
+                            className={`p-1 rounded transition cursor-pointer ${design.elements[selectedKey].align === 'right'
+                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                              }`}
+                            title="Right Align"
+                          >
+                            <AlignRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pod 3: Labels & Content Override */}
+                <div className="md:col-span-2 xl:col-span-1 bg-slate-950/70 border border-slate-800/80 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-white/5">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5" />
+                      Labels & Content Override
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Text Customization
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 pt-0.5">
+                    {/* Row 1: Show Label Toggle + Label Name */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="w-24 shrink-0">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Show Label
+                        </label>
+                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 gap-0.5 h-7">
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'show_label', true)}
+                            className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${design.elements[selectedKey].show_label
+                                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                              }`}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'show_label', false)}
+                            className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${!design.elements[selectedKey].show_label
+                                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                              }`}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-[130px]">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                          Label Name
+                        </label>
+                        <input
+                          type="text"
+                          value={design.elements[selectedKey].custom_label ?? (ELEMENT_LABELS[selectedKey]?.label || '')}
+                          onChange={(e) => updateElementProp(selectedKey, 'custom_label', e.target.value)}
+                          placeholder="Custom Label"
+                          className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 2: Custom Content Override */}
+                    <div className="w-full">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 whitespace-nowrap">
+                        Custom Content Override
+                      </label>
+                      <input
+                        type="text"
+                        value={design.elements[selectedKey].custom_text || ''}
+                        onChange={(e) => updateElementProp(selectedKey, 'custom_text', e.target.value)}
+                        placeholder="Override default display text..."
+                        className="w-full h-7 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white font-bold text-xs shadow-inner focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hidden File Input for Custom Box Photo/Video Upload */}
+              <input
+                ref={customMediaInputRef}
+                type="file"
+                accept={customMediaTypeToUpload === 'video' ? 'video/*' : 'image/*'}
+                onChange={handleCustomMediaFileSelected}
+                className="hidden"
+              />
+
+              {/* Custom Box Content Configuration Sub-Panel */}
+              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history' || selectedKey === 'bidder_name' || selectedKey === 'franchise_stations' || selectedKey === 'action_bar' || selectedKey === 'player_photo') && (
+                <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/30 space-y-2.5 mt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5" />
+                      {selectedKey === 'bid_history'
+                        ? 'Bid History Stream Settings'
+                        : selectedKey === 'bidder_name'
+                          ? 'Bidder Team Name & Logo Settings'
+                          : selectedKey === 'franchise_stations'
+                            ? 'Franchise Bidding Stations (Option 4)'
+                            : selectedKey === 'action_bar'
+                              ? 'Action & Hammer Controls Settings'
+                              : (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))
+                                ? 'Photo Box Configuration'
+                                : (design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video'))
+                                  ? 'Video Stream Configuration'
+                                  : 'Custom Box Configuration'}
+                    </span>
+                    {selectedKey.startsWith('custom_') && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCustomBox(selectedKey)}
+                        className="flex items-center gap-1 text-[10px] font-bold text-red-400 hover:text-red-300 bg-red-950/40 hover:bg-red-900/50 px-2 py-0.5 rounded border border-red-500/30 cursor-pointer transition"
+                      >
+                        <Trash2 className="w-3 h-3" /> Delete Box
+                      </button>
+                    )}
+                  </div>
+
+                  {/* If Bidder Team Name */}
+                  {selectedKey === 'bidder_name' && (
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+                      <span className="text-xs text-slate-300 font-semibold">
+                        Show Bidding Team Logo next to team name
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateElementProp(
+                            'bidder_name',
+                            'show_team_logo',
+                            !(design.elements.bidder_name?.show_team_logo !== false)
+                          )
+                        }
+                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${design.elements.bidder_name?.show_team_logo !== false
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                          }`}
+                      >
+                        {design.elements.bidder_name?.show_team_logo !== false ? 'Team Logo: ON' : 'Team Logo: OFF'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* If Franchise Bidding Stations (Option 4) */}
+                  {selectedKey === 'franchise_stations' && (
+                    <div className="space-y-2.5 pt-1 border-t border-slate-800 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                            Grid Preset (Rows × Cols)
+                          </label>
+                          <div className="grid grid-cols-3 gap-1">
+                            {[
+                              { r: 2, c: 7, l: '2 × 7' },
+                              { r: 1, c: 14, l: '1 × 14' },
+                              { r: 14, c: 1, l: '14 × 1' },
+                            ].map((g) => (
+                              <button
+                                key={g.l}
+                                type="button"
+                                onClick={() => {
+                                  updateElementProp('franchise_stations', 'grid_rows', g.r)
+                                  updateElementProp('franchise_stations', 'grid_cols', g.c)
+                                }}
+                                className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${design.elements.franchise_stations?.grid_rows === g.r &&
+                                    design.elements.franchise_stations?.grid_cols === g.c
+                                    ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                  }`}
+                              >
+                                {g.l}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Box Color Style</label>
+                          <div className="grid grid-cols-2 gap-1">
+                            {[
+                              { id: 'solid', l: 'Full Solid' },
+                              { id: 'outline', l: 'Outline Only' },
+                            ].map((st) => (
+                              <button
+                                key={st.id}
+                                type="button"
+                                onClick={() => updateElementProp('franchise_stations', 'box_style', st.id)}
+                                className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${(design.elements.franchise_stations?.box_style || 'solid') === st.id
+                                    ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                  }`}
+                              >
+                                {st.l}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                            Equidistant Box Spacing (Gap: px)
+                          </label>
+                          <div className="flex items-center gap-1">
+                            {[2, 4, 6, 8, 12].map((gp) => (
+                              <button
+                                key={gp}
+                                type="button"
+                                onClick={() => {
+                                  updateElementProp('franchise_stations', 'gap_x', gp)
+                                  updateElementProp('franchise_stations', 'gap_y', gp)
+                                }}
+                                className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${(design.elements.franchise_stations?.gap_x || 6) === gp
+                                    ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                  }`}
+                              >
+                                {gp}px
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-800">
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                          Content Inside Box (Strictly contained within boundaries • Horizontal orientation)
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                'franchise_stations',
+                                'show_number',
+                                !(design.elements.franchise_stations?.show_number !== false)
+                              )
+                            }
+                            className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${design.elements.franchise_stations?.show_number !== false
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                                : 'bg-slate-900 text-slate-400 border-slate-700'
+                              }`}
+                          >
+                            Team Number: {design.elements.franchise_stations?.show_number !== false ? 'ON' : 'OFF'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                'franchise_stations',
+                                'show_short_name',
+                                !(design.elements.franchise_stations?.show_short_name !== false)
+                              )
+                            }
+                            className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${design.elements.franchise_stations?.show_short_name !== false
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                                : 'bg-slate-900 text-slate-400 border-slate-700'
+                              }`}
+                          >
+                            Short Name: {design.elements.franchise_stations?.show_short_name !== false ? 'ON' : 'OFF'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateElementProp(
+                                'franchise_stations',
+                                'show_balance',
+                                !design.elements.franchise_stations?.show_balance
+                              )
+                            }
+                            className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${design.elements.franchise_stations?.show_balance
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                                : 'bg-slate-900 text-slate-400 border-slate-700'
+                              }`}
+                          >
+                            Purse Balance: {design.elements.franchise_stations?.show_balance ? 'ON' : 'OFF'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If Action Bar */}
+                  {selectedKey === 'action_bar' && (
+                    <div className="space-y-3 rounded-xl bg-slate-950/70 border border-emerald-500/30 p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
+                          <Gavel className="w-3.5 h-3.5" /> Action Controls Inspector & Buttons
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {currentActionButtons.filter((b) => b.visible).length} / {currentActionButtons.length} Active
+                        </span>
+                      </div>
+
+                      {/* Quick Placement Snap Presets */}
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                          Quick Snap Positions on Canvas
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateElementProp('action_bar', 'x', 2)
+                              updateElementProp('action_bar', 'y', 88)
+                              updateElementProp('action_bar', 'w', 96)
+                              updateElementProp('action_bar', 'h', 10)
+                            }}
+                            className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-200 border border-slate-700 transition cursor-pointer text-center"
+                          >
+                            Bottom Bar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateElementProp('action_bar', 'x', 2)
+                              updateElementProp('action_bar', 'y', 1.5)
+                              updateElementProp('action_bar', 'w', 96)
+                              updateElementProp('action_bar', 'h', 10)
+                            }}
+                            className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-200 border border-slate-700 transition cursor-pointer text-center"
+                          >
+                            Top Ticker
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateElementProp('action_bar', 'x', 18)
+                              updateElementProp('action_bar', 'y', 86)
+                              updateElementProp('action_bar', 'w', 64)
+                              updateElementProp('action_bar', 'h', 11)
+                            }}
+                            className="py-1 px-2 rounded bg-slate-900 hover:bg-slate-800 text-[10px] font-bold text-slate-200 border border-slate-700 transition cursor-pointer text-center"
+                          >
+                            Floating Center
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Button Visibility Toggles & Order */}
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1.5">
+                          Action Buttons Configuration & Visibility
+                        </label>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                          {currentActionButtons.map((btn, index) => (
+                            <div
+                              key={btn.id}
+                              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs"
+                            >
+                              <label className="flex items-center gap-2 cursor-pointer text-slate-200 font-medium">
+                                <input
+                                  type="checkbox"
+                                  checked={btn.visible}
+                                  onChange={(e) => {
+                                    const updated = currentActionButtons.map((b) =>
+                                      b.id === btn.id ? { ...b, visible: e.target.checked } : b
+                                    )
+                                    setDesign((prev) => ({
+                                      ...prev,
+                                      zones: {
+                                        ...prev.zones,
+                                        action_buttons: updated,
+                                      },
+                                    }))
+                                  }}
+                                  className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400 w-3.5 h-3.5 cursor-pointer"
+                                />
+                                <span>{btn.label}</span>
+                              </label>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={index === 0}
+                                  onClick={() => {
+                                    if (index === 0) return
+                                    const updated = [...currentActionButtons]
+                                    const temp = updated[index - 1]
+                                    updated[index - 1] = updated[index]
+                                    updated[index] = temp
+                                    setDesign((prev) => ({
+                                      ...prev,
+                                      zones: { ...prev.zones, action_buttons: updated },
+                                    }))
+                                  }}
+                                  className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={index === currentActionButtons.length - 1}
+                                  onClick={() => {
+                                    if (index === currentActionButtons.length - 1) return
+                                    const updated = [...currentActionButtons]
+                                    const temp = updated[index + 1]
+                                    updated[index + 1] = updated[index]
+                                    updated[index] = temp
+                                    setDesign((prev) => ({
+                                      ...prev,
+                                      zones: { ...prev.zones, action_buttons: updated },
+                                    }))
+                                  }}
+                                  className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
+                                >
+                                  ↓
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {(design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo')) && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-center">
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                          {selectedKey === 'player_photo' ? 'Change Sample Photo' : 'Attach Photo'}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomMediaTypeToUpload('image')
+                            customMediaInputRef.current?.click()
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 cursor-pointer transition shadow-2xs hover:border-amber-400"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Choose Image File...</span>
+                        </button>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">Or Paste Image URL</label>
+                        <input
+                          type="text"
+                          placeholder="https://.../photo.png"
+                          value={design.elements[selectedKey]?.media_url || (selectedKey === 'player_photo' ? samplePlayerData.photo_url : '') || ''}
+                          onChange={(e) => {
+                            updateElementProp(selectedKey, 'media_url', e.target.value)
+                            if (selectedKey === 'player_photo') {
+                              setSamplePlayerData((prev: any) => ({ ...prev, photo_url: e.target.value }))
+                            }
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">Photo Fit & Frame Auto-Adjust</label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'object_fit', 'contain')}
+                            className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${(design.elements[selectedKey]?.object_fit || 'contain') === 'contain'
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              }`}
+                            title="Auto-Fit completely inside frame without cropping"
+                          >
+                            Auto-Fit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'object_fit', 'cover')}
+                            className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${design.elements[selectedKey]?.object_fit === 'cover'
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              }`}
+                            title="Fill frame (crop excess)"
+                          >
+                            Cover
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'object_fit', 'fill')}
+                            className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${design.elements[selectedKey]?.object_fit === 'fill'
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              }`}
+                            title="Stretch to exact frame size"
+                          >
+                            Stretch
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If Video Box */}
+                  {(design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video')) && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-center">
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">Attach Video File</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomMediaTypeToUpload('video')
+                            customMediaInputRef.current?.click()
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 cursor-pointer transition shadow-2xs hover:border-sky-400"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-sky-400" />
+                          <span>Choose Video (MP4)...</span>
+                        </button>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">Or Paste Video URL</label>
+                        <input
+                          type="text"
+                          placeholder="https://.../video.mp4"
+                          value={design.elements[selectedKey]?.video_url || design.elements[selectedKey]?.media_url || ''}
+                          onChange={(e) => {
+                            updateElementProp(selectedKey, 'video_url', e.target.value)
+                            updateElementProp(selectedKey, 'media_url', e.target.value)
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">Video Fit</label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'object_fit', 'cover')}
+                            className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${(design.elements[selectedKey]?.object_fit || 'cover') === 'cover'
+                                ? 'bg-sky-500 text-zinc-950 border-sky-400'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              }`}
+                          >
+                            Cover
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateElementProp(selectedKey, 'object_fit', 'contain')}
+                            className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${design.elements[selectedKey]?.object_fit === 'contain'
+                                ? 'bg-sky-500 text-zinc-950 border-sky-400'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              }`}
+                          >
+                            Contain
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If Custom Text Box */}
+                  {(design.elements[selectedKey]?.type === 'text' || selectedKey.includes('text')) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 items-center">
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">Text Content</label>
+                        <input
+                          type="text"
+                          value={design.elements[selectedKey]?.custom_text || ''}
+                          onChange={(e) => updateElementProp(selectedKey, 'custom_text', e.target.value)}
+                          placeholder="e.g. POWER PLAY LOT"
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white font-bold focus:outline-none focus:border-emerald-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">Box Label Name</label>
+                        <input
+                          type="text"
+                          value={design.elements[selectedKey]?.label || ''}
+                          onChange={(e) => updateElementProp(selectedKey, 'label', e.target.value)}
+                          placeholder="Title in list"
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-emerald-400"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If Bid History Box */}
+                  {selectedKey === 'bid_history' && (
+                    <div className="space-y-2 text-xs text-slate-300">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-purple-400 font-bold">Live Stream Panel:</span>
+                          <span>Position and stretch this box anywhere on the canvas to display live bids during the auction.</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateElementProp('bid_history', 'x', 74)
+                            updateElementProp('bid_history', 'y', 9.5)
+                            updateElementProp('bid_history', 'w', 24)
+                            updateElementProp('bid_history', 'h', 77)
+                          }}
+                          className="px-2.5 py-1 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30 font-bold text-xs cursor-pointer transition"
+                        >
+                          Reset Right Panel Position
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-800">
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Header Title</label>
+                          <input
+                            type="text"
+                            value={design.elements.bid_history?.title || design.elements.bid_history?.label || 'BID HISTORY'}
+                            onChange={(e) => {
+                              updateElementProp('bid_history', 'title', e.target.value)
+                              updateElementProp('bid_history', 'label', e.target.value)
+                            }}
+                            className="w-full px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Max Visible Bids</label>
+                          <div className="flex items-center gap-1">
+                            {[5, 8, 12, 20].map((num) => (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() => updateElementProp('bid_history', 'max_bids', num)}
+                                className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${(design.elements.bid_history?.max_bids || 8) === num
+                                    ? 'bg-purple-500 text-white border-purple-400'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                  }`}
+                              >
+                                {num}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Panel Theme</label>
+                          <div className="flex items-center gap-1">
+                            {[
+                              { id: 'cyber', label: 'Cyber' },
+                              { id: 'glass', label: 'Glass' },
+                              { id: 'solid', label: 'Solid' },
+                            ].map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => updateElementProp('bid_history', 'panel_theme', t.id)}
+                                className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${(design.elements.bid_history?.panel_theme || 'cyber') === t.id
+                                    ? 'bg-purple-500 text-white border-purple-400'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                  }`}
+                              >
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">Visible Columns</label>
+                          <div className="grid grid-cols-3 gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateElementProp(
+                                  'bid_history',
+                                  'show_short_name',
+                                  design.elements.bid_history?.show_short_name === false ? true : false
+                                )
+                              }
+                              className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${design.elements.bid_history?.show_short_name !== false
+                                  ? 'bg-purple-500 text-white border-purple-400'
+                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                }`}
+                            >
+                              Short Name
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateElementProp(
+                                  'bid_history',
+                                  'show_team_name',
+                                  design.elements.bid_history?.show_team_name === false ? true : false
+                                )
+                              }
+                              className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${design.elements.bid_history?.show_team_name !== false
+                                  ? 'bg-purple-500 text-white border-purple-400'
+                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                }`}
+                            >
+                              Team Name
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateElementProp(
+                                  'bid_history',
+                                  'show_bid_amount',
+                                  design.elements.bid_history?.show_bid_amount === false ? true : false
+                                )
+                              }
+                              className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${design.elements.bid_history?.show_bid_amount !== false
+                                  ? 'bg-purple-500 text-white border-purple-400'
+                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                }`}
+                            >
+                              Bid Amount
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
 
           {/* Quick Properties Bar for Active Selected Element */}
           {selectedKey && design.elements[selectedKey] && (
@@ -4963,11 +5167,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                 <button
                   type="button"
                   onClick={() => toggleElementLabel(selectedKey)}
-                  className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] ${
-                    design.elements[selectedKey].show_label
+                  className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] ${design.elements[selectedKey].show_label
                       ? 'border-amber-500/40 bg-amber-500/10 text-amber-600'
                       : 'border-border text-muted-foreground'
-                  }`}
+                    }`}
                 >
                   Label: {design.elements[selectedKey].show_label ? 'ON' : 'OFF'}
                 </button>
@@ -4978,420 +5181,409 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
           {/* ================= FRANCHISE BIDDING STATIONS CONFIGURATION STUDIO ================= */}
           {selectedKey === 'franchise_stations' && (
             <div className="rounded-3xl border border-border bg-card p-5 shadow-xl space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-              <div className="flex items-center gap-2.5">
-                <Shield className="w-5 h-5 text-amber-500" />
-                <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider text-foreground flex items-center gap-2">
-                  <span>Franchise Bidding Stations</span>
-                  <span className="text-amber-500 font-mono">
-                    ({design.elements.franchise_stations?.grid_cols || design.zones.team_columns || 7} Columns)
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <Shield className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-sm sm:text-base font-extrabold uppercase tracking-wider text-foreground flex items-center gap-2">
+                    <span>Franchise Bidding Stations</span>
+                    <span className="text-amber-500 font-mono">
+                      ({design.elements.franchise_stations?.grid_cols || design.zones.team_columns || 7} Columns)
+                    </span>
+                  </h3>
+                  <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold">
+                    {liveTeams.length} Teams
                   </span>
-                </h3>
-                <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-bold">
-                  {liveTeams.length} Teams
-                </span>
-                {design.elements.franchise_stations?.selected ? (
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Placed on Stage
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-                    Hidden on Stage
-                  </span>
-                )}
-              </div>
+                  {design.elements.franchise_stations?.selected ? (
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Placed on Stage
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
+                      Hidden on Stage
+                    </span>
+                  )}
+                </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Column Dropdown Selector */}
-                <div className="flex items-center gap-1.5 bg-muted/80 border border-border px-3 py-1.5 rounded-xl shadow-2xs">
-                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">COLUMNS:</span>
-                  <select
-                    value={design.elements.franchise_stations?.grid_cols || design.zones.team_columns || 7}
-                    onChange={(e) => {
-                      const cols = Number(e.target.value)
-                      updateElementProp('franchise_stations', 'grid_cols', cols)
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Column Dropdown Selector */}
+                  <div className="flex items-center gap-1.5 bg-muted/80 border border-border px-3 py-1.5 rounded-xl shadow-2xs">
+                    <span className="text-xs font-bold uppercase tracking-wider text-foreground">COLUMNS:</span>
+                    <select
+                      value={design.elements.franchise_stations?.grid_cols || design.zones.team_columns || 7}
+                      onChange={(e) => {
+                        const cols = Number(e.target.value)
+                        updateElementProp('franchise_stations', 'grid_cols', cols)
+                        setDesign((prev) => ({
+                          ...prev,
+                          zones: { ...prev.zones, team_columns: cols },
+                          elements: {
+                            ...prev.elements,
+                            franchise_stations: {
+                              ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                              grid_cols: cols,
+                              selected: true,
+                            },
+                          },
+                        }))
+                        setSelectedKey('franchise_stations')
+                      }}
+                      className="bg-transparent text-amber-500 font-black text-xs cursor-pointer focus:outline-none"
+                    >
+                      {[2, 3, 4, 5, 6, 7, 8, 10, 12, 14].map((col) => (
+                        <option key={col} value={col} className="bg-popover text-popover-foreground">
+                          {col} Columns
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Focus on Stage Button */}
+                  <Button
+                    size="sm"
+                    variant={selectedKey === 'franchise_stations' ? 'default' : 'outline'}
+                    onClick={() => {
                       setDesign((prev) => ({
                         ...prev,
-                        zones: { ...prev.zones, team_columns: cols },
                         elements: {
                           ...prev.elements,
                           franchise_stations: {
                             ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
-                            grid_cols: cols,
                             selected: true,
                           },
                         },
                       }))
                       setSelectedKey('franchise_stations')
                     }}
-                    className="bg-transparent text-amber-500 font-black text-xs cursor-pointer focus:outline-none"
+                    className="gap-1.5 text-xs font-bold"
                   >
-                    {[2, 3, 4, 5, 6, 7, 8, 10, 12, 14].map((col) => (
-                      <option key={col} value={col} className="bg-popover text-popover-foreground">
-                        {col} Columns
-                      </option>
-                    ))}
-                  </select>
+                    <Move className="w-3.5 h-3.5" />
+                    {selectedKey === 'franchise_stations' ? 'Active on Stage' : 'Focus on Stage'}
+                  </Button>
+
+                  {/* Toggle Show / Hide on Canvas */}
+                  <Button
+                    size="sm"
+                    variant={design.elements.franchise_stations?.selected ? 'outline' : 'secondary'}
+                    onClick={() => {
+                      const isNowSelected = !design.elements.franchise_stations?.selected
+                      setDesign((prev) => ({
+                        ...prev,
+                        elements: {
+                          ...prev.elements,
+                          franchise_stations: {
+                            ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                            selected: isNowSelected,
+                          },
+                        },
+                      }))
+                      if (isNowSelected) setSelectedKey('franchise_stations')
+                    }}
+                    className="gap-1 text-xs font-bold"
+                  >
+                    {design.elements.franchise_stations?.selected ? 'Hide from Stage' : '+ Add to Canvas'}
+                  </Button>
                 </div>
-
-                {/* Focus on Stage Button */}
-                <Button
-                  size="sm"
-                  variant={selectedKey === 'franchise_stations' ? 'default' : 'outline'}
-                  onClick={() => {
-                    setDesign((prev) => ({
-                      ...prev,
-                      elements: {
-                        ...prev.elements,
-                        franchise_stations: {
-                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
-                          selected: true,
-                        },
-                      },
-                    }))
-                    setSelectedKey('franchise_stations')
-                    if (canvasRef.current) {
-                      canvasRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                    }
-                  }}
-                  className="gap-1.5 text-xs font-bold"
-                >
-                  <Move className="w-3.5 h-3.5" />
-                  {selectedKey === 'franchise_stations' ? 'Active on Stage' : 'Focus on Stage'}
-                </Button>
-
-                {/* Toggle Show / Hide on Canvas */}
-                <Button
-                  size="sm"
-                  variant={design.elements.franchise_stations?.selected ? 'outline' : 'secondary'}
-                  onClick={() => {
-                    const isNowSelected = !design.elements.franchise_stations?.selected
-                    setDesign((prev) => ({
-                      ...prev,
-                      elements: {
-                        ...prev.elements,
-                        franchise_stations: {
-                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
-                          selected: isNowSelected,
-                        },
-                      },
-                    }))
-                    if (isNowSelected) setSelectedKey('franchise_stations')
-                  }}
-                  className="gap-1 text-xs font-bold"
-                >
-                  {design.elements.franchise_stations?.selected ? 'Hide from Stage' : '+ Add to Canvas'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Quick Layout Presets & Styling Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-muted/30 p-3 rounded-2xl border border-border/60">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-muted-foreground font-bold">Snap:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDesign((prev) => ({
-                      ...prev,
-                      elements: {
-                        ...prev.elements,
-                        franchise_stations: {
-                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
-                          x: 2,
-                          y: 78,
-                          w: 96,
-                          h: 18,
-                          selected: true,
-                        },
-                      },
-                    }))
-                    setSelectedKey('franchise_stations')
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border font-bold text-foreground text-[11px] transition cursor-pointer"
-                >
-                  Bottom Stadium Bar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDesign((prev) => ({
-                      ...prev,
-                      elements: {
-                        ...prev.elements,
-                        franchise_stations: {
-                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
-                          x: 4,
-                          y: 56,
-                          w: 92,
-                          h: 22,
-                          selected: true,
-                        },
-                      },
-                    }))
-                    setSelectedKey('franchise_stations')
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border font-bold text-foreground text-[11px] transition cursor-pointer"
-                >
-                  Mid Floating
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDesign((prev) => ({
-                      ...prev,
-                      elements: {
-                        ...prev.elements,
-                        franchise_stations: {
-                          ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
-                          x: 0,
-                          y: 80,
-                          w: 100,
-                          h: 20,
-                          selected: true,
-                        },
-                      },
-                    }))
-                    setSelectedKey('franchise_stations')
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border font-bold text-foreground text-[11px] transition cursor-pointer"
-                >
-                  Full Width Dock
-                </button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-muted-foreground font-bold">Gap:</span>
-                {[2, 4, 6, 8, 12].map((gp) => (
+              {/* Quick Layout Presets & Styling Controls */}
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-muted/30 p-3 rounded-2xl border border-border/60">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-muted-foreground font-bold">Snap:</span>
                   <button
-                    key={gp}
                     type="button"
                     onClick={() => {
-                      updateElementProp('franchise_stations', 'gap_x', gp)
-                      updateElementProp('franchise_stations', 'gap_y', gp)
+                      setDesign((prev) => ({
+                        ...prev,
+                        elements: {
+                          ...prev.elements,
+                          franchise_stations: {
+                            ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                            x: 2,
+                            y: 78,
+                            w: 96,
+                            h: 18,
+                            selected: true,
+                          },
+                        },
+                      }))
+                      setSelectedKey('franchise_stations')
                     }}
-                    className={`px-2 py-0.5 rounded border text-[11px] font-bold cursor-pointer transition ${
-                      (design.elements.franchise_stations?.gap_x || 6) === gp
-                        ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                        : 'bg-card text-muted-foreground border-border hover:text-foreground'
-                    }`}
+                    className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border font-bold text-foreground text-[11px] transition cursor-pointer"
                   >
-                    {gp}px
+                    Bottom Stadium Bar
                   </button>
-                ))}
-
-                <span className="text-muted-foreground font-bold ml-2">Style:</span>
-                {[
-                  { id: 'solid', label: 'Solid' },
-                  { id: 'outline', label: 'Neon Outline' },
-                ].map((st) => (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => updateElementProp('franchise_stations', 'box_style', st.id)}
-                    className={`px-2 py-0.5 rounded border text-[11px] font-bold cursor-pointer transition ${
-                      (design.elements.franchise_stations?.box_style || 'solid') === st.id
-                        ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                        : 'bg-card text-muted-foreground border-border hover:text-foreground'
-                    }`}
-                  >
-                    {st.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* ================= USER ACCOUNT UI CUSTOMIZATION (ACCOUNT-ONLY) ================= */}
-            <div className="p-4 rounded-2xl bg-slate-950/80 border border-amber-500/30 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-black uppercase tracking-wider text-amber-400">
-                    My Account UI Customization
-                  </span>
-                  <span className="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
-                    User: {currentUser?.name || currentUser?.email || userIdentifier}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-400 italic hidden sm:inline">
-                    ✨ Applied to your screen only • Never alters global template for other users
-                  </span>
                   <button
                     type="button"
-                    onClick={resetUserPrefs}
-                    className="text-[10px] font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-700 transition cursor-pointer"
+                    onClick={() => {
+                      setDesign((prev) => ({
+                        ...prev,
+                        elements: {
+                          ...prev.elements,
+                          franchise_stations: {
+                            ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                            x: 4,
+                            y: 56,
+                            w: 92,
+                            h: 22,
+                            selected: true,
+                          },
+                        },
+                      }))
+                      setSelectedKey('franchise_stations')
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border font-bold text-foreground text-[11px] transition cursor-pointer"
                   >
-                    Reset My UI
+                    Mid Floating
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDesign((prev) => ({
+                        ...prev,
+                        elements: {
+                          ...prev.elements,
+                          franchise_stations: {
+                            ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
+                            x: 0,
+                            y: 80,
+                            w: 100,
+                            h: 20,
+                            selected: true,
+                          },
+                        },
+                      }))
+                      setSelectedKey('franchise_stations')
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border font-bold text-foreground text-[11px] transition cursor-pointer"
+                  >
+                    Full Width Dock
                   </button>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                {/* 1. Font Size Customization */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
-                    <span>Account Font Size:</span>
-                    <span className="font-mono text-amber-400 font-extrabold">{userPrefs.fontSize}px</span>
-                  </label>
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-muted-foreground font-bold">Gap:</span>
+                  {[2, 4, 6, 8, 12].map((gp) => (
                     <button
+                      key={gp}
                       type="button"
-                      onClick={() => updateUserPref('fontSize', Math.max(10, userPrefs.fontSize - 1))}
-                      className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 cursor-pointer"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="range"
-                      min={10}
-                      max={26}
-                      value={userPrefs.fontSize}
-                      onChange={(e) => updateUserPref('fontSize', Number(e.target.value))}
-                      className="flex-1 accent-amber-500 cursor-pointer"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateUserPref('fontSize', Math.min(26, userPrefs.fontSize + 1))}
-                      className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 cursor-pointer"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-1 pt-1">
-                    {[12, 14, 16, 18, 20].map((sz) => (
-                      <button
-                        key={sz}
-                        type="button"
-                        onClick={() => updateUserPref('fontSize', sz)}
-                        className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
-                          userPrefs.fontSize === sz
-                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                      onClick={() => {
+                        updateElementProp('franchise_stations', 'gap_x', gp)
+                        updateElementProp('franchise_stations', 'gap_y', gp)
+                      }}
+                      className={`px-2 py-0.5 rounded border text-[11px] font-bold cursor-pointer transition ${(design.elements.franchise_stations?.gap_x || 6) === gp
+                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                          : 'bg-card text-muted-foreground border-border hover:text-foreground'
                         }`}
-                      >
-                        {sz}px
-                      </button>
-                    ))}
+                    >
+                      {gp}px
+                    </button>
+                  ))}
+
+                  <span className="text-muted-foreground font-bold ml-2">Style:</span>
+                  {[
+                    { id: 'solid', label: 'Solid' },
+                    { id: 'outline', label: 'Neon Outline' },
+                  ].map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => updateElementProp('franchise_stations', 'box_style', st.id)}
+                      className={`px-2 py-0.5 rounded border text-[11px] font-bold cursor-pointer transition ${(design.elements.franchise_stations?.box_style || 'solid') === st.id
+                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                          : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                        }`}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ================= USER ACCOUNT UI CUSTOMIZATION (ACCOUNT-ONLY) ================= */}
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-amber-500/30 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-400">
+                      My Account UI Customization
+                    </span>
+                    <span className="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
+                      User: {currentUser?.name || currentUser?.email || userIdentifier}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 italic hidden sm:inline">
+                      ✨ Applied to your screen only • Never alters global template for other users
+                    </span>
+                    <button
+                      type="button"
+                      onClick={resetUserPrefs}
+                      className="text-[10px] font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-700 transition cursor-pointer"
+                    >
+                      Reset My UI
+                    </button>
                   </div>
                 </div>
 
-                {/* 2. Font Color Customization */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
-                    <span>Account Text Color:</span>
-                    <span className="font-mono text-xs" style={{ color: userPrefs.useCustomColor ? userPrefs.fontColor : '#FBBF24' }}>
-                      {userPrefs.useCustomColor ? userPrefs.fontColor : 'Dynamic Team Theme'}
-                    </span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => updateUserPref('useCustomColor', false)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
-                        !userPrefs.useCustomColor
-                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                      }`}
-                    >
-                      Team Palette
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateUserPref('useCustomColor', true)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer flex items-center gap-1 ${
-                        userPrefs.useCustomColor
-                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                      }`}
-                    >
-                      <Palette className="w-3 h-3" /> Custom
-                    </button>
-                    {userPrefs.useCustomColor && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                  {/* 1. Font Size Customization */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                      <span>Account Font Size:</span>
+                      <span className="font-mono text-amber-400 font-extrabold">{userPrefs.fontSize}px</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateUserPref('fontSize', Math.max(10, userPrefs.fontSize - 1))}
+                        className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 cursor-pointer"
+                      >
+                        -
+                      </button>
                       <input
-                        type="color"
-                        value={userPrefs.fontColor || '#FFFFFF'}
-                        onChange={(e) => updateUserPref('fontColor', e.target.value)}
-                        className="w-7 h-7 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
-                        title="Pick custom font color for your screen"
+                        type="range"
+                        min={10}
+                        max={26}
+                        value={userPrefs.fontSize}
+                        onChange={(e) => updateUserPref('fontSize', Number(e.target.value))}
+                        className="flex-1 accent-amber-500 cursor-pointer"
                       />
-                    )}
-                  </div>
-                  {userPrefs.useCustomColor && (
+                      <button
+                        type="button"
+                        onClick={() => updateUserPref('fontSize', Math.min(26, userPrefs.fontSize + 1))}
+                        className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center border border-slate-700 cursor-pointer"
+                      >
+                        +
+                      </button>
+                    </div>
                     <div className="flex items-center gap-1 pt-1">
-                      {[
-                        { hex: '#FFFFFF', name: 'White' },
-                        { hex: '#00F0FF', name: 'Cyan' },
-                        { hex: '#FBBF24', name: 'Gold' },
-                        { hex: '#10B981', name: 'Emerald' },
-                        { hex: '#F43F5E', name: 'Pink' },
-                        { hex: '#A855F7', name: 'Violet' },
-                      ].map((c) => (
+                      {[12, 14, 16, 18, 20].map((sz) => (
                         <button
-                          key={c.hex}
+                          key={sz}
                           type="button"
-                          onClick={() => {
-                            updateUserPref('fontColor', c.hex)
-                            updateUserPref('useCustomColor', true)
-                          }}
-                          className={`flex-1 h-5 rounded border transition cursor-pointer ${
-                            userPrefs.fontColor === c.hex ? 'ring-2 ring-white scale-110' : 'opacity-80 hover:opacity-100'
-                          }`}
-                          style={{ backgroundColor: c.hex }}
-                          title={c.name}
-                        />
+                          onClick={() => updateUserPref('fontSize', sz)}
+                          className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${userPrefs.fontSize === sz
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            }`}
+                        >
+                          {sz}px
+                        </button>
                       ))}
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* 3. Card Atmosphere & Background */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
-                    <span>Card Atmosphere:</span>
-                    <span className="font-mono text-slate-400 uppercase text-[10px]">{userPrefs.cardBg}</span>
-                  </label>
-                  <div className="grid grid-cols-3 gap-1">
-                    {[
-                      { id: 'default', label: 'Default' },
-                      { id: 'oled', label: 'OLED Black' },
-                      { id: 'navy', label: 'Deep Navy' },
-                    ].map((bg) => (
+                  {/* 2. Font Color Customization */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                      <span>Account Text Color:</span>
+                      <span className="font-mono text-xs" style={{ color: userPrefs.useCustomColor ? userPrefs.fontColor : '#FBBF24' }}>
+                        {userPrefs.useCustomColor ? userPrefs.fontColor : 'Dynamic Team Theme'}
+                      </span>
+                    </label>
+                    <div className="flex items-center gap-2">
                       <button
-                        key={bg.id}
                         type="button"
-                        onClick={() => updateUserPref('cardBg', bg.id as any)}
-                        className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                          userPrefs.cardBg === bg.id
+                        onClick={() => updateUserPref('useCustomColor', false)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${!userPrefs.useCustomColor
                             ? 'bg-amber-500 text-zinc-950 border-amber-400'
                             : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                        }`}
+                          }`}
                       >
-                        {bg.label}
+                        Team Palette
                       </button>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => updateUserPref('useCustomColor', true)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer flex items-center gap-1 ${userPrefs.useCustomColor
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                          }`}
+                      >
+                        <Palette className="w-3 h-3" /> Custom
+                      </button>
+                      {userPrefs.useCustomColor && (
+                        <input
+                          type="color"
+                          value={userPrefs.fontColor || '#FFFFFF'}
+                          onChange={(e) => updateUserPref('fontColor', e.target.value)}
+                          className="w-7 h-7 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                          title="Pick custom font color for your screen"
+                        />
+                      )}
+                    </div>
+                    {userPrefs.useCustomColor && (
+                      <div className="flex items-center gap-1 pt-1">
+                        {[
+                          { hex: '#FFFFFF', name: 'White' },
+                          { hex: '#00F0FF', name: 'Cyan' },
+                          { hex: '#FBBF24', name: 'Gold' },
+                          { hex: '#10B981', name: 'Emerald' },
+                          { hex: '#F43F5E', name: 'Pink' },
+                          { hex: '#A855F7', name: 'Violet' },
+                        ].map((c) => (
+                          <button
+                            key={c.hex}
+                            type="button"
+                            onClick={() => {
+                              updateUserPref('fontColor', c.hex)
+                              updateUserPref('useCustomColor', true)
+                            }}
+                            className={`flex-1 h-5 rounded border transition cursor-pointer ${userPrefs.fontColor === c.hex ? 'ring-2 ring-white scale-110' : 'opacity-80 hover:opacity-100'
+                              }`}
+                            style={{ backgroundColor: c.hex }}
+                            title={c.name}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="pt-1 flex items-center justify-between">
-                    <span className="text-[10px] text-slate-400">Card Neon Glow:</span>
-                    <button
-                      type="button"
-                      onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
-                        userPrefs.borderGlow
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
-                          : 'bg-slate-900 text-slate-500 border-slate-800'
-                      }`}
-                    >
-                      {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
-                    </button>
+
+                  {/* 3. Card Atmosphere & Background */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                      <span>Card Atmosphere:</span>
+                      <span className="font-mono text-slate-400 uppercase text-[10px]">{userPrefs.cardBg}</span>
+                    </label>
+                    <div className="grid grid-cols-3 gap-1">
+                      {[
+                        { id: 'default', label: 'Default' },
+                        { id: 'oled', label: 'OLED Black' },
+                        { id: 'navy', label: 'Deep Navy' },
+                      ].map((bg) => (
+                        <button
+                          key={bg.id}
+                          type="button"
+                          onClick={() => updateUserPref('cardBg', bg.id as any)}
+                          className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${userPrefs.cardBg === bg.id
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            }`}
+                        >
+                          {bg.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="pt-1 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">Card Neon Glow:</span>
+                      <button
+                        type="button"
+                        onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${userPrefs.borderGlow
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
+                            : 'bg-slate-900 text-slate-500 border-slate-800'
+                          }`}
+                      >
+                        {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
 
       {/* ================= SCREEN TEMPLATES MODAL ================= */}
       {isTemplateModalOpen && (
@@ -5520,11 +5712,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                           {tpl.name}
                         </h5>
                         <span
-                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                            tpl.badge === 'DEFAULT'
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${tpl.badge === 'DEFAULT'
                               ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
                               : 'bg-blue-500/15 text-blue-500 border-blue-500/30'
-                          }`}
+                            }`}
                         >
                           {tpl.badge}
                         </span>

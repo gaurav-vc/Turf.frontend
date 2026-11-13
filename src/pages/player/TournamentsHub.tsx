@@ -327,7 +327,7 @@ export default function TournamentsHub() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto p-4 md:p-8">
+    <div className="space-y-6 w-full max-w-[1750px] mx-auto p-4 md:p-8 transition-all duration-300">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-border">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Tournaments</h1>
@@ -350,7 +350,7 @@ export default function TournamentsHub() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 sm:gap-8 transition-all duration-300">
           {tournaments.map((tournament, i) => (
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
