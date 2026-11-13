@@ -182,7 +182,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
       if (cached) {
         setPageDesign(JSON.parse(cached))
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 2. Fetch authoritative design from backend
     apiClient
@@ -206,7 +206,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
       if (e.key === `turf_auction_page_design_${auctionId}` && e.newValue) {
         try {
           setPageDesign(JSON.parse(e.newValue))
-        } catch (err) {}
+        } catch (err) { }
       }
     }
     window.addEventListener('auction_page_design_updated', handleDesignUpdate)
@@ -253,7 +253,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         if (res.data?.auto_advance_queue !== undefined) setAutoAdvanceQueue(Boolean(res.data.auto_advance_queue))
         if (res.data?.allow_multiple_bids !== undefined) setAllowMultipleBids(Boolean(res.data.allow_multiple_bids))
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setQueueLoading(false))
   }
 
@@ -472,9 +472,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
   const toggleBrowserFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.().catch(() => {})
+      document.documentElement.requestFullscreen?.().catch(() => { })
     } else {
-      document.exitFullscreen?.().catch(() => {})
+      document.exitFullscreen?.().catch(() => { })
     }
   }
 
@@ -486,7 +486,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
       setSearchParams(next)
     }
     if (document.fullscreenElement) {
-      document.exitFullscreen?.().catch(() => {})
+      document.exitFullscreen?.().catch(() => { })
     }
   }
 
@@ -522,7 +522,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
       }
       const ctx = audioCtxRef.current
       if (ctx.state === 'suspended') {
-        ctx.resume().catch(() => {})
+        ctx.resume().catch(() => { })
       }
 
       if (type === 'bid') {
@@ -563,7 +563,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
             gain2.connect(ctx.destination)
             osc2.start()
             osc2.stop(ctx.currentTime + 0.4)
-          } catch (_) {}
+          } catch (_) { }
         }, 150)
       } else if (type === 'unsold') {
         const osc = ctx.createOscillator()
@@ -589,7 +589,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         osc.start()
         osc.stop(ctx.currentTime + 0.08)
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   // Timer tick effect
@@ -720,7 +720,11 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   }
 
   // Stage Background matching Auction Page Designer
-  const customBgUrl = pageDesign?.custom_background_url ? resolveMediaUrl(pageDesign.custom_background_url) : ''
+  const customBgUrl = pageDesign?.custom_background_url
+    ? resolveMediaUrl(pageDesign.custom_background_url)
+    : auctionBackground
+      ? resolveMediaUrl(auctionBackground)
+      : ''
   const backgroundMode = pageDesign?.background_mode || 'stadium'
   const resolvedBgUrl = customBgUrl
 
@@ -745,1661 +749,1649 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const renderArenaStage = (isFull: boolean) => {
     const leadingTeam = state?.teams?.find((t) => t.team_id === highestBid?.team_id)
 
-        return (
-          <div
-            className={isFull ? "fixed inset-0 z-[100] text-white flex flex-col h-screen w-screen overflow-hidden select-none" : "w-full rounded-3xl border-2 border-slate-800 shadow-2xl bg-[#020b18] overflow-hidden relative text-white flex flex-col min-h-[640px] select-none my-4"}
-            style={{
-              backgroundColor: '#020b18',
-              backgroundImage: resolvedBgUrl
-                ? `linear-gradient(rgba(2, 11, 24, 0.78), rgba(2, 11, 24, 0.90)), url(${resolvedBgUrl})`
-                : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          >
-            {/* Top Bar */}
-            <div className="flex items-center justify-between px-6 py-3 border-b border-blue-900/40 bg-[#031124] shrink-0">
-              {/* Left: Exit or Full Screen Button & Edit in Designer shortcut */}
-              <div className="flex items-center gap-2">
-                {isFull ? (
-                  <button
-                    onClick={exitFullScreen}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs border border-white/15 transition shadow-2xs cursor-pointer"
-                  >
-                    ← Exit Full Screen
-                  </button>
+    return (
+      <div
+        className={isFull ? "fixed inset-0 z-[100] text-white flex flex-col h-screen w-screen overflow-hidden select-none" : "w-full rounded-3xl border-2 border-slate-800 shadow-2xl bg-[#020b18] overflow-hidden relative text-white flex flex-col min-h-[640px] select-none my-4"}
+        style={{
+          backgroundColor: '#020b18',
+          backgroundImage: resolvedBgUrl
+            ? `linear-gradient(rgba(2, 11, 24, 0.78), rgba(2, 11, 24, 0.90)), url(${resolvedBgUrl})`
+            : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        {/* Top Bar */}
+        <div className="flex items-center justify-between px-6 py-3 border-b border-blue-900/40 bg-[#031124] shrink-0">
+          {/* Left: Exit or Full Screen Button & Edit in Designer shortcut */}
+          <div className="flex items-center gap-2">
+            {isFull ? (
+              <button
+                onClick={exitFullScreen}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs border border-white/15 transition shadow-2xs cursor-pointer"
+              >
+                ← Exit Full Screen
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsFullScreen(true)
+                  toggleBrowserFullscreen()
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs border border-amber-300 transition shadow-md cursor-pointer"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span>Full Screen Arena</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                if (isFull) exitFullScreen()
+                const url = new URL(window.location.href)
+                url.searchParams.set('tab', 'designer')
+                window.location.href = url.toString()
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-xs border border-indigo-400/40 shadow-xs transition cursor-pointer"
+              title="Switch to Auction Page Designer to customize layout, fonts, colors, and boxes"
+            >
+              <Palette className="w-3.5 h-3.5 text-indigo-200" />
+              <span>Edit in Designer</span>
+            </button>
+          </div>
+
+          {/* Center: Tournament Name & Pulsing Live Indicator */}
+          <div className="text-center">
+            <h1 className="text-lg md:text-2xl font-black text-white tracking-wide uppercase">
+              {auctionName || 'Test Tournament'}
+            </h1>
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-emerald-400 tracking-widest">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              LIVE AUCTION
+            </span>
+          </div>
+
+          {/* Right: Category Selector & Fullscreen Toggle */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                CATEGORY
+              </span>
+              <select
+                value={selectedCategory}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                className="bg-white text-zinc-900 font-extrabold text-xs rounded-lg px-3 py-1.5 border border-slate-300 cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                {categories.length > 0 ? (
+                  categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))
                 ) : (
-                  <button
-                    onClick={() => {
-                      setIsFullScreen(true)
-                      toggleBrowserFullscreen()
-                    }}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs border border-amber-300 transition shadow-md cursor-pointer"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                    <span>Full Screen Arena</span>
-                  </button>
+                  <option value="ALL">All Categories</option>
                 )}
+              </select>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isFull) exitFullScreen()
-                    const url = new URL(window.location.href)
-                    url.searchParams.set('tab', 'designer')
-                    window.location.href = url.toString()
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-xs border border-indigo-400/40 shadow-xs transition cursor-pointer"
-                  title="Switch to Auction Page Designer to customize layout, fonts, colors, and boxes"
-                >
-                  <Palette className="w-3.5 h-3.5 text-indigo-200" />
-                  <span>Edit in Designer</span>
-                </button>
-              </div>
-
-              {/* Center: Tournament Name & Pulsing Live Indicator */}
-              <div className="text-center">
-                <h1 className="text-lg md:text-2xl font-black text-white tracking-wide uppercase">
-                  {auctionName || 'Test Tournament'}
-                </h1>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-emerald-400 tracking-widest">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  LIVE AUCTION
-                </span>
-              </div>
-
-              {/* Right: Category Selector & Fullscreen Toggle */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    CATEGORY
-                  </span>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                    className="bg-white text-zinc-900 font-extrabold text-xs rounded-lg px-3 py-1.5 border border-slate-300 cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  >
-                    {categories.length > 0 ? (
-                      categories.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="ALL">All Categories</option>
-                    )}
-                  </select>
-
-                  <button
-                    onClick={() => handleCategoryChange(selectedCategory)}
-                    disabled={actionLoading}
-                    className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-3 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                    title="Bring next player from selected category"
-                  >
-                    <span>Next Player →</span>
-                  </button>
-                </div>
-
-                <button
-                  onClick={toggleBrowserFullscreen}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition cursor-pointer"
-                >
-                  <Maximize2 className="w-3.5 h-3.5" />
-                  <span>Full Screen</span>
-                </button>
-              </div>
+              <button
+                onClick={() => handleCategoryChange(selectedCategory)}
+                disabled={actionLoading}
+                className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-3 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                title="Bring next player from selected category"
+              >
+                <span>Next Player →</span>
+              </button>
             </div>
 
-            {/* Sub-header ticker bar */}
-            <div className="flex items-center justify-between px-6 py-2 bg-[#020813] border-b border-blue-900/30 text-xs shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="text-amber-400 font-black tracking-wider uppercase text-[11px]">
-                  NOW AUCTIONING: {selectedCategory || player?.category || 'GENERAL POOL'}
-                </span>
-                {player && (
-                  <span className="text-slate-400 text-[11px] font-mono">
-                    • PLAYER #{player.serial_no}
-                  </span>
+            <button
+              onClick={toggleBrowserFullscreen}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition cursor-pointer"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>Full Screen</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Sub-header ticker bar */}
+        <div className="flex items-center justify-between px-6 py-2 bg-[#020813] border-b border-blue-900/30 text-xs shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="text-amber-400 font-black tracking-wider uppercase text-[11px]">
+              NOW AUCTIONING: {selectedCategory || player?.category || 'GENERAL POOL'}
+            </span>
+            {player && (
+              <span className="text-slate-400 text-[11px] font-mono">
+                • PLAYER #{player.serial_no}
+              </span>
+            )}
+          </div>
+
+          {/* Columns & My UI & Timer & Audio controls */}
+          <div className="flex items-center gap-2">
+            {/* Real-time Franchise Columns Dropdown Selector */}
+            <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 px-2.5 py-1 rounded-xl">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">Columns:</span>
+              <select
+                value={pageDesign?.elements?.franchise_stations?.grid_cols || pageDesign?.zones?.team_columns || 7}
+                onChange={(e) => handleUpdateColumns(Number(e.target.value))}
+                className="bg-transparent text-amber-400 font-black text-xs cursor-pointer focus:outline-none"
+              >
+                {[2, 3, 4, 5, 6, 7, 8, 10, 12, 14].map((col) => (
+                  <option key={col} value={col} className="bg-slate-900 text-white">
+                    {col} Columns
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* My UI Preferences Popover (User-Account Only Customization) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowMyUiMenu(!showMyUiMenu)}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-indigo-500/20 hover:from-amber-500/30 hover:to-indigo-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-xl shadow-xs transition cursor-pointer"
+                title="Customize font size, color and contrast for your account UI only"
+              >
+                <Palette className="w-3.5 h-3.5 text-amber-400" />
+                <span>My UI</span>
+                {userPrefs.useCustomColor && (
+                  <span className="w-2 h-2 rounded-full ring-1 ring-white/40" style={{ backgroundColor: userPrefs.fontColor }} />
                 )}
-              </div>
+              </button>
 
-              {/* Columns & My UI & Timer & Audio controls */}
-              <div className="flex items-center gap-2">
-                {/* Real-time Franchise Columns Dropdown Selector */}
-                <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 px-2.5 py-1 rounded-xl">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-300">Columns:</span>
-                  <select
-                    value={pageDesign?.elements?.franchise_stations?.grid_cols || pageDesign?.zones?.team_columns || 7}
-                    onChange={(e) => handleUpdateColumns(Number(e.target.value))}
-                    className="bg-transparent text-amber-400 font-black text-xs cursor-pointer focus:outline-none"
-                  >
-                    {[2, 3, 4, 5, 6, 7, 8, 10, 12, 14].map((col) => (
-                      <option key={col} value={col} className="bg-slate-900 text-white">
-                        {col} Columns
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              {/* Popover */}
+              {showMyUiMenu && (
+                <div className="absolute right-0 top-full mt-2 w-80 p-4 rounded-2xl bg-slate-950/98 border border-amber-500/50 shadow-2xl z-50 text-slate-200 backdrop-blur-xl space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Palette className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-black uppercase tracking-wider text-white">My Account UI Settings</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMyUiMenu(false)}
+                      className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 rounded cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
 
-                {/* My UI Preferences Popover (User-Account Only Customization) */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowMyUiMenu(!showMyUiMenu)}
-                    className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-indigo-500/20 hover:from-amber-500/30 hover:to-indigo-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-xl shadow-xs transition cursor-pointer"
-                    title="Customize font size, color and contrast for your account UI only"
-                  >
-                    <Palette className="w-3.5 h-3.5 text-amber-400" />
-                    <span>My UI</span>
-                    {userPrefs.useCustomColor && (
-                      <span className="w-2 h-2 rounded-full ring-1 ring-white/40" style={{ backgroundColor: userPrefs.fontColor }} />
-                    )}
-                  </button>
+                  <div className="text-[10px] text-amber-400/90 font-mono bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 flex items-center justify-between">
+                    <span className="truncate max-w-[170px]">User: {userIdentifier}</span>
+                    <span className="text-emerald-400 font-bold shrink-0">Isolated to you</span>
+                  </div>
 
-                  {/* Popover */}
-                  {showMyUiMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-80 p-4 rounded-2xl bg-slate-950/98 border border-amber-500/50 shadow-2xl z-50 text-slate-200 backdrop-blur-xl space-y-3.5">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <div className="flex items-center gap-1.5">
-                          <Palette className="w-4 h-4 text-amber-400" />
-                          <span className="text-xs font-black uppercase tracking-wider text-white">My Account UI Settings</span>
-                        </div>
+                  {/* Font Size */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-300">Shortcut Font Size:</span>
+                      <span className="font-mono text-amber-400">{userPrefs.fontSize || 20}px</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateUserPref('fontSize', Math.max(10, userPrefs.fontSize - 1))}
+                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
+                      >-</button>
+                      <input
+                        type="range"
+                        min={10}
+                        max={28}
+                        value={userPrefs.fontSize || 20}
+                        onChange={(e) => updateUserPref('fontSize', Number(e.target.value))}
+                        className="flex-1 accent-amber-500 cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateUserPref('fontSize', Math.min(28, userPrefs.fontSize + 1))}
+                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
+                      >+</button>
+                    </div>
+                    <div className="flex items-center gap-1 pt-0.5">
+                      {[14, 16, 18, 20, 24].map((sz) => (
                         <button
+                          key={sz}
                           type="button"
-                          onClick={() => setShowMyUiMenu(false)}
-                          className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 rounded cursor-pointer"
+                          onClick={() => updateUserPref('fontSize', sz)}
+                          className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${userPrefs.fontSize === sz
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            }`}
                         >
-                          ✕
+                          {sz}px
                         </button>
-                      </div>
+                      ))}
+                    </div>
+                  </div>
 
-                      <div className="text-[10px] text-amber-400/90 font-mono bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 flex items-center justify-between">
-                        <span className="truncate max-w-[170px]">User: {userIdentifier}</span>
-                        <span className="text-emerald-400 font-bold shrink-0">Isolated to you</span>
-                      </div>
-
-                      {/* Font Size */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="text-slate-300">Shortcut Font Size:</span>
-                          <span className="font-mono text-amber-400">{userPrefs.fontSize || 20}px</span>
-                        </div>
-                        <div className="flex items-center gap-2">
+                  {/* Text Color */}
+                  <div className="space-y-1.5 border-t border-white/10 pt-2">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-300">Text Color:</span>
+                      <span className="font-mono text-[11px]" style={{ color: userPrefs.useCustomColor ? userPrefs.fontColor : '#FBBF24' }}>
+                        {userPrefs.useCustomColor ? userPrefs.fontColor : 'Dynamic Palette'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateUserPref('useCustomColor', false)}
+                        className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer ${!userPrefs.useCustomColor
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                          }`}
+                      >
+                        Team Palette
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateUserPref('useCustomColor', true)}
+                        className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer flex items-center gap-1 ${userPrefs.useCustomColor
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                          }`}
+                      >
+                        Custom
+                      </button>
+                      {userPrefs.useCustomColor && (
+                        <input
+                          type="color"
+                          value={userPrefs.fontColor || '#FFFFFF'}
+                          onChange={(e) => updateUserPref('fontColor', e.target.value)}
+                          className="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                        />
+                      )}
+                    </div>
+                    {userPrefs.useCustomColor && (
+                      <div className="flex items-center gap-1 pt-1">
+                        {[
+                          { hex: '#FFFFFF', name: 'White' },
+                          { hex: '#00F0FF', name: 'Cyan' },
+                          { hex: '#FBBF24', name: 'Gold' },
+                          { hex: '#10B981', name: 'Emerald' },
+                          { hex: '#F43F5E', name: 'Pink' },
+                          { hex: '#A855F7', name: 'Violet' },
+                        ].map((c) => (
                           <button
+                            key={c.hex}
                             type="button"
-                            onClick={() => updateUserPref('fontSize', Math.max(10, userPrefs.fontSize - 1))}
-                            className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
-                          >-</button>
-                          <input
-                            type="range"
-                            min={10}
-                            max={28}
-                            value={userPrefs.fontSize || 20}
-                            onChange={(e) => updateUserPref('fontSize', Number(e.target.value))}
-                            className="flex-1 accent-amber-500 cursor-pointer"
+                            onClick={() => updateUserPref('fontColor', c.hex)}
+                            className="w-5 h-5 rounded-full border border-white/20 transition hover:scale-110 cursor-pointer"
+                            style={{ backgroundColor: c.hex }}
+                            title={c.name}
                           />
-                          <button
-                            type="button"
-                            onClick={() => updateUserPref('fontSize', Math.min(28, userPrefs.fontSize + 1))}
-                            className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
-                          >+</button>
-                        </div>
-                        <div className="flex items-center gap-1 pt-0.5">
-                          {[14, 16, 18, 20, 24].map((sz) => (
-                            <button
-                              key={sz}
-                              type="button"
-                              onClick={() => updateUserPref('fontSize', sz)}
-                              className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${
-                                userPrefs.fontSize === sz
-                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                              }`}
-                            >
-                              {sz}px
-                            </button>
-                          ))}
-                        </div>
+                        ))}
                       </div>
+                    )}
+                  </div>
 
-                      {/* Text Color */}
-                      <div className="space-y-1.5 border-t border-white/10 pt-2">
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="text-slate-300">Text Color:</span>
-                          <span className="font-mono text-[11px]" style={{ color: userPrefs.useCustomColor ? userPrefs.fontColor : '#FBBF24' }}>
-                            {userPrefs.useCustomColor ? userPrefs.fontColor : 'Dynamic Palette'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateUserPref('useCustomColor', false)}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer ${
-                              !userPrefs.useCustomColor
-                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                  {/* Card Background Atmosphere */}
+                  <div className="space-y-1.5 border-t border-white/10 pt-2">
+                    <span className="text-xs font-bold text-slate-300 block">Card Atmosphere:</span>
+                    <div className="flex items-center gap-1">
+                      {[
+                        { id: 'default', label: 'Default' },
+                        { id: 'oled', label: 'OLED Black' },
+                        { id: 'navy', label: 'Deep Navy' },
+                        { id: 'carbon', label: 'Carbon' },
+                      ].map((atm) => (
+                        <button
+                          key={atm.id}
+                          type="button"
+                          onClick={() => updateUserPref('cardBg', atm.id as any)}
+                          className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${userPrefs.cardBg === atm.id
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                             }`}
-                          >
-                            Team Palette
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateUserPref('useCustomColor', true)}
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer flex items-center gap-1 ${
-                              userPrefs.useCustomColor
-                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                            }`}
-                          >
-                            Custom
-                          </button>
-                          {userPrefs.useCustomColor && (
-                            <input
-                              type="color"
-                              value={userPrefs.fontColor || '#FFFFFF'}
-                              onChange={(e) => updateUserPref('fontColor', e.target.value)}
-                              className="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
-                            />
-                          )}
-                        </div>
-                        {userPrefs.useCustomColor && (
-                          <div className="flex items-center gap-1 pt-1">
-                            {[
-                              { hex: '#FFFFFF', name: 'White' },
-                              { hex: '#00F0FF', name: 'Cyan' },
-                              { hex: '#FBBF24', name: 'Gold' },
-                              { hex: '#10B981', name: 'Emerald' },
-                              { hex: '#F43F5E', name: 'Pink' },
-                              { hex: '#A855F7', name: 'Violet' },
-                            ].map((c) => (
-                              <button
-                                key={c.hex}
-                                type="button"
-                                onClick={() => updateUserPref('fontColor', c.hex)}
-                                className="w-5 h-5 rounded-full border border-white/20 transition hover:scale-110 cursor-pointer"
-                                style={{ backgroundColor: c.hex }}
-                                title={c.name}
+                        >
+                          {atm.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] font-bold text-slate-300">Neon Border Glow:</span>
+                      <button
+                        type="button"
+                        onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${userPrefs.borderGlow
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
+                            : 'bg-slate-900 text-slate-500 border-slate-800'
+                          }`}
+                      >
+                        {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Reset Button */}
+                  <div className="border-t border-white/10 pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={resetUserPrefs}
+                      className="text-[10px] text-slate-400 hover:text-white font-medium hover:underline cursor-pointer"
+                    >
+                      Reset My UI Defaults
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Timer and Audio controls */}
+          <div className="flex items-center gap-3">
+            {!pageDesign?.elements?.top_bar?.selected && Boolean(state?.config?.online_timer_enabled) && (
+              <div
+                className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-mono font-bold ${timerSeconds <= 5
+                    ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
+                    : 'bg-slate-900 border-slate-700 text-slate-200'
+                  }`}
+              >
+                <Clock className="w-3 h-3 text-amber-400" />
+                <span>{timerSeconds}s</span>
+                <button
+                  onClick={() => setTimerActive(!timerActive)}
+                  className="hover:text-white p-0.5"
+                >
+                  {timerActive ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
+                </button>
+                <button
+                  onClick={() => setTimerSeconds(30)}
+                  className="hover:text-white p-0.5 ml-0.5"
+                  title="Reset 30s"
+                >
+                  <RotateCcw className="w-2 h-2" />
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="p-1 rounded-md text-slate-400 hover:text-white"
+            >
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-amber-400" /> : <VolumeX className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Center Arena Body */}
+        <div className={`flex-1 flex gap-4 min-h-0 overflow-hidden ${isFull ? 'p-1 md:p-2' : 'p-4'}`}>
+          {/* Left Stage: Dynamically Configured Live Broadcast Arena Stage */}
+          <div className="flex-1 flex flex-col justify-center rounded-2xl border border-blue-900/40 bg-gradient-to-b from-[#07162b] via-[#051122] to-[#030c18] p-2 md:p-4 shadow-2xl relative overflow-hidden">
+            {/* Background Image / Preset if configured matching Page Designer */}
+            {customBgUrl ? (
+              <img
+                src={customBgUrl}
+                alt="Stage Background"
+                className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-40"
+              />
+            ) : backgroundMode === 'classic_turf' ? (
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-950 pointer-events-none opacity-60" />
+            ) : backgroundMode === 'dark_neon' ? (
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-indigo-950 pointer-events-none opacity-60" />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 pointer-events-none" />
+            )}
+
+            {player ? (
+              /* 16:9 Canvas Stage Layout matching Page Designer element positions */
+              <div
+                className="relative aspect-video w-full select-none overflow-hidden mx-auto my-auto"
+                style={{
+                  backgroundImage: (pageDesign?.grid_visible !== false)
+                    ? `radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)`
+                    : 'none',
+                  backgroundSize: `${(pageDesign?.snap_grid || 5) * 2}% ${(pageDesign?.snap_grid || 5) * 2}%`,
+                }}
+              >
+                {Object.entries((pageDesign?.elements || DEFAULT_PAGE_DESIGN.elements) as Record<string, any>).map(([key, el]) => {
+                  if (!el || el.selected === false) return null
+
+                  return (
+                    <div
+                      key={key}
+                      style={{
+                        left: `${el.x}%`,
+                        top: `${el.y}%`,
+                        width: `${el.w}%`,
+                        height: `${el.h}%`,
+                        color: el.colour || '#FFFFFF',
+                      }}
+                      className="absolute flex items-center justify-center overflow-hidden"
+                    >
+                      <div className="w-full h-full flex items-center overflow-hidden px-1">
+                        {key === 'tournament_title' && (
+                          <div className="w-full h-full flex items-center justify-center gap-2 overflow-hidden px-1">
+                            {pageDesign?.zones?.branding?.title_image_url ? (
+                              <img
+                                src={pageDesign.zones.branding.title_image_url}
+                                alt="Logo"
+                                style={{ height: `${Math.max(16, Math.min(el.font_size || 26, 60))}px` }}
+                                className="object-contain"
                               />
-                            ))}
+                            ) : (
+                              <Shield
+                                style={{
+                                  width: `${Math.max(16, Math.min(el.font_size || 26, 48))}px`,
+                                  height: `${Math.max(16, Math.min(el.font_size || 26, 48))}px`,
+                                }}
+                                className="text-amber-400 shrink-0"
+                              />
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 26}px`,
+                                color: el.colour || '#FFD54A',
+                              }}
+                              className="font-black uppercase tracking-wider font-mono drop-shadow-md whitespace-nowrap"
+                            >
+                              {pageDesign?.zones?.branding?.title_text || auctionName || 'TURF PREMIER LEAGUE'}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'player_category' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'center' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.5))}px` }}
+                                className="text-slate-400 block font-bold uppercase tracking-wider"
+                              >
+                                CATEGORY
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 22}px`,
+                                color: el.colour || '#FFD54A',
+                              }}
+                              className="font-black uppercase tracking-wider font-mono px-3 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 inline-block"
+                            >
+                              {player.category || selectedCategory || 'GENERAL'}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'player_number' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'left' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 16) * 0.7))}px` }}
+                                className="text-slate-400 mr-1 font-bold"
+                              >
+                                NO.{' '}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 16}px`,
+                                color: el.colour || '#B8C7DA',
+                              }}
+                              className="font-mono font-bold"
+                            >
+                              #{player.serial_no || '1'}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'player_photo' && (
+                          <div
+                            className="relative w-full h-full border-2 border-slate-700 bg-slate-900/90 shadow-2xl flex items-center justify-center overflow-hidden"
+                            style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius)}
+                          >
+                            {player.photo_url ? (
+                              <img
+                                src={player.photo_url}
+                                alt={player.player_name}
+                                className="h-full w-full pointer-events-none"
+                                style={{
+                                  ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius),
+                                  objectFit: el?.object_fit || 'contain',
+                                }}
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center text-slate-500">
+                                <Trophy className="h-12 w-12 text-slate-600 mb-1" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                  PLAYER PHOTO
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {key === 'player_name' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'left' }}>
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 42}px`,
+                                color: el.colour || '#FFFFFF',
+                              }}
+                              className="font-black uppercase tracking-tight drop-shadow-md whitespace-nowrap block leading-tight"
+                            >
+                              {player.player_name}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'role' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'left' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 18) * 0.6))}px` }}
+                                className="text-slate-400 block font-bold"
+                              >
+                                ROLE
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 18}px`,
+                                color: el.colour || '#D8E2EF',
+                              }}
+                              className="font-bold uppercase tracking-wider block"
+                            >
+                              {player.role || 'Batsman'}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'batting_style' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'left' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
+                                className="text-slate-400 mr-1 font-bold"
+                              >
+                                BAT ·{' '}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 14}px`,
+                                color: el.colour || '#FFFFFF',
+                              }}
+                              className="font-semibold"
+                            >
+                              {player.batting_style || '—'}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'bowling_style' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'left' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
+                                className="text-slate-400 mr-1 font-bold"
+                              >
+                                BOWL ·{' '}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 14}px`,
+                                color: el.colour || '#FFFFFF',
+                              }}
+                              className="font-semibold"
+                            >
+                              {player.bowling_style || '—'}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'location' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'left' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
+                                className="text-slate-400 mr-1 font-bold"
+                              >
+                                LOCATION ·{' '}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 14}px`,
+                                color: el.colour || '#FFFFFF',
+                              }}
+                              className="font-semibold"
+                            >
+                              {player.location || 'Mumbai, Maharashtra'}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'current_bid' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'left' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 46) * 0.28))}px` }}
+                                className="uppercase font-bold text-amber-400/90 block"
+                              >
+                                CURRENT BID
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 46}px`,
+                                color: el.colour || '#FFD54A',
+                              }}
+                              className="font-black font-mono tracking-tight drop-shadow-lg"
+                            >
+                              ₹{currentBid.toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'bidder_name' && (
+                          <div
+                            className="w-full flex items-center gap-2"
+                            style={{
+                              justifyContent:
+                                el.align === 'center'
+                                  ? 'center'
+                                  : el.align === 'left'
+                                    ? 'flex-start'
+                                    : 'flex-end',
+                              textAlign: el.align || 'right',
+                            }}
+                          >
+                            {highestBid?.team_logo && el.show_team_logo !== false && (
+                              <img
+                                src={resolveMediaUrl(highestBid.team_logo)}
+                                alt={highestBid.team_name}
+                                className="w-8 h-8 rounded-full object-contain border border-amber-400/50 shrink-0 shadow-xs"
+                              />
+                            )}
+                            <div className="min-w-0">
+                              {el.show_label && (
+                                <span
+                                  style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px` }}
+                                  className="text-slate-400 block font-bold"
+                                >
+                                  {el.custom_label || 'BIDDER TEAM'}
+                                </span>
+                              )}
+                              <span
+                                style={{
+                                  fontSize: `${el.font_size || 22}px`,
+                                  color: el.colour || '#FFFFFF',
+                                  fontFamily: el.font_family || 'inherit',
+                                  fontWeight: el.bold === false ? 500 : 900,
+                                  fontStyle: el.italic ? 'italic' : 'normal',
+                                  textDecoration: el.underline ? 'underline' : 'none',
+                                  whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
+                                }}
+                                className="font-black uppercase tracking-wide whitespace-nowrap block"
+                              >
+                                {highestBid ? highestBid.team_name : 'Awaiting first bid'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {key === 'base_price' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'left' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 20) * 0.55))}px` }}
+                                className="text-slate-400 mr-1.5 uppercase font-bold"
+                              >
+                                BASE PRICE
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 20}px`,
+                                color: el.colour || '#FFFFFF',
+                              }}
+                              className="font-extrabold font-mono"
+                            >
+                              ₹{Number(player.base_price || 0).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'balance' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'right' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
+                                className="text-slate-400 mr-1 font-bold"
+                              >
+                                Bal.{' '}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 14}px`,
+                                color: el.colour || '#B9C7D7',
+                              }}
+                              className="font-mono font-bold"
+                            >
+                              {leadingTeam ? `₹${Number(leadingTeam.balance || 0).toLocaleString('en-IN')}` : '—'}
+                            </span>
+                          </div>
+                        )}
+
+                        {key === 'max_bid' && (
+                          <div className="w-full" style={{ textAlign: el.align || 'right' }}>
+                            {el.show_label && (
+                              <span
+                                style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
+                                className="text-amber-300 mr-1 font-bold"
+                              >
+                                Max Bid{' '}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 14}px`,
+                                color: el.colour || '#FFD54A',
+                              }}
+                              className="font-mono font-bold"
+                            >
+                              {leadingTeam ? `₹${Number(leadingTeam.max_bid || 0).toLocaleString('en-IN')}` : '—'}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Top Arena Status Bar Element (Live Synchronized) */}
+                        {key === 'top_bar' && (
+                          <div className="w-full h-full flex items-center justify-between px-3 py-1.5 rounded-xl border border-blue-900/60 bg-[#031124]/90 backdrop-blur-xs select-none shadow-md overflow-hidden">
+                            <div className="flex items-center gap-2 truncate">
+                              <span
+                                style={{
+                                  fontSize: `${el.font_size || 13}px`,
+                                  color: el.colour || '#FFD54A',
+                                }}
+                                className="font-black uppercase tracking-wider truncate"
+                              >
+                                CATEGORY: {player.category || selectedCategory || 'GENERAL'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {Boolean(state?.config?.online_timer_enabled) && (
+                                <div
+                                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-mono font-bold ${timerSeconds <= 5
+                                      ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
+                                      : 'bg-slate-900 border-slate-700 text-slate-200'
+                                    }`}
+                                >
+                                  <Clock className="w-3 h-3 text-amber-400" />
+                                  <span>{timerSeconds}s</span>
+                                  <button
+                                    onClick={() => setTimerActive(!timerActive)}
+                                    className="hover:text-white p-0.5 cursor-pointer"
+                                  >
+                                    {timerActive ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
+                                  </button>
+                                  <button
+                                    onClick={() => setTimerSeconds(30)}
+                                    className="hover:text-white p-0.5 ml-0.5 cursor-pointer"
+                                    title="Reset 30s"
+                                  >
+                                    <RotateCcw className="w-2 h-2" />
+                                  </button>
+                                </div>
+                              )}
+                              {!isFullScreen && (
+                                <button
+                                  onClick={toggleBrowserFullscreen}
+                                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition cursor-pointer"
+                                >
+                                  <Maximize2 className="w-3 h-3 text-sky-400" />
+                                  <span>Full Screen</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Bid History Stream Panel Element (Live Real-Time Stream) */}
+                        {key === 'bid_history' && (
+                          <div
+                            className={`w-full h-full flex flex-col justify-between rounded-2xl p-3 shadow-2xl select-none overflow-hidden ${el.panel_theme === 'glass'
+                                ? 'bg-slate-900/60 backdrop-blur-md border border-white/20'
+                                : el.panel_theme === 'solid'
+                                  ? 'bg-black/95 border border-amber-500/30'
+                                  : 'bg-[#030f1e]/95 border border-blue-900/60 backdrop-blur-xs'
+                              }`}
+                            style={{ borderRadius: `${el.border_radius ?? 16}px` }}
+                          >
+                            <div className="space-y-2 overflow-hidden flex-1 flex flex-col">
+                              <div className="flex items-center justify-between border-b border-white/10 pb-1.5 shrink-0">
+                                <span
+                                  style={{
+                                    fontSize: `${el.font_size || 12}px`,
+                                    color: el.colour || '#E2E8F0',
+                                  }}
+                                  className="font-black uppercase tracking-wider"
+                                >
+                                  {el.title || el.label || 'BID HISTORY'}
+                                </span>
+                                <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> LIVE
+                                </span>
+                              </div>
+                              <span className="font-extrabold text-white text-xs block truncate shrink-0">
+                                {player?.player_name || 'Waiting for player...'}
+                              </span>
+                              <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5">
+                                {state?.bid_history && state.bid_history.length > 0 ? (
+                                  state.bid_history.slice(0, el.max_bids || 20).map((bid, idx) => (
+                                    <div
+                                      key={bid.id || idx}
+                                      className={`flex items-center justify-between rounded-xl p-2 text-xs transition-all ${idx === 0
+                                          ? 'border border-amber-500/50 bg-amber-500/15 text-white font-bold shadow-xs'
+                                          : 'bg-white/5 text-slate-300'
+                                        }`}
+                                    >
+                                      <div className="flex items-center gap-1.5 truncate max-w-[140px]">
+                                        {el.show_short_name !== false && (
+                                          <span className="font-mono text-[10px] text-slate-400 font-bold shrink-0">
+                                            #{state.bid_history.length - idx}
+                                          </span>
+                                        )}
+                                        {el.show_team_name !== false && (
+                                          <span className="font-bold text-white truncate">
+                                            {getBidDisplayShort(bid)}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {el.show_bid_amount !== false && (
+                                        <span className="font-mono font-black text-amber-400 shrink-0 ml-1">
+                                          ₹{Number(bid.amount || 0).toLocaleString('en-IN')}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="h-full flex items-center justify-center text-center p-2">
+                                    <span className="text-[11px] text-slate-500">No bids yet</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="pt-1.5 border-t border-white/10 text-[9px] text-slate-400 text-center tracking-wider uppercase font-semibold shrink-0">
+                              Arena Live History
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Bottom Action & Player Bar Element (Live Functional Controls) */}
+                        {key === 'action_bar' && (
+                          <div className="w-full h-full flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-[#031326]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-hidden shadow-lg">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">
+                                Action:
+                              </span>
+                              {actionButtons
+                                .filter((btn: ActionButtonConfig) => btn.visible !== false)
+                                .map((btn: ActionButtonConfig) => {
+                                  switch (btn.id) {
+                                    case 'sold':
+                                      return (
+                                        <button
+                                          key={btn.id}
+                                          onClick={handleHammerSold}
+                                          disabled={actionLoading || !player || !highestBid}
+                                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+                                        >
+                                          <Gavel className="w-3 h-3" />
+                                          <span>{btn.label}</span>
+                                        </button>
+                                      )
+                                    case 'unsold':
+                                      return (
+                                        <button
+                                          key={btn.id}
+                                          onClick={handleHammerUnsold}
+                                          disabled={actionLoading || !player}
+                                          className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+                                        >
+                                          <XCircle className="w-3 h-3" />
+                                          <span>{btn.label}</span>
+                                        </button>
+                                      )
+                                    case 'custom_bid':
+                                      return (
+                                        <button
+                                          key={btn.id}
+                                          onClick={openCustomBidModal}
+                                          disabled={actionLoading || !player}
+                                          className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 font-black text-zinc-950 text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+                                        >
+                                          <Flame className="w-3 h-3 text-zinc-950" />
+                                          <span>{btn.label}</span>
+                                        </button>
+                                      )
+                                    case 'undo_sale':
+                                      return (
+                                        <button
+                                          key={btn.id}
+                                          onClick={handleUndoSale}
+                                          disabled={actionLoading}
+                                          className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+                                        >
+                                          <RotateCcw className="w-2.5 h-2.5" />
+                                          <span>{btn.label}</span>
+                                        </button>
+                                      )
+                                    case 'undo_bid':
+                                      return (
+                                        <button
+                                          key={btn.id}
+                                          onClick={undoBid}
+                                          disabled={actionLoading || !highestBid}
+                                          className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                          <span>{btn.label}</span>
+                                        </button>
+                                      )
+                                    case 'reset_bid':
+                                      return (
+                                        <button
+                                          key={btn.id}
+                                          onClick={resetBid}
+                                          disabled={actionLoading || !highestBid}
+                                          className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                          <span>{btn.label}</span>
+                                        </button>
+                                      )
+                                    case 'next_player':
+                                      return (
+                                        <button
+                                          key={btn.id}
+                                          onClick={handleBringNextQueuedPlayer}
+                                          disabled={actionLoading}
+                                          className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[10px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+                                          title="Bring Next Queued Player"
+                                        >
+                                          <ChevronRight className="w-3 h-3" />
+                                          <span>{btn.label || 'Next Player'}</span>
+                                        </button>
+                                      )
+                                    default:
+                                      return null
+                                  }
+                                })}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-slate-400 font-mono text-[11px]">PLAYER NO:</span>
+                              <input
+                                type="number"
+                                value={jumpPlayerNo}
+                                onChange={(e) => setJumpPlayerNo(e.target.value)}
+                                placeholder="1"
+                                className="w-12 px-2 py-0.5 rounded-md bg-slate-900 border border-slate-700 text-slate-200 font-bold text-xs text-center"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleJumpPlayer()
+                                  }
+                                }}
+                              />
+                              <button
+                                onClick={handleJumpPlayer}
+                                className="px-2.5 py-0.5 rounded-md bg-amber-500 hover:bg-amber-400 font-black text-zinc-950 text-xs shadow-xs cursor-pointer transition"
+                              >
+                                SHOW
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Franchise Bidding Stations Element (Option 4 Geometry) */}
+                        {key === 'franchise_stations' && (
+                          <div
+                            className="w-full h-full p-1.5 rounded-xl border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-lg relative"
+                            style={{
+                              borderRadius: `${el.border_radius ?? 12}px`,
+                              backgroundColor: userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : 'rgba(3, 15, 30, 0.92)',
+                            }}
+                          >
+                            {(!state?.teams || state.teams.length === 0) ? (
+                              <div className="flex flex-col items-center justify-center p-3 text-center text-slate-400">
+                                <Shield className="w-5 h-5 text-amber-500/70 mb-1" />
+                                <span className="text-[10px] font-bold text-slate-300">No Franchise Teams Registered</span>
+                              </div>
+                            ) : (
+                              <div
+                                className="w-full h-full grid overflow-visible"
+                                style={{
+                                  gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
+                                  gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
+                                  columnGap: `${el.gap_x || 6}px`,
+                                  rowGap: `${el.gap_y || 6}px`,
+                                }}
+                              >
+                                {state.teams.slice(0, Math.min(state.teams.length, (el.grid_cols || 7) * (el.grid_rows || 2))).map((team, idx) => {
+                                  const isLeading = highestBid?.team_id === team.team_id
+                                  const playerCat = player?.category || selectedCategory
+                                  const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
+                                  const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
+                                  const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
+                                  const isSolid = (el.box_style || 'solid') === 'solid'
+                                  const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                                  const theme = getTeamTheme(idx, state.teams.length)
+                                  const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
+                                  const assignedShortcut = ((team as any).shortcut_key || (team as any).custom_data?.shortcut_key || '').toUpperCase()
+
+                                  // Account-level UI styling
+                                  const dynamicTeamBg = (team as any).card_bg || (team as any).logo_bg || (team as any).background_color || (team as any).custom_data?.card_bg || (team as any).custom_data?.logo_bg
+                                  const isLightBg = dynamicTeamBg && (dynamicTeamBg.toLowerCase() === '#ffffff' || dynamicTeamBg.toLowerCase() === 'white' || dynamicTeamBg.startsWith('rgb(255'))
+                                  const effectiveCardBg = dynamicTeamBg
+                                    ? dynamicTeamBg
+                                    : userPrefs.cardBg === 'oled'
+                                      ? '#000000'
+                                      : userPrefs.cardBg === 'navy'
+                                        ? '#020617'
+                                        : userPrefs.cardBg === 'carbon'
+                                          ? '#18181b'
+                                          : isSolid ? (isLeading ? 'rgba(245, 158, 11, 0.4)' : `${teamColor}25`) : 'transparent'
+                                  const effectiveFontSize = userPrefs.fontSize || el.font_size || 13
+                                  const effectiveColor = isLightBg ? '#020617' : (isLeading ? '#FDE047' : userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : (el.colour || teamColor))
+                                  const effectiveGlow = isLeading
+                                    ? '0 0 14px rgba(245, 158, 11, 0.5)'
+                                    : userPrefs.borderGlow
+                                      ? `0 0 12px ${teamColor}40`
+                                      : isSolid ? `0 0 8px ${teamColor}20` : 'none'
+
+                                  return (
+                                    <button
+                                      key={team.team_id}
+                                      onClick={() => handleTeamSelectAndBid(team.team_id)}
+                                      disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull}
+                                      title={`Team #${idx + 1}: ${team.team_name}\nShort Name: ${shortcut}\nPurse Balance: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
+                                      className={`group relative flex flex-col justify-between p-1 rounded-md transition select-none min-w-0 ${isLeading
+                                          ? 'ring-2 ring-amber-400'
+                                          : isQuotaFull || isBudgetExceeded
+                                            ? 'opacity-40 cursor-not-allowed'
+                                            : 'cursor-pointer hover:scale-105 active:scale-95'
+                                        }`}
+                                      style={{
+                                        backgroundColor: effectiveCardBg,
+                                        borderColor: isLeading ? '#F59E0B' : teamColor,
+                                        borderWidth: isSolid ? '1px' : '2px',
+                                        borderStyle: 'solid',
+                                        boxShadow: effectiveGlow,
+                                        writingMode: 'horizontal-tb',
+                                      }}
+                                    >
+                                      {/* Rich Hover Card: Team number, Full Name, Short Name, Purse Balance, Max Bid */}
+                                      <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-0.5 p-2 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[155px] backdrop-blur-md text-left">
+                                        <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
+                                          <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
+                                          {assignedShortcut && <span className="font-mono text-slate-300 font-bold">[{assignedShortcut}]</span>}
+                                        </div>
+                                        <div className="font-bold text-[11px] text-white truncate">{team.team_name}</div>
+                                        <div className="flex items-center justify-between text-[10px] pt-0.5">
+                                          <span className="text-slate-400">Purse Balance:</span>
+                                          <span className="font-mono font-bold text-emerald-400">₹{Number(team.balance || 0).toLocaleString('en-IN')}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[10px]">
+                                          <span className="text-slate-400">Max Bid:</span>
+                                          <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
+                                        </div>
+                                      </div>
+                                      <div
+                                        className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
+                                        style={{ writingMode: 'horizontal-tb' }}
+                                      >
+                                        <span
+                                          style={{ backgroundColor: teamColor }}
+                                          className="w-1.5 h-1.5 rounded-full shadow-xs"
+                                        />
+                                        {isLeading && (
+                                          <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
+                                            LEADING
+                                          </span>
+                                        )}
+                                      </div>
+                                      {/* Center: Number and Key Only (No Logo thumbnail as requested) */}
+                                      <div
+                                        className="w-full flex items-center justify-center font-black my-auto px-0.5"
+                                        style={{
+                                          fontSize: `${effectiveFontSize}px`,
+                                          color: isLightBg ? '#020617' : effectiveColor,
+                                          fontFamily: el.font_family || 'inherit',
+                                          fontWeight: el.bold !== false ? 900 : 700,
+                                          fontStyle: el.italic ? 'italic' : 'normal',
+                                          writingMode: 'horizontal-tb',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        <span className="font-mono tracking-wider font-black">
+                                          {idx + 1} - {assignedShortcut || shortcut}
+                                        </span>
+                                      </div>
+                                      {el.show_balance === true && (
+                                        <div
+                                          className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
+                                          style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
+                                        >
+                                          ₹{Number(team.balance || 0).toLocaleString('en-IN')}
+                                        </div>
+                                      )}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {/* Custom Photo Box Element */}
+                        {(el.type === 'photo' || key.startsWith('custom_photo')) && (
+                          <div
+                            className="w-full h-full relative rounded-xl overflow-hidden shadow-md flex items-center justify-center select-none"
+                            style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius ?? 12)}
+                          >
+                            {el.media_url ? (
+                              <img
+                                src={el.media_url}
+                                alt={el.label || 'Custom Photo'}
+                                style={{
+                                  ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius ?? 12),
+                                  objectFit: el.object_fit || 'contain',
+                                }}
+                                className="w-full h-full pointer-events-none"
+                              />
+                            ) : null}
+                          </div>
+                        )}
+
+                        {/* Custom Video Box Element */}
+                        {(el.type === 'video' || key.startsWith('custom_video')) && (
+                          <div
+                            className="w-full h-full relative rounded-xl overflow-hidden shadow-md flex items-center justify-center bg-black select-none"
+                            style={{ borderRadius: `${el.border_radius ?? 12}px` }}
+                          >
+                            {el.video_url || el.media_url ? (
+                              <video
+                                src={el.video_url || el.media_url}
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                style={{ objectFit: el.object_fit || 'cover' }}
+                                className="w-full h-full"
+                              />
+                            ) : null}
+                          </div>
+                        )}
+
+                        {/* Custom Text Box Element */}
+                        {(el.type === 'text' || key.startsWith('custom_text')) && (
+                          <div
+                            className="w-full h-full flex items-center overflow-hidden px-2 rounded-lg select-none"
+                            style={{
+                              textAlign: el.align || 'center',
+                              justifyContent:
+                                el.align === 'left'
+                                  ? 'flex-start'
+                                  : el.align === 'right'
+                                    ? 'flex-end'
+                                    : 'center',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: `${el.font_size || 18}px`,
+                                color: el.colour || '#FFFFFF',
+                                fontWeight: el.bold !== false ? 'bold' : 'normal',
+                              }}
+                              className="uppercase tracking-wider block drop-shadow whitespace-nowrap"
+                            >
+                              {el.custom_text || el.label || ''}
+                            </span>
                           </div>
                         )}
                       </div>
-
-                      {/* Card Background Atmosphere */}
-                      <div className="space-y-1.5 border-t border-white/10 pt-2">
-                        <span className="text-xs font-bold text-slate-300 block">Card Atmosphere:</span>
-                        <div className="flex items-center gap-1">
-                          {[
-                            { id: 'default', label: 'Default' },
-                            { id: 'oled', label: 'OLED Black' },
-                            { id: 'navy', label: 'Deep Navy' },
-                            { id: 'carbon', label: 'Carbon' },
-                          ].map((atm) => (
-                            <button
-                              key={atm.id}
-                              type="button"
-                              onClick={() => updateUserPref('cardBg', atm.id as any)}
-                              className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${
-                                userPrefs.cardBg === atm.id
-                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                              }`}
-                            >
-                              {atm.label}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[11px] font-bold text-slate-300">Neon Border Glow:</span>
-                          <button
-                            type="button"
-                            onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
-                              userPrefs.borderGlow
-                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
-                                : 'bg-slate-900 text-slate-500 border-slate-800'
-                            }`}
-                          >
-                            {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Reset Button */}
-                      <div className="border-t border-white/10 pt-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={resetUserPrefs}
-                          className="text-[10px] text-slate-400 hover:text-white font-medium hover:underline cursor-pointer"
-                        >
-                          Reset My UI Defaults
-                        </button>
-                      </div>
                     </div>
+                  )
+                })}
+              </div>
+            ) : upcomingQueue.length > 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs animate-pulse">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>{customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}</span>
+                  <button
+                    onClick={handleBringNextQueuedPlayer}
+                    className="px-2.5 py-1 rounded bg-amber-400 text-zinc-950 font-black text-xs hover:bg-amber-300 transition cursor-pointer"
+                  >
+                    Bring Now →
+                  </button>
+                  {autoAdvanceCountdown !== null && (
+                    <button
+                      onClick={() => setAutoAdvanceCountdown(null)}
+                      className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
                   )}
                 </div>
-              </div>
 
-              {/* Timer and Audio controls */}
-              <div className="flex items-center gap-3">
-                {!pageDesign?.elements?.top_bar?.selected && Boolean(state?.config?.online_timer_enabled) && (
-                  <div
-                    className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-mono font-bold ${
-                      timerSeconds <= 5
-                        ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
-                        : 'bg-slate-900 border-slate-700 text-slate-200'
-                    }`}
-                  >
-                    <Clock className="w-3 h-3 text-amber-400" />
-                    <span>{timerSeconds}s</span>
-                    <button
-                      onClick={() => setTimerActive(!timerActive)}
-                      className="hover:text-white p-0.5"
-                    >
-                      {timerActive ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
-                    </button>
-                    <button
-                      onClick={() => setTimerSeconds(30)}
-                      className="hover:text-white p-0.5 ml-0.5"
-                      title="Reset 30s"
-                    >
-                      <RotateCcw className="w-2 h-2" />
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className="p-1 rounded-md text-slate-400 hover:text-white"
-                >
-                  {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-amber-400" /> : <VolumeX className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Center Arena Body */}
-            <div className={`flex-1 flex gap-4 min-h-0 overflow-hidden ${isFull ? 'p-1 md:p-2' : 'p-4'}`}>
-              {/* Left Stage: Dynamically Configured Live Broadcast Arena Stage */}
-              <div className="flex-1 flex flex-col justify-center rounded-2xl border border-blue-900/40 bg-gradient-to-b from-[#07162b] via-[#051122] to-[#030c18] p-2 md:p-4 shadow-2xl relative overflow-hidden">
-                {/* Background Image / Preset if configured matching Page Designer */}
-                {customBgUrl ? (
-                  <img
-                    src={customBgUrl}
-                    alt="Stage Background"
-                    className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-40"
-                  />
-                ) : backgroundMode === 'classic_turf' ? (
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-950 pointer-events-none opacity-60" />
-                ) : backgroundMode === 'dark_neon' ? (
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-indigo-950 pointer-events-none opacity-60" />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 pointer-events-none" />
-                )}
-
-                {player ? (
-                  /* 16:9 Canvas Stage Layout matching Page Designer element positions */
-                  <div
-                    className="relative aspect-video w-full select-none overflow-hidden mx-auto my-auto"
-                    style={{
-                      backgroundImage: (pageDesign?.grid_visible !== false)
-                        ? `radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)`
-                        : 'none',
-                      backgroundSize: `${(pageDesign?.snap_grid || 5) * 2}% ${(pageDesign?.snap_grid || 5) * 2}%`,
-                    }}
-                  >
-                    {Object.entries((pageDesign?.elements || DEFAULT_PAGE_DESIGN.elements) as Record<string, any>).map(([key, el]) => {
-                      if (!el || el.selected === false) return null
-
-                      return (
-                        <div
-                          key={key}
-                          style={{
-                            left: `${el.x}%`,
-                            top: `${el.y}%`,
-                            width: `${el.w}%`,
-                            height: `${el.h}%`,
-                            color: el.colour || '#FFFFFF',
-                          }}
-                          className="absolute flex items-center justify-center overflow-hidden"
-                        >
-                          <div className="w-full h-full flex items-center overflow-hidden px-1">
-                            {key === 'tournament_title' && (
-                              <div className="w-full h-full flex items-center justify-center gap-2 overflow-hidden px-1">
-                                {pageDesign?.zones?.branding?.title_image_url ? (
-                                  <img
-                                    src={pageDesign.zones.branding.title_image_url}
-                                    alt="Logo"
-                                    style={{ height: `${Math.max(16, Math.min(el.font_size || 26, 60))}px` }}
-                                    className="object-contain"
-                                  />
-                                ) : (
-                                  <Shield
-                                    style={{
-                                      width: `${Math.max(16, Math.min(el.font_size || 26, 48))}px`,
-                                      height: `${Math.max(16, Math.min(el.font_size || 26, 48))}px`,
-                                    }}
-                                    className="text-amber-400 shrink-0"
-                                  />
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 26}px`,
-                                    color: el.colour || '#FFD54A',
-                                  }}
-                                  className="font-black uppercase tracking-wider font-mono drop-shadow-md whitespace-nowrap"
-                                >
-                                  {pageDesign?.zones?.branding?.title_text || auctionName || 'TURF PREMIER LEAGUE'}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'player_category' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'center' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.5))}px` }}
-                                    className="text-slate-400 block font-bold uppercase tracking-wider"
-                                  >
-                                    CATEGORY
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 22}px`,
-                                    color: el.colour || '#FFD54A',
-                                  }}
-                                  className="font-black uppercase tracking-wider font-mono px-3 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 inline-block"
-                                >
-                                  {player.category || selectedCategory || 'GENERAL'}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'player_number' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'left' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 16) * 0.7))}px` }}
-                                    className="text-slate-400 mr-1 font-bold"
-                                  >
-                                    NO.{' '}
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 16}px`,
-                                    color: el.colour || '#B8C7DA',
-                                  }}
-                                  className="font-mono font-bold"
-                                >
-                                  #{player.serial_no || '1'}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'player_photo' && (
-                              <div
-                                className="relative w-full h-full border-2 border-slate-700 bg-slate-900/90 shadow-2xl flex items-center justify-center overflow-hidden"
-                                style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius)}
-                              >
-                                {player.photo_url ? (
-                                  <img
-                                    src={player.photo_url}
-                                    alt={player.player_name}
-                                    className="h-full w-full pointer-events-none"
-                                    style={{
-                                      ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius),
-                                      objectFit: el?.object_fit || 'contain',
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="flex flex-col items-center justify-center text-slate-500">
-                                    <Trophy className="h-12 w-12 text-slate-600 mb-1" />
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                      PLAYER PHOTO
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {key === 'player_name' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'left' }}>
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 42}px`,
-                                    color: el.colour || '#FFFFFF',
-                                  }}
-                                  className="font-black uppercase tracking-tight drop-shadow-md whitespace-nowrap block leading-tight"
-                                >
-                                  {player.player_name}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'role' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'left' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 18) * 0.6))}px` }}
-                                    className="text-slate-400 block font-bold"
-                                  >
-                                    ROLE
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 18}px`,
-                                    color: el.colour || '#D8E2EF',
-                                  }}
-                                  className="font-bold uppercase tracking-wider block"
-                                >
-                                  {player.role || 'Batsman'}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'batting_style' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'left' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
-                                    className="text-slate-400 mr-1 font-bold"
-                                  >
-                                    BAT ·{' '}
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 14}px`,
-                                    color: el.colour || '#FFFFFF',
-                                  }}
-                                  className="font-semibold"
-                                >
-                                  {player.batting_style || '—'}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'bowling_style' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'left' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
-                                    className="text-slate-400 mr-1 font-bold"
-                                  >
-                                    BOWL ·{' '}
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 14}px`,
-                                    color: el.colour || '#FFFFFF',
-                                  }}
-                                  className="font-semibold"
-                                >
-                                  {player.bowling_style || '—'}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'location' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'left' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
-                                    className="text-slate-400 mr-1 font-bold"
-                                  >
-                                    LOCATION ·{' '}
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 14}px`,
-                                    color: el.colour || '#FFFFFF',
-                                  }}
-                                  className="font-semibold"
-                                >
-                                  {player.location || 'Mumbai, Maharashtra'}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'current_bid' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'left' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 46) * 0.28))}px` }}
-                                    className="uppercase font-bold text-amber-400/90 block"
-                                  >
-                                    CURRENT BID
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 46}px`,
-                                    color: el.colour || '#FFD54A',
-                                  }}
-                                  className="font-black font-mono tracking-tight drop-shadow-lg"
-                                >
-                                  ₹{currentBid.toLocaleString('en-IN')}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'bidder_name' && (
-                              <div
-                                className="w-full flex items-center gap-2"
-                                style={{
-                                  justifyContent:
-                                    el.align === 'center'
-                                      ? 'center'
-                                      : el.align === 'left'
-                                      ? 'flex-start'
-                                      : 'flex-end',
-                                  textAlign: el.align || 'right',
-                                }}
-                              >
-                                {highestBid?.team_logo && el.show_team_logo !== false && (
-                                  <img
-                                    src={resolveMediaUrl(highestBid.team_logo)}
-                                    alt={highestBid.team_name}
-                                    className="w-8 h-8 rounded-full object-contain border border-amber-400/50 shrink-0 shadow-xs"
-                                  />
-                                )}
-                                <div className="min-w-0">
-                                  {el.show_label && (
-                                    <span
-                                      style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px` }}
-                                      className="text-slate-400 block font-bold"
-                                    >
-                                      {el.custom_label || 'BIDDER TEAM'}
-                                    </span>
-                                  )}
-                                  <span
-                                    style={{
-                                      fontSize: `${el.font_size || 22}px`,
-                                      color: el.colour || '#FFFFFF',
-                                      fontFamily: el.font_family || 'inherit',
-                                      fontWeight: el.bold === false ? 500 : 900,
-                                      fontStyle: el.italic ? 'italic' : 'normal',
-                                      textDecoration: el.underline ? 'underline' : 'none',
-                                      whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
-                                    }}
-                                    className="font-black uppercase tracking-wide whitespace-nowrap block"
-                                  >
-                                    {highestBid ? highestBid.team_name : 'Awaiting first bid'}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-
-                            {key === 'base_price' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'left' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 20) * 0.55))}px` }}
-                                    className="text-slate-400 mr-1.5 uppercase font-bold"
-                                  >
-                                    BASE PRICE
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 20}px`,
-                                    color: el.colour || '#FFFFFF',
-                                  }}
-                                  className="font-extrabold font-mono"
-                                >
-                                  ₹{Number(player.base_price || 0).toLocaleString('en-IN')}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'balance' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'right' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
-                                    className="text-slate-400 mr-1 font-bold"
-                                  >
-                                    Bal.{' '}
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 14}px`,
-                                    color: el.colour || '#B9C7D7',
-                                  }}
-                                  className="font-mono font-bold"
-                                >
-                                  {leadingTeam ? `₹${Number(leadingTeam.balance || 0).toLocaleString('en-IN')}` : '—'}
-                                </span>
-                              </div>
-                            )}
-
-                            {key === 'max_bid' && (
-                              <div className="w-full" style={{ textAlign: el.align || 'right' }}>
-                                {el.show_label && (
-                                  <span
-                                    style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 14) * 0.7))}px` }}
-                                    className="text-amber-300 mr-1 font-bold"
-                                  >
-                                    Max Bid{' '}
-                                  </span>
-                                )}
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 14}px`,
-                                    color: el.colour || '#FFD54A',
-                                  }}
-                                  className="font-mono font-bold"
-                                >
-                                  {leadingTeam ? `₹${Number(leadingTeam.max_bid || 0).toLocaleString('en-IN')}` : '—'}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Top Arena Status Bar Element (Live Synchronized) */}
-                            {key === 'top_bar' && (
-                              <div className="w-full h-full flex items-center justify-between px-3 py-1.5 rounded-xl border border-blue-900/60 bg-[#031124]/90 backdrop-blur-xs select-none shadow-md overflow-hidden">
-                                <div className="flex items-center gap-2 truncate">
-                                  <span
-                                    style={{
-                                      fontSize: `${el.font_size || 13}px`,
-                                      color: el.colour || '#FFD54A',
-                                    }}
-                                    className="font-black uppercase tracking-wider truncate"
-                                  >
-                                    CATEGORY: {player.category || selectedCategory || 'GENERAL'}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  {Boolean(state?.config?.online_timer_enabled) && (
-                                    <div
-                                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-mono font-bold ${
-                                        timerSeconds <= 5
-                                          ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
-                                          : 'bg-slate-900 border-slate-700 text-slate-200'
-                                      }`}
-                                    >
-                                      <Clock className="w-3 h-3 text-amber-400" />
-                                      <span>{timerSeconds}s</span>
-                                      <button
-                                        onClick={() => setTimerActive(!timerActive)}
-                                        className="hover:text-white p-0.5 cursor-pointer"
-                                      >
-                                        {timerActive ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
-                                      </button>
-                                      <button
-                                        onClick={() => setTimerSeconds(30)}
-                                        className="hover:text-white p-0.5 ml-0.5 cursor-pointer"
-                                        title="Reset 30s"
-                                      >
-                                        <RotateCcw className="w-2 h-2" />
-                                      </button>
-                                    </div>
-                                  )}
-                                  {!isFullScreen && (
-                                    <button
-                                      onClick={toggleBrowserFullscreen}
-                                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition cursor-pointer"
-                                    >
-                                      <Maximize2 className="w-3 h-3 text-sky-400" />
-                                      <span>Full Screen</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Bid History Stream Panel Element (Live Real-Time Stream) */}
-                            {key === 'bid_history' && (
-                              <div
-                                className={`w-full h-full flex flex-col justify-between rounded-2xl p-3 shadow-2xl select-none overflow-hidden ${
-                                  el.panel_theme === 'glass'
-                                    ? 'bg-slate-900/60 backdrop-blur-md border border-white/20'
-                                    : el.panel_theme === 'solid'
-                                    ? 'bg-black/95 border border-amber-500/30'
-                                    : 'bg-[#030f1e]/95 border border-blue-900/60 backdrop-blur-xs'
-                                }`}
-                                style={{ borderRadius: `${el.border_radius ?? 16}px` }}
-                              >
-                                <div className="space-y-2 overflow-hidden flex-1 flex flex-col">
-                                  <div className="flex items-center justify-between border-b border-white/10 pb-1.5 shrink-0">
-                                    <span
-                                      style={{
-                                        fontSize: `${el.font_size || 12}px`,
-                                        color: el.colour || '#E2E8F0',
-                                      }}
-                                      className="font-black uppercase tracking-wider"
-                                    >
-                                      {el.title || el.label || 'BID HISTORY'}
-                                    </span>
-                                    <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> LIVE
-                                    </span>
-                                  </div>
-                                  <span className="font-extrabold text-white text-xs block truncate shrink-0">
-                                    {player?.player_name || 'Waiting for player...'}
-                                  </span>
-                                  <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5">
-                                    {state?.bid_history && state.bid_history.length > 0 ? (
-                                      state.bid_history.slice(0, el.max_bids || 20).map((bid, idx) => (
-                                        <div
-                                          key={bid.id || idx}
-                                          className={`flex items-center justify-between rounded-xl p-2 text-xs transition-all ${
-                                            idx === 0
-                                              ? 'border border-amber-500/50 bg-amber-500/15 text-white font-bold shadow-xs'
-                                              : 'bg-white/5 text-slate-300'
-                                          }`}
-                                        >
-                                          <div className="flex items-center gap-1.5 truncate max-w-[140px]">
-                                            {el.show_short_name !== false && (
-                                              <span className="font-mono text-[10px] text-slate-400 font-bold shrink-0">
-                                                #{state.bid_history.length - idx}
-                                              </span>
-                                            )}
-                                            {el.show_team_name !== false && (
-                                              <span className="font-bold text-white truncate">
-                                                {getBidDisplayShort(bid)}
-                                              </span>
-                                            )}
-                                          </div>
-                                          {el.show_bid_amount !== false && (
-                                            <span className="font-mono font-black text-amber-400 shrink-0 ml-1">
-                                              ₹{Number(bid.amount || 0).toLocaleString('en-IN')}
-                                            </span>
-                                          )}
-                                        </div>
-                                      ))
-                                    ) : (
-                                      <div className="h-full flex items-center justify-center text-center p-2">
-                                        <span className="text-[11px] text-slate-500">No bids yet</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="pt-1.5 border-t border-white/10 text-[9px] text-slate-400 text-center tracking-wider uppercase font-semibold shrink-0">
-                                  Arena Live History
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Bottom Action & Player Bar Element (Live Functional Controls) */}
-                            {key === 'action_bar' && (
-                              <div className="w-full h-full flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-[#031326]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-hidden shadow-lg">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">
-                                    Action:
-                                  </span>
-                                  {actionButtons
-                                    .filter((btn: ActionButtonConfig) => btn.visible !== false)
-                                    .map((btn: ActionButtonConfig) => {
-                                      switch (btn.id) {
-                                        case 'sold':
-                                          return (
-                                            <button
-                                              key={btn.id}
-                                              onClick={handleHammerSold}
-                                              disabled={actionLoading || !player || !highestBid}
-                                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                            >
-                                              <Gavel className="w-3 h-3" />
-                                              <span>{btn.label}</span>
-                                            </button>
-                                          )
-                                        case 'unsold':
-                                          return (
-                                            <button
-                                              key={btn.id}
-                                              onClick={handleHammerUnsold}
-                                              disabled={actionLoading || !player}
-                                              className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                            >
-                                              <XCircle className="w-3 h-3" />
-                                              <span>{btn.label}</span>
-                                            </button>
-                                          )
-                                        case 'custom_bid':
-                                          return (
-                                            <button
-                                              key={btn.id}
-                                              onClick={openCustomBidModal}
-                                              disabled={actionLoading || !player}
-                                              className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 font-black text-zinc-950 text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                            >
-                                              <Flame className="w-3 h-3 text-zinc-950" />
-                                              <span>{btn.label}</span>
-                                            </button>
-                                          )
-                                        case 'undo_sale':
-                                          return (
-                                            <button
-                                              key={btn.id}
-                                              onClick={handleUndoSale}
-                                              disabled={actionLoading}
-                                              className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                            >
-                                              <RotateCcw className="w-2.5 h-2.5" />
-                                              <span>{btn.label}</span>
-                                            </button>
-                                          )
-                                        case 'undo_bid':
-                                          return (
-                                            <button
-                                              key={btn.id}
-                                              onClick={undoBid}
-                                              disabled={actionLoading || !highestBid}
-                                              className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                            >
-                                              <span>{btn.label}</span>
-                                            </button>
-                                          )
-                                        case 'reset_bid':
-                                          return (
-                                            <button
-                                              key={btn.id}
-                                              onClick={resetBid}
-                                              disabled={actionLoading || !highestBid}
-                                              className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                            >
-                                              <span>{btn.label}</span>
-                                            </button>
-                                          )
-                                        case 'next_player':
-                                          return (
-                                            <button
-                                              key={btn.id}
-                                              onClick={handleBringNextQueuedPlayer}
-                                              disabled={actionLoading}
-                                              className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[10px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                              title="Bring Next Queued Player"
-                                            >
-                                              <ChevronRight className="w-3 h-3" />
-                                              <span>{btn.label || 'Next Player'}</span>
-                                            </button>
-                                          )
-                                        default:
-                                          return null
-                                      }
-                                    })}
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-slate-400 font-mono text-[11px]">PLAYER NO:</span>
-                                  <input
-                                    type="number"
-                                    value={jumpPlayerNo}
-                                    onChange={(e) => setJumpPlayerNo(e.target.value)}
-                                    placeholder="1"
-                                    className="w-12 px-2 py-0.5 rounded-md bg-slate-900 border border-slate-700 text-slate-200 font-bold text-xs text-center"
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        handleJumpPlayer()
-                                      }
-                                    }}
-                                  />
-                                  <button
-                                    onClick={handleJumpPlayer}
-                                    className="px-2.5 py-0.5 rounded-md bg-amber-500 hover:bg-amber-400 font-black text-zinc-950 text-xs shadow-xs cursor-pointer transition"
-                                  >
-                                    SHOW
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Franchise Bidding Stations Element (Option 4 Geometry) */}
-                            {key === 'franchise_stations' && (
-                              <div
-                                className="w-full h-full p-1.5 rounded-xl border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-lg relative"
-                                style={{
-                                  borderRadius: `${el.border_radius ?? 12}px`,
-                                  backgroundColor: userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : 'rgba(3, 15, 30, 0.92)',
-                                }}
-                              >
-                                {(!state?.teams || state.teams.length === 0) ? (
-                                  <div className="flex flex-col items-center justify-center p-3 text-center text-slate-400">
-                                    <Shield className="w-5 h-5 text-amber-500/70 mb-1" />
-                                    <span className="text-[10px] font-bold text-slate-300">No Franchise Teams Registered</span>
-                                  </div>
-                                ) : (
-                                  <div
-                                    className="w-full h-full grid overflow-visible"
-                                    style={{
-                                      gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
-                                      gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
-                                      columnGap: `${el.gap_x || 6}px`,
-                                      rowGap: `${el.gap_y || 6}px`,
-                                    }}
-                                  >
-                                    {state.teams.slice(0, Math.min(state.teams.length, (el.grid_cols || 7) * (el.grid_rows || 2))).map((team, idx) => {
-                                      const isLeading = highestBid?.team_id === team.team_id
-                                      const playerCat = player?.category || selectedCategory
-                                      const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
-                                      const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
-                                      const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
-                                      const isSolid = (el.box_style || 'solid') === 'solid'
-                                      const shortcut = getTeamShortcut(team.team_name, team.short_name)
-                                      const theme = getTeamTheme(idx, state.teams.length)
-                                      const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
-                                      const assignedShortcut = ((team as any).shortcut_key || (team as any).custom_data?.shortcut_key || '').toUpperCase()
-
-                                      // Account-level UI styling
-                                      const dynamicTeamBg = (team as any).card_bg || (team as any).logo_bg || (team as any).background_color || (team as any).custom_data?.card_bg || (team as any).custom_data?.logo_bg
-                                      const isLightBg = dynamicTeamBg && (dynamicTeamBg.toLowerCase() === '#ffffff' || dynamicTeamBg.toLowerCase() === 'white' || dynamicTeamBg.startsWith('rgb(255'))
-                                      const effectiveCardBg = dynamicTeamBg
-                                        ? dynamicTeamBg
-                                        : userPrefs.cardBg === 'oled'
-                                        ? '#000000'
-                                        : userPrefs.cardBg === 'navy'
-                                        ? '#020617'
-                                        : userPrefs.cardBg === 'carbon'
-                                        ? '#18181b'
-                                        : isSolid ? (isLeading ? 'rgba(245, 158, 11, 0.4)' : `${teamColor}25`) : 'transparent'
-                                      const effectiveFontSize = userPrefs.fontSize || el.font_size || 13
-                                      const effectiveColor = isLightBg ? '#020617' : (isLeading ? '#FDE047' : userPrefs.useCustomColor && userPrefs.fontColor ? userPrefs.fontColor : (el.colour || teamColor))
-                                      const effectiveGlow = isLeading
-                                        ? '0 0 14px rgba(245, 158, 11, 0.5)'
-                                        : userPrefs.borderGlow
-                                        ? `0 0 12px ${teamColor}40`
-                                        : isSolid ? `0 0 8px ${teamColor}20` : 'none'
-
-                                      return (
-                                        <button
-                                          key={team.team_id}
-                                          onClick={() => handleTeamSelectAndBid(team.team_id)}
-                                          disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull}
-                                          title={`Team #${idx + 1}: ${team.team_name}\nShort Name: ${shortcut}\nPurse Balance: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
-                                          className={`group relative flex flex-col justify-between p-1 rounded-md transition select-none min-w-0 ${
-                                            isLeading
-                                              ? 'ring-2 ring-amber-400'
-                                              : isQuotaFull || isBudgetExceeded
-                                              ? 'opacity-40 cursor-not-allowed'
-                                              : 'cursor-pointer hover:scale-105 active:scale-95'
-                                          }`}
-                                          style={{
-                                            backgroundColor: effectiveCardBg,
-                                            borderColor: isLeading ? '#F59E0B' : teamColor,
-                                            borderWidth: isSolid ? '1px' : '2px',
-                                            borderStyle: 'solid',
-                                            boxShadow: effectiveGlow,
-                                            writingMode: 'horizontal-tb',
-                                          }}
-                                        >
-                                          {/* Rich Hover Card: Team number, Full Name, Short Name, Purse Balance, Max Bid */}
-                                          <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col gap-0.5 p-2 rounded-xl bg-slate-950/95 border border-amber-500/60 shadow-2xl text-white z-50 pointer-events-none min-w-[155px] backdrop-blur-md text-left">
-                                            <div className="flex items-center justify-between border-b border-white/10 pb-0.5 text-[9px]">
-                                              <span className="font-extrabold text-amber-400">Team #{idx + 1}</span>
-                                              {assignedShortcut && <span className="font-mono text-slate-300 font-bold">[{assignedShortcut}]</span>}
-                                            </div>
-                                            <div className="font-bold text-[11px] text-white truncate">{team.team_name}</div>
-                                            <div className="flex items-center justify-between text-[10px] pt-0.5">
-                                              <span className="text-slate-400">Purse Balance:</span>
-                                              <span className="font-mono font-bold text-emerald-400">₹{Number(team.balance || 0).toLocaleString('en-IN')}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between text-[10px]">
-                                              <span className="text-slate-400">Max Bid:</span>
-                                              <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
-                                            </div>
-                                          </div>
-                                          <div
-                                            className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
-                                            style={{ writingMode: 'horizontal-tb' }}
-                                          >
-                                            <span
-                                              style={{ backgroundColor: teamColor }}
-                                              className="w-1.5 h-1.5 rounded-full shadow-xs"
-                                            />
-                                            {isLeading && (
-                                              <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
-                                                LEADING
-                                              </span>
-                                            )}
-                                          </div>
-                                          {/* Center: Number and Key Only (No Logo thumbnail as requested) */}
-                                          <div
-                                            className="w-full flex items-center justify-center font-black my-auto px-0.5"
-                                            style={{
-                                              fontSize: `${effectiveFontSize}px`,
-                                              color: isLightBg ? '#020617' : effectiveColor,
-                                              fontFamily: el.font_family || 'inherit',
-                                              fontWeight: el.bold !== false ? 900 : 700,
-                                              fontStyle: el.italic ? 'italic' : 'normal',
-                                              writingMode: 'horizontal-tb',
-                                              whiteSpace: 'nowrap',
-                                            }}
-                                          >
-                                            <span className="font-mono tracking-wider font-black">
-                                              {idx + 1} - {assignedShortcut || shortcut}
-                                            </span>
-                                          </div>
-                                          {el.show_balance === true && (
-                                            <div
-                                              className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
-                                              style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
-                                            >
-                                              ₹{Number(team.balance || 0).toLocaleString('en-IN')}
-                                            </div>
-                                          )}
-                                        </button>
-                                      )
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {/* Custom Photo Box Element */}
-                            {(el.type === 'photo' || key.startsWith('custom_photo')) && (
-                              <div
-                                className="w-full h-full relative rounded-xl overflow-hidden shadow-md flex items-center justify-center select-none"
-                                style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius ?? 12)}
-                              >
-                                {el.media_url ? (
-                                  <img
-                                    src={el.media_url}
-                                    alt={el.label || 'Custom Photo'}
-                                    style={{
-                                      ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius ?? 12),
-                                      objectFit: el.object_fit || 'contain',
-                                    }}
-                                    className="w-full h-full pointer-events-none"
-                                  />
-                                ) : null}
-                              </div>
-                            )}
-
-                            {/* Custom Video Box Element */}
-                            {(el.type === 'video' || key.startsWith('custom_video')) && (
-                              <div
-                                className="w-full h-full relative rounded-xl overflow-hidden shadow-md flex items-center justify-center bg-black select-none"
-                                style={{ borderRadius: `${el.border_radius ?? 12}px` }}
-                              >
-                                {el.video_url || el.media_url ? (
-                                  <video
-                                    src={el.video_url || el.media_url}
-                                    autoPlay
-                                    loop
-                                    muted
-                                    playsInline
-                                    style={{ objectFit: el.object_fit || 'cover' }}
-                                    className="w-full h-full"
-                                  />
-                                ) : null}
-                              </div>
-                            )}
-
-                            {/* Custom Text Box Element */}
-                            {(el.type === 'text' || key.startsWith('custom_text')) && (
-                              <div
-                                className="w-full h-full flex items-center overflow-hidden px-2 rounded-lg select-none"
-                                style={{
-                                  textAlign: el.align || 'center',
-                                  justifyContent:
-                                    el.align === 'left'
-                                      ? 'flex-start'
-                                      : el.align === 'right'
-                                      ? 'flex-end'
-                                      : 'center',
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: `${el.font_size || 18}px`,
-                                    color: el.colour || '#FFFFFF',
-                                    fontWeight: el.bold !== false ? 'bold' : 'normal',
-                                  }}
-                                  className="uppercase tracking-wider block drop-shadow whitespace-nowrap"
-                                >
-                                  {el.custom_text || el.label || ''}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : upcomingQueue.length > 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs animate-pulse">
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      <span>{customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}</span>
-                      <button
-                        onClick={handleBringNextQueuedPlayer}
-                        className="px-2.5 py-1 rounded bg-amber-400 text-zinc-950 font-black text-xs hover:bg-amber-300 transition cursor-pointer"
-                      >
-                        Bring Now →
-                      </button>
-                      {autoAdvanceCountdown !== null && (
-                        <button
-                          onClick={() => setAutoAdvanceCountdown(null)}
-                          className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-xs hover:bg-slate-700 cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                        UP NEXT IN QUEUE • LOT #{upcomingQueue[0].serial_no || upcomingQueue[0].player_number || 1}
-                      </span>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                        {upcomingQueue[0].category || 'General Pool'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-5 bg-black/40 border border-white/10 p-4 rounded-2xl max-w-md w-full">
-                      {upcomingQueue[0].photo ? (
-                        <img
-                          src={resolveMediaUrl(upcomingQueue[0].photo)}
-                          alt={upcomingQueue[0].name}
-                          className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-400/60 shadow-lg"
-                        />
-                      ) : (
-                        <div className="w-20 h-20 rounded-2xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-3xl shadow-lg">
-                          🏏
-                        </div>
-                      )}
-                      <div className="text-left space-y-1">
-                        <h3 className="text-xl font-black text-white">{upcomingQueue[0].name}</h3>
-                        <p className="text-xs text-slate-300 font-semibold">
-                          Role: <strong className="text-white">{upcomingQueue[0].role || 'Player'}</strong>
-                        </p>
-                        <p className="text-xs text-amber-400 font-mono font-bold">
-                          Base Price: ₹{Number(upcomingQueue[0].base_price || 0).toLocaleString('en-IN')}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Button
-                        onClick={handleBringNextQueuedPlayer}
-                        disabled={actionLoading}
-                        className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
-                      >
-                        <span>Bring Next Player to Floor</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowQueueDrawer(true)}
-                        className="border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl"
-                      >
-                        Queue ({upcomingQueue.length})
-                      </Button>
-                    </div>
-                  </div>
-                ) : autoAdvanceCountdown !== null || queueLoading || actionLoading ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-                    <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-xl animate-pulse">
-                      <Sparkles className="w-10 h-10 text-amber-400" />
-                    </div>
-                    <div className="space-y-1">
-                      <h2 className="text-2xl font-black text-white">
-                        {actionLoading ? 'Loading next player...' : customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
-                      </h2>
-                      <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
-                        Preparing next player for the auction floor...
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-center gap-3 pt-2">
-                      <Button
-                        onClick={handleBringNextQueuedPlayer}
-                        disabled={actionLoading}
-                        className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
-                      >
-                        <span>Bring Next Player Now →</span>
-                      </Button>
-                    </div>
-                  </div>
-                ) : totalRemainingInCategory > 0 || totalRemainingInAuction > 0 || upcomingQueue.length > 0 || ((state?.stats?.remaining_count ?? 0) > 0) ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-                    <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-xl">
-                      <Sparkles className="w-10 h-10 text-amber-400" />
-                    </div>
-                    <div className="space-y-1">
-                      <h2 className="text-2xl font-black text-white">
-                        Ready for Next Player
-                      </h2>
-                      <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
-                        {totalRemainingInCategory > 0
-                          ? `${totalRemainingInCategory} player${totalRemainingInCategory > 1 ? 's' : ''} available in "${categoryDisplayName}".`
-                          : `${totalRemainingInAuction || state?.stats?.remaining_count || upcomingQueue.length} player(s) available in tournament pool.`}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-center gap-3 pt-2">
-                      <Button
-                        onClick={handleBringNextQueuedPlayer}
-                        disabled={actionLoading}
-                        className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
-                      >
-                        <span>Bring Next Player to Floor →</span>
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto shadow-xl">
-                      <CheckCircle className="w-10 h-10 text-emerald-400" />
-                    </div>
-                    <div className="space-y-1">
-                      <h2 className="text-2xl font-black text-white">
-                        {customMessages.msg_category_complete}
-                      </h2>
-                      <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
-                        Category <span className="text-amber-400 uppercase font-bold">"{categoryDisplayName}"</span> lots have been completed.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                      {(() => {
-                        const currentIdx = categories.indexOf(selectedCategory)
-                        const nextCat = currentIdx >= 0 && currentIdx < categories.length - 1 ? categories[currentIdx + 1] : null
-                        if (nextCat) {
-                          return (
-                            <Button
-                              onClick={() => handleCategoryChange(nextCat)}
-                              disabled={actionLoading}
-                              className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
-                            >
-                              <span>Move on to {nextCat} →</span>
-                            </Button>
-                          )
-                        }
-                        return null
-                      })()}
-                      <Button
-                        onClick={() => startReauction()}
-                        disabled={actionLoading}
-                        variant="outline"
-                        className="border-purple-500/50 bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 text-xs font-bold rounded-xl"
-                      >
-                        <span>{customMessages.msg_unsold_pool}</span>
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right Column: Bid History Stream (Only show in windowed mode if not already placed inside stage canvas) */}
-              {!isFull && (pageDesign?.elements?.bid_history ?? DEFAULT_PAGE_DESIGN.elements.bid_history)?.selected !== true && (
-                <div className="w-80 flex flex-col rounded-2xl border border-blue-900/40 bg-[#030f1e] p-4 shrink-0 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2.5 mb-3">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-200">
-                    BID HISTORY
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                    UP NEXT IN QUEUE • LOT #{upcomingQueue[0].serial_no || upcomingQueue[0].player_number || 1}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-emerald-400 tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    LIVE
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    {upcomingQueue[0].category || 'General Pool'}
                   </span>
                 </div>
 
-                {/* Active Player Name header */}
-                <div className="mb-2">
-                  <span className="font-extrabold text-white text-xs truncate block">
-                    {player?.player_name || 'Waiting for player...'}
-                  </span>
-                </div>
-
-                {/* Feed Items */}
-                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                  {state?.bid_history && state.bid_history.length > 0 ? (
-                    state.bid_history.map((bid, idx) => (
-                      <div
-                        key={bid.id || idx}
-                        className={`flex items-center justify-between rounded-xl p-2.5 text-xs transition-all ${
-                          idx === 0
-                            ? 'border border-amber-500/50 bg-amber-500/15 text-white font-bold shadow-xs'
-                            : 'bg-white/5 text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[10px] text-slate-400 font-bold">
-                            #{state.bid_history.length - idx}
-                          </span>
-                          <span className="font-bold text-white">{getBidDisplayShort(bid)}</span>
-                        </div>
-                        <span className="font-mono font-black text-amber-400">
-                          ₹{Number(bid.amount || 0).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                    ))
+                <div className="flex items-center gap-5 bg-black/40 border border-white/10 p-4 rounded-2xl max-w-md w-full">
+                  {upcomingQueue[0].photo ? (
+                    <img
+                      src={resolveMediaUrl(upcomingQueue[0].photo)}
+                      alt={upcomingQueue[0].name}
+                      className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-400/60 shadow-lg"
+                    />
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-4">
-                      <p className="text-xs text-slate-400 font-semibold">No bids yet</p>
+                    <div className="w-20 h-20 rounded-2xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-3xl shadow-lg">
+                      🏏
                     </div>
                   )}
+                  <div className="text-left space-y-1">
+                    <h3 className="text-xl font-black text-white">{upcomingQueue[0].name}</h3>
+                    <p className="text-xs text-slate-300 font-semibold">
+                      Role: <strong className="text-white">{upcomingQueue[0].role || 'Player'}</strong>
+                    </p>
+                    <p className="text-xs text-amber-400 font-mono font-bold">
+                      Base Price: ₹{Number(upcomingQueue[0].base_price || 0).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={handleBringNextQueuedPlayer}
+                    disabled={actionLoading}
+                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>Bring Next Player to Floor</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowQueueDrawer(true)}
+                    className="border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl"
+                  >
+                    Queue ({upcomingQueue.length})
+                  </Button>
+                </div>
+              </div>
+            ) : autoAdvanceCountdown !== null || queueLoading || actionLoading ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-xl animate-pulse">
+                  <Sparkles className="w-10 h-10 text-amber-400" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-black text-white">
+                    {actionLoading ? 'Loading next player...' : customMessages.msg_post_sold} {autoAdvanceCountdown !== null ? `(${autoAdvanceCountdown}s)` : ''}
+                  </h2>
+                  <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
+                    Preparing next player for the auction floor...
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <Button
+                    onClick={handleBringNextQueuedPlayer}
+                    disabled={actionLoading}
+                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>Bring Next Player Now →</span>
+                  </Button>
+                </div>
+              </div>
+            ) : totalRemainingInCategory > 0 || totalRemainingInAuction > 0 || upcomingQueue.length > 0 || ((state?.stats?.remaining_count ?? 0) > 0) ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mx-auto shadow-xl">
+                  <Sparkles className="w-10 h-10 text-amber-400" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-black text-white">
+                    Ready for Next Player
+                  </h2>
+                  <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
+                    {totalRemainingInCategory > 0
+                      ? `${totalRemainingInCategory} player${totalRemainingInCategory > 1 ? 's' : ''} available in "${categoryDisplayName}".`
+                      : `${totalRemainingInAuction || state?.stats?.remaining_count || upcomingQueue.length} player(s) available in tournament pool.`}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <Button
+                    onClick={handleBringNextQueuedPlayer}
+                    disabled={actionLoading}
+                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>Bring Next Player to Floor →</span>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto shadow-xl">
+                  <CheckCircle className="w-10 h-10 text-emerald-400" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-black text-white">
+                    {customMessages.msg_category_complete}
+                  </h2>
+                  <p className="text-sm text-slate-300 font-semibold max-w-md mx-auto">
+                    Category <span className="text-amber-400 uppercase font-bold">"{categoryDisplayName}"</span> lots have been completed.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  {(() => {
+                    const currentIdx = categories.indexOf(selectedCategory)
+                    const nextCat = currentIdx >= 0 && currentIdx < categories.length - 1 ? categories[currentIdx + 1] : null
+                    if (nextCat) {
+                      return (
+                        <Button
+                          onClick={() => handleCategoryChange(nextCat)}
+                          disabled={actionLoading}
+                          className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+                        >
+                          <span>Move on to {nextCat} →</span>
+                        </Button>
+                      )
+                    }
+                    return null
+                  })()}
+                  <Button
+                    onClick={() => startReauction()}
+                    disabled={actionLoading}
+                    variant="outline"
+                    className="border-purple-500/50 bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 text-xs font-bold rounded-xl"
+                  >
+                    <span>{customMessages.msg_unsold_pool}</span>
+                  </Button>
                 </div>
               </div>
             )}
           </div>
 
-            {/* Bottom Stadium Bar: Franchise Stations & Action Buttons (Only show in windowed mode if not already on stage canvas) */}
-            {!isFull && (
-              ((pageDesign?.elements?.franchise_stations ?? DEFAULT_PAGE_DESIGN.elements.franchise_stations)?.selected === false) ||
-              ((pageDesign?.elements?.action_bar ?? DEFAULT_PAGE_DESIGN.elements.action_bar)?.selected === false)
-            ) && (
-              <div className="border-t border-blue-900/40 bg-[#030d1a] p-3 space-y-2 shrink-0">
-                {/* Franchise Bidding Stations Row (Only if hidden from stage canvas) */}
-                {(pageDesign?.elements?.franchise_stations ?? DEFAULT_PAGE_DESIGN.elements.franchise_stations)?.selected === false && (
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 px-1">
-                  TEAMS (TAP OR PRESS 1–{state?.teams?.length || 9} • 2s timeout / Enter):
+          {/* Right Column: Bid History Stream (Only show in windowed mode if not already placed inside stage canvas) */}
+          {!isFull && (pageDesign?.elements?.bid_history ?? DEFAULT_PAGE_DESIGN.elements.bid_history)?.selected !== true && (
+            <div className="w-80 flex flex-col rounded-2xl border border-blue-900/40 bg-[#030f1e] p-4 shrink-0 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2.5 mb-3">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-200">
+                  BID HISTORY
                 </span>
-                {state?.teams?.map((team, idx) => {
-                  const isLeading = highestBid?.team_id === team.team_id
-                  const playerCat = player?.category || selectedCategory
-                  const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
-                  const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
-                  const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
-                  const isSelected = selectedTeamId === team.team_id
-                  const theme = getTeamTheme(idx, state.teams.length)
-                  const shortcut = getTeamShortcut(team.team_name, team.short_name)
-                  const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
-                  const isNumBuffered = Boolean(numKeyBuffer && parseInt(numKeyBuffer, 10) === theme.sequenceNo)
-                  const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-emerald-400 tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  LIVE
+                </span>
+              </div>
 
-                  return (
-                    <button
-                      key={team.team_id}
-                      onClick={() => handleTeamSelectAndBid(team.team_id)}
-                      disabled={isTeamDisabled}
-                      style={{
-                        background: isLeading
-                          ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(30, 20, 5, 0.95) 100%)'
-                          : isNumBuffered
-                          ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.4) 100%)'
-                          : isQuotaFull || isBudgetExceeded
-                          ? 'rgba(15, 23, 42, 0.85)'
-                          : 'rgba(2, 19, 46, 0.95)',
-                        borderColor: isLeading
-                          ? '#F59E0B'
-                          : isNumBuffered
-                          ? '#FBBF24'
-                          : isQuotaFull
-                          ? '#EF4444'
-                          : isBudgetExceeded
-                          ? '#F59E0B'
-                          : isSelected
-                          ? theme.accentHover
-                          : (teamColor || theme.border),
-                        boxShadow: isLeading
-                          ? '0 0 16px rgba(245, 158, 11, 0.5)'
-                          : isNumBuffered
-                          ? '0 0 20px rgba(251, 191, 36, 0.6)'
-                          : isSelected
-                          ? `0 0 14px ${theme.glow}`
-                          : `0 0 8px ${theme.glow}`,
-                        writingMode: 'horizontal-tb',
-                      }}
-                      className={`group relative flex flex-col items-center justify-between rounded-xl border-2 px-3 py-1.5 transition-all select-none shrink-0 min-w-[76px] min-h-[60px] ${
-                        isLeading
-                          ? 'ring-2 ring-amber-400'
-                          : isNumBuffered
-                          ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
-                          : isQuotaFull
-                          ? 'opacity-40 cursor-not-allowed border-rose-800'
-                          : isBudgetExceeded
-                          ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
-                          : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
-                      }`}
-                      title={`Team #${theme.sequenceNo} (${team.team_name || team.short_name})${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
+              {/* Active Player Name header */}
+              <div className="mb-2">
+                <span className="font-extrabold text-white text-xs truncate block">
+                  {player?.player_name || 'Waiting for player...'}
+                </span>
+              </div>
+
+              {/* Feed Items */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                {state?.bid_history && state.bid_history.length > 0 ? (
+                  state.bid_history.map((bid, idx) => (
+                    <div
+                      key={bid.id || idx}
+                      className={`flex items-center justify-between rounded-xl p-2.5 text-xs transition-all ${idx === 0
+                          ? 'border border-amber-500/50 bg-amber-500/15 text-white font-bold shadow-xs'
+                          : 'bg-white/5 text-slate-300'
+                        }`}
                     >
-                      {/* Top Row: Sequence Badge & Leading Indicator */}
-                      <div className="flex items-center justify-between w-full mb-0.5 gap-2" style={{ writingMode: 'horizontal-tb' }}>
-                        <span
-                          style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
-                          className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs shrink-0"
-                        >
-                          #{theme.sequenceNo}
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[10px] text-slate-400 font-bold">
+                          #{state.bid_history.length - idx}
                         </span>
-                        {isLeading && (
-                          <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
-                            LEADING
-                          </span>
-                        )}
+                        <span className="font-bold text-white">{getBidDisplayShort(bid)}</span>
                       </div>
-
-                      {/* Centered Shortcut Text (Strictly Horizontal) */}
-                      <span
-                        style={{
-                          color: isLeading ? '#FDE047' : theme.pillText,
-                          writingMode: 'horizontal-tb',
-                          whiteSpace: 'nowrap',
-                          textOrientation: 'mixed',
-                        }}
-                        className="text-base font-black font-mono tracking-wider drop-shadow-md my-auto py-0.5"
-                      >
-                        {shortcut}
+                      <span className="font-mono font-black text-amber-400">
+                        ₹{Number(bid.amount || 0).toLocaleString('en-IN')}
                       </span>
-                    </button>
-                  )
-                })}
+                    </div>
+                  ))
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-4">
+                    <p className="text-xs text-slate-400 font-semibold">No bids yet</p>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Stadium Bar: Franchise Stations & Action Buttons (Only show in windowed mode if not already on stage canvas) */}
+        {!isFull && (
+          ((pageDesign?.elements?.franchise_stations ?? DEFAULT_PAGE_DESIGN.elements.franchise_stations)?.selected === false) ||
+          ((pageDesign?.elements?.action_bar ?? DEFAULT_PAGE_DESIGN.elements.action_bar)?.selected === false)
+        ) && (
+            <div className="border-t border-blue-900/40 bg-[#030d1a] p-3 space-y-2 shrink-0">
+              {/* Franchise Bidding Stations Row (Only if hidden from stage canvas) */}
+              {(pageDesign?.elements?.franchise_stations ?? DEFAULT_PAGE_DESIGN.elements.franchise_stations)?.selected === false && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 px-1">
+                    TEAMS (TAP OR PRESS 1–{state?.teams?.length || 9} • 2s timeout / Enter):
+                  </span>
+                  {state?.teams?.map((team, idx) => {
+                    const isLeading = highestBid?.team_id === team.team_id
+                    const playerCat = player?.category || selectedCategory
+                    const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
+                    const isQuotaFull = (catTarget > 0 && (team.category_counts?.[playerCat] || 0) >= catTarget) || team.pending === 0
+                    const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
+                    const isSelected = selectedTeamId === team.team_id
+                    const theme = getTeamTheme(idx, state.teams.length)
+                    const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                    const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
+                    const isNumBuffered = Boolean(numKeyBuffer && parseInt(numKeyBuffer, 10) === theme.sequenceNo)
+                    const isTeamDisabled = actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull
+
+                    return (
+                      <button
+                        key={team.team_id}
+                        onClick={() => handleTeamSelectAndBid(team.team_id)}
+                        disabled={isTeamDisabled}
+                        style={{
+                          background: isLeading
+                            ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(30, 20, 5, 0.95) 100%)'
+                            : isNumBuffered
+                              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.4) 100%)'
+                              : isQuotaFull || isBudgetExceeded
+                                ? 'rgba(15, 23, 42, 0.85)'
+                                : 'rgba(2, 19, 46, 0.95)',
+                          borderColor: isLeading
+                            ? '#F59E0B'
+                            : isNumBuffered
+                              ? '#FBBF24'
+                              : isQuotaFull
+                                ? '#EF4444'
+                                : isBudgetExceeded
+                                  ? '#F59E0B'
+                                  : isSelected
+                                    ? theme.accentHover
+                                    : (teamColor || theme.border),
+                          boxShadow: isLeading
+                            ? '0 0 16px rgba(245, 158, 11, 0.5)'
+                            : isNumBuffered
+                              ? '0 0 20px rgba(251, 191, 36, 0.6)'
+                              : isSelected
+                                ? `0 0 14px ${theme.glow}`
+                                : `0 0 8px ${theme.glow}`,
+                          writingMode: 'horizontal-tb',
+                        }}
+                        className={`group relative flex flex-col items-center justify-between rounded-xl border-2 px-3 py-1.5 transition-all select-none shrink-0 min-w-[76px] min-h-[60px] ${isLeading
+                            ? 'ring-2 ring-amber-400'
+                            : isNumBuffered
+                              ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
+                              : isQuotaFull
+                                ? 'opacity-40 cursor-not-allowed border-rose-800'
+                                : isBudgetExceeded
+                                  ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
+                                  : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
+                          }`}
+                        title={`Team #${theme.sequenceNo} (${team.team_name || team.short_name})${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
+                      >
+                        {/* Top Row: Sequence Badge & Leading Indicator */}
+                        <div className="flex items-center justify-between w-full mb-0.5 gap-2" style={{ writingMode: 'horizontal-tb' }}>
+                          <span
+                            style={{ backgroundColor: theme.badgeBg, color: theme.badgeText }}
+                            className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black shadow-xs shrink-0"
+                          >
+                            #{theme.sequenceNo}
+                          </span>
+                          {isLeading && (
+                            <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
+                              LEADING
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Centered Shortcut Text (Strictly Horizontal) */}
+                        <span
+                          style={{
+                            color: isLeading ? '#FDE047' : theme.pillText,
+                            writingMode: 'horizontal-tb',
+                            whiteSpace: 'nowrap',
+                            textOrientation: 'mixed',
+                          }}
+                          className="text-base font-black font-mono tracking-wider drop-shadow-md my-auto py-0.5"
+                        >
+                          {shortcut}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* Actions Row (SOLD, UNSOLD, CUSTOM BID, PLAYER NO. + SHOW) */}
               {(pageDesign?.elements?.action_bar ?? DEFAULT_PAGE_DESIGN.elements.action_bar)?.selected === false && (
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-white/5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {actionButtons
-                    .filter((btn) => btn.visible !== false)
-                    .map((btn) => {
-                      switch (btn.id) {
-                        case 'sold':
-                          return (
-                            <button
-                              key={btn.id}
-                              onClick={handleHammerSold}
-                              disabled={actionLoading || !player || !highestBid}
-                              className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <span>{btn.label}</span>
-                              <span>✓</span>
-                            </button>
-                          )
-                        case 'unsold':
-                          return (
-                            <button
-                              key={btn.id}
-                              onClick={handleHammerUnsold}
-                              disabled={actionLoading || !player}
-                              className="bg-rose-500 hover:bg-rose-400 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <span>{btn.label}</span>
-                            </button>
-                          )
-                        case 'custom_bid':
-                          return (
-                            <button
-                              key={btn.id}
-                              onClick={openCustomBidModal}
-                              disabled={actionLoading || !player}
-                              className="bg-slate-200 hover:bg-white text-zinc-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {btn.label}
-                            </button>
-                          )
-                        case 'undo_sale':
-                          return (
-                            <button
-                              key={btn.id}
-                              onClick={handleUndoSale}
-                              disabled={actionLoading}
-                              className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {btn.label}
-                            </button>
-                          )
-                        case 'undo_bid':
-                          return (
-                            <button
-                              key={btn.id}
-                              onClick={undoBid}
-                              disabled={actionLoading || !highestBid}
-                              className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {btn.label}
-                            </button>
-                          )
-                        case 'reset_bid':
-                          return (
-                            <button
-                              key={btn.id}
-                              onClick={resetBid}
-                              disabled={actionLoading || !highestBid}
-                              className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {btn.label}
-                            </button>
-                          )
-                        case 'next_player':
-                          return (
-                            <button
-                              key={btn.id}
-                              onClick={handleBringNextQueuedPlayer}
-                              disabled={actionLoading}
-                              className="bg-sky-600 hover:bg-sky-500 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Bring Next Queued Player"
-                            >
-                              <ChevronRight className="w-3.5 h-3.5" />
-                              <span>{btn.label || 'Next Player'}</span>
-                            </button>
-                          )
-                        default:
-                          return null
-                      }
-                    })}
-                </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {actionButtons
+                      .filter((btn) => btn.visible !== false)
+                      .map((btn) => {
+                        switch (btn.id) {
+                          case 'sold':
+                            return (
+                              <button
+                                key={btn.id}
+                                onClick={handleHammerSold}
+                                disabled={actionLoading || !player || !highestBid}
+                                className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <span>{btn.label}</span>
+                                <span>✓</span>
+                              </button>
+                            )
+                          case 'unsold':
+                            return (
+                              <button
+                                key={btn.id}
+                                onClick={handleHammerUnsold}
+                                disabled={actionLoading || !player}
+                                className="bg-rose-500 hover:bg-rose-400 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <span>{btn.label}</span>
+                              </button>
+                            )
+                          case 'custom_bid':
+                            return (
+                              <button
+                                key={btn.id}
+                                onClick={openCustomBidModal}
+                                disabled={actionLoading || !player}
+                                className="bg-slate-200 hover:bg-white text-zinc-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {btn.label}
+                              </button>
+                            )
+                          case 'undo_sale':
+                            return (
+                              <button
+                                key={btn.id}
+                                onClick={handleUndoSale}
+                                disabled={actionLoading}
+                                className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {btn.label}
+                              </button>
+                            )
+                          case 'undo_bid':
+                            return (
+                              <button
+                                key={btn.id}
+                                onClick={undoBid}
+                                disabled={actionLoading || !highestBid}
+                                className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {btn.label}
+                              </button>
+                            )
+                          case 'reset_bid':
+                            return (
+                              <button
+                                key={btn.id}
+                                onClick={resetBid}
+                                disabled={actionLoading || !highestBid}
+                                className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {btn.label}
+                              </button>
+                            )
+                          case 'next_player':
+                            return (
+                              <button
+                                key={btn.id}
+                                onClick={handleBringNextQueuedPlayer}
+                                disabled={actionLoading}
+                                className="bg-sky-600 hover:bg-sky-500 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Bring Next Queued Player"
+                              >
+                                <ChevronRight className="w-3.5 h-3.5" />
+                                <span>{btn.label || 'Next Player'}</span>
+                              </button>
+                            )
+                          default:
+                            return null
+                        }
+                      })}
+                  </div>
 
-                {/* Right Side: Player Jump Input + SHOW Button */}
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400">PLAYER NO.</span>
-                  <input
-                    type="number"
-                    placeholder="e.g. 14"
-                    value={jumpPlayerNo}
-                    onChange={(e) => setJumpPlayerNo(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleJumpPlayer()
-                    }}
-                    className="w-24 bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-xs font-bold text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                  <button
-                    onClick={handleJumpPlayer}
-                    disabled={actionLoading || !jumpPlayerNo}
-                    className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-4 py-2 rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer"
-                  >
-                    SHOW
-                  </button>
+                  {/* Right Side: Player Jump Input + SHOW Button */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase text-slate-400">PLAYER NO.</span>
+                    <input
+                      type="number"
+                      placeholder="e.g. 14"
+                      value={jumpPlayerNo}
+                      onChange={(e) => setJumpPlayerNo(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleJumpPlayer()
+                      }}
+                      className="w-24 bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-xs font-bold text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                    <button
+                      onClick={handleJumpPlayer}
+                      disabled={actionLoading || !jumpPlayerNo}
+                      className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-4 py-2 rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer"
+                    >
+                      SHOW
+                    </button>
+                  </div>
                 </div>
-              </div>
               )}
             </div>
           )}
-        </div>
-      )
+      </div>
+    )
   }
 
   return (
@@ -2408,11 +2400,11 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
       style={
         resolvedBgUrl
           ? {
-              backgroundImage: `linear-gradient(rgba(3, 10, 24, 0.75), rgba(3, 10, 24, 0.88)), url(${resolvedBgUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundAttachment: 'fixed',
-            }
+            backgroundImage: `linear-gradient(rgba(3, 10, 24, 0.75), rgba(3, 10, 24, 0.88)), url(${resolvedBgUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundAttachment: 'fixed',
+          }
           : undefined
       }
     >
@@ -2439,13 +2431,12 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, {
                   allow_multiple_bids: nextVal,
                 })
-              } catch (_) {}
+              } catch (_) { }
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${
-              allowMultipleBids
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${allowMultipleBids
                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
                 : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
-            }`}
+              }`}
             title="Enable to permit a team to place consecutive bids (re-bidding / raising own bid)"
           >
             <span className="text-[10px] text-slate-400 uppercase">Multiple Bid:</span>
@@ -2464,13 +2455,12 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 await apiClient.post(`/v1/auction/console/${auctionId}/setup_rules/`, {
                   auto_advance_queue: nextVal,
                 })
-              } catch (_) {}
+              } catch (_) { }
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${
-              autoAdvanceQueue
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${autoAdvanceQueue
                 ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
                 : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
-            }`}
+              }`}
             title="Automatically load the next player from the queue after SOLD or UNSOLD"
           >
             <span className="text-[10px] text-slate-400 uppercase">Auto Queue:</span>
@@ -2623,11 +2613,10 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className={`flex items-center justify-between rounded-xl border p-4 text-sm font-medium ${
-              feedbackMessage.type === 'success'
+            className={`flex items-center justify-between rounded-xl border p-4 text-sm font-medium ${feedbackMessage.type === 'success'
                 ? 'border-emerald-500/30 bg-emerald-950/40 text-emerald-300'
                 : 'border-red-500/30 bg-red-950/40 text-red-300'
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2">
               {feedbackMessage.type === 'success' ? (
