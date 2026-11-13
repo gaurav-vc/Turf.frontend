@@ -6,7 +6,7 @@ import {
   Sliders, AlignLeft, AlignCenter, AlignRight,
   Gavel, XCircle, Flame, ArrowUp, ArrowDown,
   Maximize2, Sparkles, Bookmark, BookmarkPlus, X, EyeOff, Clock,
-  Video, Type, Plus, Upload, History, Move, User, Palette, Columns3, Radio
+  Video, Type, Plus, Upload, History, Move, User, Palette, Columns3, Radio, MoreHorizontal, ChevronDown, ChevronRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,19 +20,21 @@ interface AuctionPageDesignerProps {
 }
 
 export interface ActionButtonConfig {
-  id: 'sold' | 'unsold' | 'custom_bid' | 'undo_sale' | 'undo_bid' | 'reset_bid' | 'next_player'
+  id: string
   label: string
   visible: boolean
+  group?: 'main' | 'other'
+  custom?: boolean
 }
 
 export const DEFAULT_ACTION_BUTTONS: ActionButtonConfig[] = [
-  { id: 'sold', label: 'SOLD (Hammer Down)', visible: true },
-  { id: 'unsold', label: 'UNSOLD', visible: true },
-  { id: 'next_player', label: 'Next Player', visible: true },
-  { id: 'custom_bid', label: 'Custom Bid', visible: true },
-  { id: 'undo_sale', label: 'Undo Sale', visible: true },
-  { id: 'undo_bid', label: 'Undo Bid', visible: true },
-  { id: 'reset_bid', label: 'Reset Bid', visible: true },
+  { id: 'sold', label: 'SOLD (Hammer Down)', visible: true, group: 'main' },
+  { id: 'unsold', label: 'UNSOLD', visible: true, group: 'main' },
+  { id: 'custom_bid', label: 'Custom Bid', visible: true, group: 'main' },
+  { id: 'next_player', label: 'Next Player', visible: true, group: 'main' },
+  { id: 'undo_sale', label: 'Undo Sale', visible: true, group: 'other' },
+  { id: 'undo_bid', label: 'Undo Bid', visible: true, group: 'other' },
+  { id: 'reset_bid', label: 'Reset Bid', visible: true, group: 'other' },
 ]
 
 export const PHOTO_SHAPES = [
@@ -105,6 +107,7 @@ export interface ElementConfig {
   media_url?: string
   video_url?: string
   custom_text?: string
+  content_override?: string
   shape?: string
   photo_shape?: string
   object_fit?: 'cover' | 'contain' | 'fill'
@@ -337,6 +340,17 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
     max_bid: 42000000,
     photo_url: '',
   })
+
+  // Action Bar & "Other" Actions State
+  const [showDesignerOtherActions, setShowDesignerOtherActions] = useState(false)
+  const [actionBarFilterGroup, setActionBarFilterGroup] = useState<'all' | 'main' | 'other'>('all')
+  const [newCustomActionLabel, setNewCustomActionLabel] = useState('')
+
+  useEffect(() => {
+    const handleOutside = () => setShowDesignerOtherActions(false)
+    window.addEventListener('click', handleOutside)
+    return () => window.removeEventListener('click', handleOutside)
+  }, [])
 
   // Dragging & Resizing State with initial values
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -859,7 +873,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
   }
 
   // Action Button Controls Helpers
-  const currentActionButtons = design.zones?.action_buttons || DEFAULT_ACTION_BUTTONS
+  const currentActionButtons: ActionButtonConfig[] = design.zones?.action_buttons || DEFAULT_ACTION_BUTTONS
+
+  const isBtnInOther = (btn: ActionButtonConfig) =>
+    btn.group === 'other' || (!btn.group && ['undo_sale', 'undo_bid', 'reset_bid'].includes(btn.id))
 
   const handleMoveActionButton = (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1
@@ -898,6 +915,75 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
       zones: {
         ...prev.zones,
         action_buttons: newButtons,
+      },
+    }))
+  }
+
+  const handleToggleActionButtonGroup = (id: string, explicitGroup?: 'main' | 'other') => {
+    const newButtons = currentActionButtons.map((btn) => {
+      if (btn.id === id) {
+        const curGroup = isBtnInOther(btn) ? 'other' : 'main'
+        const nextGroup = explicitGroup || (curGroup === 'main' ? 'other' : 'main')
+        return { ...btn, group: nextGroup }
+      }
+      return btn
+    })
+    setDesign((prev) => ({
+      ...prev,
+      zones: {
+        ...prev.zones,
+        action_buttons: newButtons,
+      },
+    }))
+  }
+
+  const handleAddCustomActionButton = (label: string, group: 'main' | 'other' = 'other') => {
+    if (!label.trim()) return
+    const newBtn: ActionButtonConfig = {
+      id: `custom_act_${Date.now()}`,
+      label: label.trim(),
+      visible: true,
+      group,
+      custom: true,
+    }
+    setDesign((prev) => ({
+      ...prev,
+      zones: {
+        ...prev.zones,
+        action_buttons: [...currentActionButtons, newBtn],
+      },
+    }))
+    setNewCustomActionLabel('')
+  }
+
+  const handleDeleteCustomActionButton = (id: string) => {
+    const newButtons = currentActionButtons.filter((btn) => btn.id !== id)
+    setDesign((prev) => ({
+      ...prev,
+      zones: {
+        ...prev.zones,
+        action_buttons: newButtons,
+      },
+    }))
+  }
+
+  const handleReorderActionButtonDrag = (sourceId: string, targetId: string) => {
+    if (!sourceId || sourceId === targetId) return
+    const srcIdx = currentActionButtons.findIndex((b) => b.id === sourceId)
+    const tgtIdx = currentActionButtons.findIndex((b) => b.id === targetId)
+    if (srcIdx < 0 || tgtIdx < 0) return
+    const updated = [...currentActionButtons]
+    const [moved] = updated.splice(srcIdx, 1)
+    const targetItem = updated[tgtIdx]
+    if (targetItem) {
+      moved.group = isBtnInOther(targetItem) ? 'other' : 'main'
+    }
+    updated.splice(tgtIdx, 0, moved)
+    setDesign((prev) => ({
+      ...prev,
+      zones: {
+        ...prev.zones,
+        action_buttons: updated,
       },
     }))
   }
@@ -1249,6 +1335,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               value={design.elements.franchise_stations?.grid_cols || design.zones?.team_columns || 7}
               onChange={(e) => {
                 const cols = Number(e.target.value)
+                const newRows = Math.max(1, Math.ceil((liveTeams.length || 14) / cols))
                 setDesign((prev) => ({
                   ...prev,
                   zones: { ...prev.zones, team_columns: cols },
@@ -1257,6 +1344,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     franchise_stations: {
                       ...(prev.elements.franchise_stations || DEFAULT_PAGE_DESIGN.elements.franchise_stations),
                       grid_cols: cols,
+                      grid_rows: newRows,
                       selected: true,
                     },
                   },
@@ -1324,13 +1412,12 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
       {/* Main Studio: Left Config Panels + Right Live Canvas Stage */}
       <div className={`grid grid-cols-1 gap-6 ${isFullScreenDesigner ? 'fixed inset-0 z-50 bg-[#020b18] overflow-y-auto p-4 lg:grid-cols-12' : 'lg:grid-cols-12'}`}>
         {/* ================= LEFT CONFIGURATION PANEL (4 COLS or COMPRESSED 1 COL) ================= */}
-        {isChecklistCompressed || isFullScreenDesigner ? (
+        {isChecklistCompressed ? (
           <div className="lg:col-span-1 flex flex-col items-center gap-3 bg-card border border-border p-2 rounded-2xl shadow-sm h-fit">
             <button
               type="button"
               onClick={() => {
                 setIsChecklistCompressed(false)
-                if (isFullScreenDesigner) setIsFullScreenDesigner(false)
               }}
               className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 flex items-center justify-center font-black text-xs cursor-pointer border border-amber-500/30 transition shadow-2xs"
               title="Expand Section Checklist Panel"
@@ -2308,89 +2395,199 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                   </div>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Rearrange button order (↑ / ↓), toggle visibility, and rename labels for the live auction console.
+                  Configure button names, drag-and-drop order (or ↑ / ↓), visibility, and whether buttons appear on the <strong>Main Bar</strong> or inside the <strong>"Other"</strong> menu.
                 </p>
 
-                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                  {currentActionButtons.map((btn, idx) => {
-                    const getBtnIcon = () => {
-                      switch (btn.id) {
-                        case 'sold':
-                          return <Gavel className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                        case 'unsold':
-                          return <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                        case 'custom_bid':
-                          return <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        case 'undo_sale':
-                          return <RotateCcw className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                        case 'undo_bid':
-                          return <RefreshCw className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        case 'reset_bid':
-                          return <RefreshCw className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        default:
-                          return null
+                {/* Filter Tabs between All, Main Bar and Inside Other */}
+                <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setActionBarFilterGroup('all')}
+                    className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${actionBarFilterGroup === 'all'
+                        ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                  >
+                    All ({currentActionButtons.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActionBarFilterGroup('main')}
+                    className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${actionBarFilterGroup === 'main'
+                        ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                  >
+                    🎯 Main Bar ({currentActionButtons.filter((b) => !isBtnInOther(b)).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActionBarFilterGroup('other')}
+                    className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${actionBarFilterGroup === 'other'
+                        ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                  >
+                    📦 Inside "Other" ({currentActionButtons.filter((b) => isBtnInOther(b)).length})
+                  </button>
+                </div>
+
+                {/* Action Buttons List with Drag & Drop, Rename, Move Main/Other */}
+                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                  {currentActionButtons
+                    .filter((btn) => {
+                      if (actionBarFilterGroup === 'main') return !isBtnInOther(btn)
+                      if (actionBarFilterGroup === 'other') return isBtnInOther(btn)
+                      return true
+                    })
+                    .map((btn) => {
+                      const idx = currentActionButtons.findIndex((b) => b.id === btn.id)
+                      const inOther = isBtnInOther(btn)
+                      const getBtnIcon = () => {
+                        switch (btn.id) {
+                          case 'sold':
+                            return <Gavel className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          case 'unsold':
+                            return <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                          case 'custom_bid':
+                            return <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          case 'undo_sale':
+                            return <RotateCcw className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                          case 'undo_bid':
+                            return <RefreshCw className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          case 'reset_bid':
+                            return <RefreshCw className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          case 'next_player':
+                            return <ChevronRight className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                          default:
+                            return <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        }
                       }
-                    }
 
-                    return (
-                      <div
-                        key={btn.id}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all ${btn.visible
-                            ? 'border-border bg-card shadow-2xs'
-                            : 'border-border/60 bg-muted/30 opacity-60'
-                          }`}
-                      >
-                        {/* Reorder Buttons Up/Down */}
-                        <div className="flex flex-col gap-0.5 shrink-0">
-                          <button
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => handleMoveActionButton(idx, 'up')}
-                            className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed text-foreground cursor-pointer"
-                            title="Move Up"
-                          >
-                            <ArrowUp className="w-3 h-3" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={idx === currentActionButtons.length - 1}
-                            onClick={() => handleMoveActionButton(idx, 'down')}
-                            className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed text-foreground cursor-pointer"
-                            title="Move Down"
-                          >
-                            <ArrowDown className="w-3 h-3" />
-                          </button>
-                        </div>
+                      return (
+                        <div
+                          key={btn.id}
+                          draggable={true}
+                          onDragStart={(e) => e.dataTransfer.setData('turf/action-id', btn.id)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            const srcId = e.dataTransfer.getData('turf/action-id')
+                            if (srcId) handleReorderActionButtonDrag(srcId, btn.id)
+                          }}
+                          className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${btn.visible
+                              ? inOther
+                                ? 'border-amber-500/40 bg-amber-500/5 shadow-2xs'
+                                : 'border-border bg-card shadow-2xs'
+                              : 'border-border/60 bg-muted/30 opacity-60'
+                            }`}
+                        >
+                          {/* Reorder Buttons Up/Down */}
+                          <div className="flex flex-col gap-0.5 shrink-0">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => handleMoveActionButton(idx, 'up')}
+                              className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed text-foreground cursor-pointer"
+                              title="Move Up"
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === currentActionButtons.length - 1}
+                              onClick={() => handleMoveActionButton(idx, 'down')}
+                              className="p-1 rounded hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed text-foreground cursor-pointer"
+                              title="Move Down"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </button>
+                          </div>
 
-                        {/* Visibility Checkbox */}
-                        <input
-                          type="checkbox"
-                          checked={btn.visible}
-                          onChange={() => handleToggleActionButtonVisibility(btn.id)}
-                          className="rounded border-border text-amber-500 focus:ring-amber-500 h-4 w-4 cursor-pointer shrink-0"
-                          title={btn.visible ? 'Visible' : 'Hidden'}
-                        />
-
-                        {/* Icon */}
-                        {getBtnIcon()}
-
-                        {/* Editable Label */}
-                        <div className="flex-1 min-w-0">
-                          <Input
-                            type="text"
-                            value={btn.label}
-                            onChange={(e) => handleUpdateActionButtonLabel(btn.id, e.target.value)}
-                            placeholder="Button label..."
-                            className="h-8 text-xs font-bold bg-background"
+                          {/* Visibility Checkbox */}
+                          <input
+                            type="checkbox"
+                            checked={btn.visible}
+                            onChange={() => handleToggleActionButtonVisibility(btn.id)}
+                            className="rounded border-border text-amber-500 focus:ring-amber-500 h-4 w-4 cursor-pointer shrink-0"
+                            title={btn.visible ? 'Visible' : 'Hidden'}
                           />
-                        </div>
 
-                        <span className="text-[10px] font-mono text-muted-foreground shrink-0 w-4 text-right">
-                          #{idx + 1}
-                        </span>
-                      </div>
-                    )
-                  })}
+                          {/* Icon */}
+                          {getBtnIcon()}
+
+                          {/* Editable Label */}
+                          <div className="flex-1 min-w-0">
+                            <Input
+                              type="text"
+                              value={btn.label}
+                              onChange={(e) => handleUpdateActionButtonLabel(btn.id, e.target.value)}
+                              placeholder="Button label..."
+                              className="h-8 text-xs font-bold bg-background"
+                            />
+                          </div>
+
+                          {/* Group Toggle: Main Bar vs Inside Other */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleActionButtonGroup(btn.id)}
+                            className={`text-[10px] px-2 py-1 rounded-lg font-bold border transition cursor-pointer shrink-0 ${inOther
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                                : 'bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30'
+                              }`}
+                            title={inOther ? 'Click to move to Main Bar' : 'Click to place inside "Other" dropdown'}
+                          >
+                            {inOther ? '📦 In Other' : '🎯 In Main'}
+                          </button>
+
+                          {/* Delete custom action button */}
+                          {btn.custom && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCustomActionButton(btn.id)}
+                              className="p-1 rounded text-red-400 hover:bg-red-500/10 cursor-pointer"
+                              title="Delete custom action"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                </div>
+
+                {/* Add Custom Action Button Row */}
+                <div className="pt-2 border-t border-border space-y-1.5">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                    Add Custom Action Feature
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      type="text"
+                      value={newCustomActionLabel}
+                      onChange={(e) => setNewCustomActionLabel(e.target.value)}
+                      placeholder="e.g. Quick +10k, Pass, Re-Auction..."
+                      className="h-8 text-xs bg-background"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddCustomActionButton(newCustomActionLabel, 'other')
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddCustomActionButton(newCustomActionLabel, 'main')}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shrink-0 cursor-pointer shadow-xs"
+                      title="Add directly into Main Bar"
+                    >
+                      + Main
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddCustomActionButton(newCustomActionLabel, 'other')}
+                      className="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 text-[11px] font-black shrink-0 cursor-pointer shadow-xs"
+                      title="Add inside 'Other' dropdown"
+                    >
+                      + "Other"
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2640,7 +2837,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
         )}
 
         {/* ================= RIGHT LIVE PREVIEW & DRAG-AND-DROP CANVAS ================= */}
-        <div className={`${isChecklistCompressed || isFullScreenDesigner ? 'lg:col-span-11' : 'lg:col-span-8'} space-y-3 transition-all duration-300`}>
+        <div className={`${isChecklistCompressed ? 'lg:col-span-11' : 'lg:col-span-8'} space-y-3 transition-all duration-300`}>
           {/* Canvas Sub-Header */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-card border border-border p-3 shadow-xs">
             <div className="flex flex-wrap items-center gap-3">
@@ -2901,11 +3098,15 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       height: `${el.h}%`,
                       color: el.colour || '#FFFFFF',
                     }}
-                    className={`absolute flex items-center justify-center cursor-move transition-shadow rounded-lg ${isSelected
+                    className={`absolute flex items-center justify-center cursor-move transition-shadow rounded-lg ${
+                      key === 'action_bar' ? 'overflow-visible' : 'overflow-hidden'
+                    } ${isSelected
                         ? isHidden
-                          ? 'border-2 border-dashed border-red-400/80 bg-red-500/10 shadow-lg ring-2 ring-red-400/30 z-30'
-                          : 'border-2 border-dashed border-amber-400 bg-amber-500/20 shadow-xl ring-2 ring-amber-400/50 z-30'
-                        : 'border border-transparent hover:border-amber-400/50 hover:bg-white/5 z-10'
+                          ? 'border-2 border-dashed border-red-400/80 bg-red-500/10 shadow-lg ring-2 ring-red-400/30 z-40'
+                          : 'border-2 border-dashed border-amber-400 bg-amber-500/20 shadow-xl ring-2 ring-amber-400/50 z-40'
+                        : key === 'action_bar'
+                          ? 'border border-transparent hover:border-amber-400/50 hover:bg-white/5 z-20'
+                          : 'border border-transparent hover:border-amber-400/50 hover:bg-white/5 z-10'
                       }`}
                   >
                     {isHidden && isSelected && (
@@ -2914,7 +3115,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       </span>
                     )}
                     {/* Element Renderers */}
-                    <div className="w-full h-full flex items-center overflow-hidden px-1">
+                    <div className={`w-full h-full flex items-center px-1 ${key === 'action_bar' ? 'overflow-visible' : 'overflow-hidden'}`}>
                       {key === 'tournament_title' && (
                         <div className="w-full h-full flex items-center justify-center gap-2 overflow-hidden px-1">
                           {branding.title_image_url ? (
@@ -3026,7 +3227,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 16) * 0.6))}px` }}
                               className="text-slate-400 font-bold mr-1"
                             >
-                              NO.{' '}
+                              {el.custom_label || 'PLAYER NO:'}{' '}
                             </span>
                           )}
                           <span
@@ -3036,7 +3237,9 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             }}
                             className="font-mono font-bold"
                           >
-                            PLAYER {samplePlayerData.player_number}
+                            {el.content_override
+                              ? el.content_override.replace('{no}', String(samplePlayerData.player_number).replace('#', ''))
+                              : `${el.show_label ? '' : 'PLAYER '}${samplePlayerData.player_number}`}
                           </span>
                         </div>
                       )}
@@ -3373,15 +3576,15 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       {/* Bottom Action & Player Bar Element (Configurable / Draggable / Resizable) */}
                       {key === 'action_bar' && (
                         <div
-                          className="w-full h-full flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-[#031326]/95 border border-blue-900/60 backdrop-blur-xs select-none overflow-hidden shadow-lg"
+                          className="w-full h-full flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-[#031326]/95 border border-blue-900/60 backdrop-blur-xs select-none shadow-lg relative"
                           style={{ borderRadius: `${el.border_radius ?? 12}px` }}
                         >
-                          <div className="flex flex-wrap items-center gap-1.5 overflow-hidden">
+                          <div className="flex flex-wrap items-center gap-1.5 overflow-visible relative">
                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0 mr-0.5">
                               Action:
                             </span>
                             {currentActionButtons
-                              .filter((btn) => btn.visible)
+                              .filter((btn) => btn.visible && !isBtnInOther(btn))
                               .map((btn) => {
                                 switch (btn.id) {
                                   case 'sold':
@@ -3414,6 +3617,16 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                         <span>{btn.label}</span>
                                       </span>
                                     )
+                                  case 'next_player':
+                                    return (
+                                      <span
+                                        key={btn.id}
+                                        className="bg-sky-600 font-extrabold text-white text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-xs shrink-0 cursor-default"
+                                      >
+                                        <ChevronRight className="w-3 h-3" />
+                                        <span>{btn.label}</span>
+                                      </span>
+                                    )
                                   case 'undo_sale':
                                     return (
                                       <span
@@ -3435,14 +3648,72 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       </span>
                                     )
                                   default:
-                                    return null
+                                    return (
+                                      <span
+                                        key={btn.id}
+                                        className="text-[10px] text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-1 rounded-lg font-semibold shrink-0 cursor-default"
+                                      >
+                                        <span>{btn.label}</span>
+                                      </span>
+                                    )
                                 }
                               })}
+
+                            {/* "Other" Dropdown Trigger on Canvas */}
+                            {currentActionButtons.filter((btn) => btn.visible && isBtnInOther(btn)).length > 0 && (
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setShowDesignerOtherActions((prev) => !prev)
+                                  }}
+                                  className="bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-xs transition cursor-pointer"
+                                  title="Click to preview features inside 'Other'"
+                                >
+                                  <MoreHorizontal className="w-3 h-3 text-amber-400" />
+                                  <span>Other ({currentActionButtons.filter((btn) => btn.visible && isBtnInOther(btn)).length})</span>
+                                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showDesignerOtherActions ? 'rotate-180' : ''}`} />
+                                </button>
+                                {showDesignerOtherActions && (
+                                  <div
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="absolute left-0 bottom-full mb-1.5 min-w-[200px] bg-slate-950/98 border border-amber-500/40 rounded-xl p-2.5 shadow-2xl z-50 backdrop-blur-md space-y-1.5"
+                                  >
+                                    <div className="text-[10px] font-black uppercase text-amber-400 pb-1 border-b border-white/10 flex items-center justify-between">
+                                      <span>Inside "Other" Actions</span>
+                                      <span className="text-[9px] text-slate-400">
+                                        {currentActionButtons.filter((btn) => btn.visible && isBtnInOther(btn)).length} items
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-0.5">
+                                      {currentActionButtons
+                                        .filter((btn) => btn.visible && isBtnInOther(btn))
+                                        .map((btn) => (
+                                          <div
+                                            key={btn.id}
+                                            className="flex items-center justify-between px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-200"
+                                          >
+                                            <span className="flex items-center gap-1.5">
+                                              {btn.id === 'undo_sale' && <RotateCcw className="w-2.5 h-2.5 text-blue-400" />}
+                                              {(btn.id === 'undo_bid' || btn.id === 'reset_bid') && <RefreshCw className="w-2.5 h-2.5 text-slate-400" />}
+                                              <span>{btn.label}</span>
+                                            </span>
+                                            <span className="text-[9px] text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded font-mono">
+                                              Inside Other
+                                            </span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             <span className="text-slate-400 font-mono text-[10px]">PLAYER NO:</span>
                             <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-700 text-slate-200 font-bold text-xs">
-                              1
+                              {samplePlayerData.player_number ? samplePlayerData.player_number.replace('#', '') : '1'}
                             </span>
                             <span className="px-2.5 py-0.5 rounded-md bg-amber-500 font-black text-zinc-950 text-xs shadow-xs cursor-default">
                               SHOW
@@ -3454,14 +3725,14 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       {/* Franchise Bidding Stations Element (Configurable / Option 4 Geometry) */}
                       {key === 'franchise_stations' && (
                         <div
-                          className="w-full h-full p-2 rounded-2xl bg-[#020617]/95 border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-2xl relative"
+                          className="w-full h-full p-2 rounded-2xl bg-[#020617]/95 border border-blue-900/60 backdrop-blur-xs select-none overflow-y-auto scrollbar-thin flex flex-col justify-center shadow-2xl relative"
                           style={{ borderRadius: `${el.border_radius ?? 14}px` }}
                         >
                           <div
                             className="w-full h-full grid overflow-visible"
                             style={{
                               gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
-                              gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
+                              gridTemplateRows: `repeat(${Math.max(1, Math.ceil((liveTeams.length || 1) / (el.grid_cols || 7)))}, minmax(0, 1fr))`,
                               columnGap: `${el.gap_x || 6}px`,
                               rowGap: `${el.gap_y || 6}px`,
                             }}
@@ -3473,7 +3744,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 <span className="text-[9px] text-slate-400">Add teams in Team Setup to render live stations</span>
                               </div>
                             ) : (
-                              liveTeams.slice(0, Math.min(liveTeams.length, (el.grid_cols || 7) * (el.grid_rows || 2))).map((t: any, idx: number) => {
+                              liveTeams.map((t: any, idx: number) => {
                                 const theme = getTeamTheme(idx, Math.max(1, liveTeams.length))
                                 const isSolid = (el.box_style || 'solid') === 'solid'
                                 const tColor = t.color || t.team_color || theme.accent || '#3B82F6'
@@ -4647,76 +4918,209 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       </div>
 
                       {/* Button Visibility Toggles & Order */}
-                      <div>
-                        <label className="text-[10px] text-slate-400 font-bold block mb-1.5">
-                          Action Buttons Configuration & Visibility
-                        </label>
-                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                          {currentActionButtons.map((btn, index) => (
-                            <div
-                              key={btn.id}
-                              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs"
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] text-slate-400 font-bold block">
+                            Configure Inside Box (Main Bar vs Inside "Other")
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveSection('hammer')
+                              setIsChecklistCompressed(false)
+                            }}
+                            className="text-[10px] text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer"
+                          >
+                            Open in Section 04 ➔
+                          </button>
+                        </div>
+
+                        {/* Filter Tabs */}
+                        <div className="flex items-center gap-1 p-0.5 bg-slate-900 rounded-lg border border-slate-800 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => setActionBarFilterGroup('all')}
+                            className={`flex-1 py-1 rounded font-bold transition cursor-pointer ${
+                              actionBarFilterGroup === 'all'
+                                ? 'bg-amber-500 text-zinc-950 font-black'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            All ({currentActionButtons.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActionBarFilterGroup('main')}
+                            className={`flex-1 py-1 rounded font-bold transition cursor-pointer ${
+                              actionBarFilterGroup === 'main'
+                                ? 'bg-amber-500 text-zinc-950 font-black'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            🎯 Main ({currentActionButtons.filter((b) => !isBtnInOther(b)).length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActionBarFilterGroup('other')}
+                            className={`flex-1 py-1 rounded font-bold transition cursor-pointer ${
+                              actionBarFilterGroup === 'other'
+                                ? 'bg-amber-500 text-zinc-950 font-black'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            📦 Other ({currentActionButtons.filter((b) => isBtnInOther(b)).length})
+                          </button>
+                        </div>
+
+                        {/* List of buttons with drag & drop, rename, move to Main/Other */}
+                        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                          {currentActionButtons
+                            .filter((btn) => {
+                              if (actionBarFilterGroup === 'main') return !isBtnInOther(btn)
+                              if (actionBarFilterGroup === 'other') return isBtnInOther(btn)
+                              return true
+                            })
+                            .map((btn) => {
+                              const idx = currentActionButtons.findIndex((b) => b.id === btn.id)
+                              const inOther = isBtnInOther(btn)
+                              return (
+                                <div
+                                  key={btn.id}
+                                  draggable={true}
+                                  onDragStart={(e) => e.dataTransfer.setData('turf/action-id', btn.id)}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => {
+                                    const srcId = e.dataTransfer.getData('turf/action-id')
+                                    if (srcId) handleReorderActionButtonDrag(srcId, btn.id)
+                                  }}
+                                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs hover:border-slate-700 transition"
+                                >
+                                  {/* Drag Handle */}
+                                  <span className="text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing text-xs select-none">
+                                    ⋮⋮
+                                  </span>
+
+                                  {/* Visibility Checkbox */}
+                                  <input
+                                    type="checkbox"
+                                    checked={btn.visible}
+                                    onChange={(e) => {
+                                      const updated = currentActionButtons.map((b) =>
+                                        b.id === btn.id ? { ...b, visible: e.target.checked } : b
+                                      )
+                                      setDesign((prev) => ({
+                                        ...prev,
+                                        zones: { ...prev.zones, action_buttons: updated },
+                                      }))
+                                    }}
+                                    className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400 w-3.5 h-3.5 cursor-pointer shrink-0"
+                                    title="Toggle button visibility on stage"
+                                  />
+
+                                  {/* Inline Rename */}
+                                  <input
+                                    type="text"
+                                    value={btn.label}
+                                    onChange={(e) => {
+                                      const val = e.target.value
+                                      const updated = currentActionButtons.map((b) =>
+                                        b.id === btn.id ? { ...b, label: val } : b
+                                      )
+                                      setDesign((prev) => ({
+                                        ...prev,
+                                        zones: { ...prev.zones, action_buttons: updated },
+                                      }))
+                                    }}
+                                    className="flex-1 min-w-0 bg-slate-950/80 border border-slate-800 focus:border-amber-400 rounded px-1.5 py-0.5 text-xs text-white font-medium focus:outline-none"
+                                    placeholder="Button Name"
+                                    title="Edit button display name"
+                                  />
+
+                                  {/* Move to Main / In Other Toggle Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleActionButtonGroup(btn.id)}
+                                    className={`text-[9px] px-1.5 py-0.5 rounded font-bold border transition cursor-pointer shrink-0 ${
+                                      inOther
+                                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                                        : 'bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30'
+                                    }`}
+                                    title={inOther ? 'Click to move out to Main Bar' : 'Click to place inside "Other" dropdown'}
+                                  >
+                                    {inOther ? '📦 In Other' : '🎯 In Main'}
+                                  </button>
+
+                                  {/* Up / Down Arrows */}
+                                  <div className="flex items-center gap-0.5 shrink-0">
+                                    <button
+                                      type="button"
+                                      disabled={idx === 0}
+                                      onClick={() => handleMoveActionButton(idx, 'up')}
+                                      className="px-1 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
+                                      title="Move Up"
+                                    >
+                                      ↑
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={idx === currentActionButtons.length - 1}
+                                      onClick={() => handleMoveActionButton(idx, 'down')}
+                                      className="px-1 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
+                                      title="Move Down"
+                                    >
+                                      ↓
+                                    </button>
+                                  </div>
+
+                                  {/* Delete Custom Button */}
+                                  {btn.custom && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteCustomActionButton(btn.id)}
+                                      className="text-rose-400 hover:text-rose-300 text-xs px-1 hover:bg-rose-500/20 rounded cursor-pointer shrink-0"
+                                      title="Delete custom feature"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            })}
+                        </div>
+
+                        {/* Add Custom Button / Feature Inline */}
+                        <div className="pt-2 border-t border-slate-800">
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                            + Add Feature / Action Inside Box
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              value={newCustomActionLabel}
+                              onChange={(e) => setNewCustomActionLabel(e.target.value)}
+                              placeholder="e.g. Quick +10k, Pass..."
+                              className="flex-1 bg-slate-900 border border-slate-700 focus:border-amber-400 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleAddCustomActionButton(newCustomActionLabel, 'other')
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleAddCustomActionButton(newCustomActionLabel, 'main')}
+                              className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold shrink-0 cursor-pointer shadow-xs"
+                              title="Add to Main Bar"
                             >
-                              <label className="flex items-center gap-2 cursor-pointer text-slate-200 font-medium">
-                                <input
-                                  type="checkbox"
-                                  checked={btn.visible}
-                                  onChange={(e) => {
-                                    const updated = currentActionButtons.map((b) =>
-                                      b.id === btn.id ? { ...b, visible: e.target.checked } : b
-                                    )
-                                    setDesign((prev) => ({
-                                      ...prev,
-                                      zones: {
-                                        ...prev.zones,
-                                        action_buttons: updated,
-                                      },
-                                    }))
-                                  }}
-                                  className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400 w-3.5 h-3.5 cursor-pointer"
-                                />
-                                <span>{btn.label}</span>
-                              </label>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  disabled={index === 0}
-                                  onClick={() => {
-                                    if (index === 0) return
-                                    const updated = [...currentActionButtons]
-                                    const temp = updated[index - 1]
-                                    updated[index - 1] = updated[index]
-                                    updated[index] = temp
-                                    setDesign((prev) => ({
-                                      ...prev,
-                                      zones: { ...prev.zones, action_buttons: updated },
-                                    }))
-                                  }}
-                                  className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
-                                >
-                                  ↑
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={index === currentActionButtons.length - 1}
-                                  onClick={() => {
-                                    if (index === currentActionButtons.length - 1) return
-                                    const updated = [...currentActionButtons]
-                                    const temp = updated[index + 1]
-                                    updated[index + 1] = updated[index]
-                                    updated[index] = temp
-                                    setDesign((prev) => ({
-                                      ...prev,
-                                      zones: { ...prev.zones, action_buttons: updated },
-                                    }))
-                                  }}
-                                  className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 disabled:opacity-30 cursor-pointer"
-                                >
-                                  ↓
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                              + Main
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAddCustomActionButton(newCustomActionLabel, 'other')}
+                              className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-zinc-950 text-[10px] font-black shrink-0 cursor-pointer shadow-xs"
+                              title="Add inside 'Other' dropdown"
+                            >
+                              + "Other"
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

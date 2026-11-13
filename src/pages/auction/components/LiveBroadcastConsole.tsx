@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti'
 import {
   Gavel, RotateCcw, Shield, Trophy, Flame,
   Clock, CheckCircle, XCircle, ChevronRight, AlertCircle, RefreshCw, Sparkles,
-  Volume2, VolumeX, Play, Pause, Maximize2, Users, Palette
+  Volume2, VolumeX, Play, Pause, Maximize2, Users, MoreHorizontal, ChevronDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,8 +39,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   } = useLiveAuctionState(auctionId, 1200)
 
   const [pageDesign, setPageDesign] = useState<any>(null)
-  const { prefs: userPrefs, updatePref: updateUserPref, resetPrefs: resetUserPrefs, userIdentifier } = useUserUIPreferences(auctionId)
-  const [showMyUiMenu, setShowMyUiMenu] = useState(false)
+  const { prefs: userPrefs } = useUserUIPreferences(auctionId)
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [customBidAmount, setCustomBidAmount] = useState<number>(0)
   const [customBidTeamId, setCustomBidTeamId] = useState<string>('')
@@ -65,6 +64,17 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const [totalRemainingInAuction, setTotalRemainingInAuction] = useState<number>(0)
   const [queueLoading, setQueueLoading] = useState(false)
   const [showQueueDrawer, setShowQueueDrawer] = useState(false)
+  const [showLiveOtherActions, setShowLiveOtherActions] = useState(false)
+  const [showBottomLiveOtherActions, setShowBottomLiveOtherActions] = useState(false)
+
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setShowLiveOtherActions(false)
+      setShowBottomLiveOtherActions(false)
+    }
+    window.addEventListener('click', handleOutsideClick)
+    return () => window.removeEventListener('click', handleOutsideClick)
+  }, [])
   const [teamKeyBuffer, setTeamKeyBuffer] = useState('')
   const keyBufferTimerRef = useRef<any>(null)
   const [numKeyBuffer, setNumKeyBuffer] = useState('')
@@ -86,6 +96,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   }
 
   const handleUpdateColumns = async (cols: number) => {
+    const totalTeams = state?.teams?.length || 14
+    const newRows = Math.max(1, Math.ceil(totalTeams / cols))
     const updated = {
       ...(pageDesign || DEFAULT_PAGE_DESIGN),
       zones: {
@@ -97,6 +109,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
         franchise_stations: {
           ...((pageDesign?.elements || DEFAULT_PAGE_DESIGN.elements).franchise_stations || {}),
           grid_cols: cols,
+          grid_rows: newRows,
         },
       },
     }
@@ -174,6 +187,15 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
     pageDesign?.zones?.action_buttons && Array.isArray(pageDesign.zones.action_buttons)
       ? pageDesign.zones.action_buttons
       : DEFAULT_ACTION_BUTTONS
+
+  const isBtnInOther = (btn: ActionButtonConfig) => {
+    if (btn.group === 'other') return true
+    if (btn.group === 'main') return false
+    return ['undo_sale', 'undo_bid', 'reset_bid'].includes(btn.id)
+  }
+
+  const mainActionButtons = actionButtons.filter((btn) => btn.visible !== false && !isBtnInOther(btn))
+  const otherActionButtons = actionButtons.filter((btn) => btn.visible !== false && isBtnInOther(btn))
 
   useEffect(() => {
     // 1. Instant optimistic load from localStorage
@@ -511,6 +533,15 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const currentBid = state?.current_bid || 0
   const highestBid = state?.highest_bid
 
+  useEffect(() => {
+    if (player) {
+      const pNo = player.serial_no ?? (player as any).player_number
+      if (pNo != null) {
+        setJumpPlayerNo(String(pNo))
+      }
+    }
+  }, [player?.id, player?.serial_no, (player as any)?.player_number])
+
   const audioCtxRef = useRef<any>(null)
   const playSoundEffect = (type: 'bid' | 'sold' | 'unsold' | 'timer') => {
     if (!soundEnabled) return
@@ -689,9 +720,11 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const handleJumpPlayer = async () => {
     if (!jumpPlayerNo) return
     setFeedbackMessage(null)
-    const res = await selectPlayerNo(parseInt(jumpPlayerNo))
+    const num = parseInt(jumpPlayerNo, 10)
+    if (isNaN(num)) return
+    const res = await selectPlayerNo(num)
     if (res?.success) {
-      setJumpPlayerNo('')
+      setFeedbackMessage({ text: `Showing Player #${num}`, type: 'success' })
     } else {
       setFeedbackMessage({ text: res?.error || 'Player not found', type: 'error' })
     }
@@ -735,6 +768,170 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
     return teamObj
       ? getTeamShortcut(teamObj.team_name, teamObj.short_name)
       : getTeamShortcut(bid.team_name, bid.short_name)
+  }
+
+  const renderLiveActionButton = (btn: ActionButtonConfig, inOtherPopup = false) => {
+    switch (btn.id) {
+      case 'sold':
+        return (
+          <button
+            key={btn.id}
+            onClick={() => {
+              handleHammerSold()
+              if (inOtherPopup) {
+                setShowLiveOtherActions(false)
+                setShowBottomLiveOtherActions(false)
+              }
+            }}
+            disabled={actionLoading || !player || !highestBid}
+            className={inOtherPopup
+              ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 font-bold text-white text-xs shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              : "px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1 shrink-0"}
+          >
+            <Gavel className={inOtherPopup ? "w-3.5 h-3.5" : "w-3 h-3"} />
+            <span>{btn.label || 'SOLD (Hammer Down)'}</span>
+          </button>
+        )
+      case 'unsold':
+        return (
+          <button
+            key={btn.id}
+            onClick={() => {
+              handleHammerUnsold()
+              if (inOtherPopup) {
+                setShowLiveOtherActions(false)
+                setShowBottomLiveOtherActions(false)
+              }
+            }}
+            disabled={actionLoading || !player}
+            className={inOtherPopup
+              ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-500 font-bold text-white text-xs shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              : "px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1 shrink-0"}
+          >
+            <XCircle className={inOtherPopup ? "w-3.5 h-3.5" : "w-3 h-3"} />
+            <span>{btn.label || 'UNSOLD'}</span>
+          </button>
+        )
+      case 'custom_bid':
+        return (
+          <button
+            key={btn.id}
+            onClick={() => {
+              openCustomBidModal()
+              if (inOtherPopup) {
+                setShowLiveOtherActions(false)
+                setShowBottomLiveOtherActions(false)
+              }
+            }}
+            disabled={actionLoading || !player}
+            className={inOtherPopup
+              ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 font-black text-zinc-950 text-xs shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              : "px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 font-black text-zinc-950 text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1 shrink-0"}
+          >
+            <Flame className="w-3.5 h-3.5 text-zinc-950" />
+            <span>{btn.label || 'Custom Bid'}</span>
+          </button>
+        )
+      case 'undo_sale':
+        return (
+          <button
+            key={btn.id}
+            onClick={() => {
+              handleUndoSale()
+              if (inOtherPopup) {
+                setShowLiveOtherActions(false)
+                setShowBottomLiveOtherActions(false)
+              }
+            }}
+            disabled={actionLoading}
+            className={inOtherPopup
+              ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              : "px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1 shrink-0"}
+          >
+            <RotateCcw className={inOtherPopup ? "w-3.5 h-3.5 text-blue-400" : "w-2.5 h-2.5"} />
+            <span>{btn.label || 'Undo Sale'}</span>
+          </button>
+        )
+      case 'undo_bid':
+        return (
+          <button
+            key={btn.id}
+            onClick={() => {
+              undoBid()
+              if (inOtherPopup) {
+                setShowLiveOtherActions(false)
+                setShowBottomLiveOtherActions(false)
+              }
+            }}
+            disabled={actionLoading || !highestBid}
+            className={inOtherPopup
+              ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              : "px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition shrink-0"}
+          >
+            <RefreshCw className={inOtherPopup ? "w-3.5 h-3.5 text-slate-400" : "hidden"} />
+            <span>{btn.label || 'Undo Bid'}</span>
+          </button>
+        )
+      case 'reset_bid':
+        return (
+          <button
+            key={btn.id}
+            onClick={() => {
+              resetBid()
+              if (inOtherPopup) {
+                setShowLiveOtherActions(false)
+                setShowBottomLiveOtherActions(false)
+              }
+            }}
+            disabled={actionLoading || !highestBid}
+            className={inOtherPopup
+              ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              : "px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition shrink-0"}
+          >
+            <RefreshCw className={inOtherPopup ? "w-3.5 h-3.5 text-slate-400" : "hidden"} />
+            <span>{btn.label || 'Reset Bid'}</span>
+          </button>
+        )
+      case 'next_player':
+        return (
+          <button
+            key={btn.id}
+            onClick={() => {
+              handleBringNextQueuedPlayer()
+              if (inOtherPopup) {
+                setShowLiveOtherActions(false)
+                setShowBottomLiveOtherActions(false)
+              }
+            }}
+            disabled={actionLoading}
+            className={inOtherPopup
+              ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-sky-600/90 hover:bg-sky-500 text-white font-bold text-xs shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
+              : "px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[10px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1 shrink-0"}
+            title="Bring Next Queued Player"
+          >
+            <ChevronRight className={inOtherPopup ? "w-3.5 h-3.5" : "w-3 h-3"} />
+            <span>{btn.label || 'Next Player'}</span>
+          </button>
+        )
+      default:
+        return (
+          <button
+            key={btn.id}
+            onClick={() => {
+              if (inOtherPopup) {
+                setShowLiveOtherActions(false)
+                setShowBottomLiveOtherActions(false)
+              }
+            }}
+            className={inOtherPopup
+              ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold cursor-pointer transition flex items-center gap-2"
+              : "px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-semibold cursor-pointer transition shrink-0"}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>{btn.label}</span>
+          </button>
+        )
+    }
   }
 
   if (loading && !state) {
@@ -784,21 +981,6 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 <span>Full Screen Arena</span>
               </button>
             )}
-
-            <button
-              type="button"
-              onClick={() => {
-                if (isFull) exitFullScreen()
-                const url = new URL(window.location.href)
-                url.searchParams.set('tab', 'designer')
-                window.location.href = url.toString()
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-xs border border-indigo-400/40 shadow-xs transition cursor-pointer"
-              title="Switch to Auction Page Designer to customize layout, fonts, colors, and boxes"
-            >
-              <Palette className="w-3.5 h-3.5 text-indigo-200" />
-              <span>Edit in Designer</span>
-            </button>
           </div>
 
           {/* Center: Tournament Name & Pulsing Live Indicator */}
@@ -884,199 +1066,6 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 ))}
               </select>
             </div>
-
-            {/* My UI Preferences Popover (User-Account Only Customization) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowMyUiMenu(!showMyUiMenu)}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/20 to-indigo-500/20 hover:from-amber-500/30 hover:to-indigo-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-xl shadow-xs transition cursor-pointer"
-                title="Customize font size, color and contrast for your account UI only"
-              >
-                <Palette className="w-3.5 h-3.5 text-amber-400" />
-                <span>My UI</span>
-                {userPrefs.useCustomColor && (
-                  <span className="w-2 h-2 rounded-full ring-1 ring-white/40" style={{ backgroundColor: userPrefs.fontColor }} />
-                )}
-              </button>
-
-              {/* Popover */}
-              {showMyUiMenu && (
-                <div className="absolute right-0 top-full mt-2 w-80 p-4 rounded-2xl bg-slate-950/98 border border-amber-500/50 shadow-2xl z-50 text-slate-200 backdrop-blur-xl space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                    <div className="flex items-center gap-1.5">
-                      <Palette className="w-4 h-4 text-amber-400" />
-                      <span className="text-xs font-black uppercase tracking-wider text-white">My Account UI Settings</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowMyUiMenu(false)}
-                      className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 rounded cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div className="text-[10px] text-amber-400/90 font-mono bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20 flex items-center justify-between">
-                    <span className="truncate max-w-[170px]">User: {userIdentifier}</span>
-                    <span className="text-emerald-400 font-bold shrink-0">Isolated to you</span>
-                  </div>
-
-                  {/* Font Size */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-slate-300">Shortcut Font Size:</span>
-                      <span className="font-mono text-amber-400">{userPrefs.fontSize || 20}px</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateUserPref('fontSize', Math.max(10, userPrefs.fontSize - 1))}
-                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
-                      >-</button>
-                      <input
-                        type="range"
-                        min={10}
-                        max={28}
-                        value={userPrefs.fontSize || 20}
-                        onChange={(e) => updateUserPref('fontSize', Number(e.target.value))}
-                        className="flex-1 accent-amber-500 cursor-pointer"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => updateUserPref('fontSize', Math.min(28, userPrefs.fontSize + 1))}
-                        className="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs cursor-pointer"
-                      >+</button>
-                    </div>
-                    <div className="flex items-center gap-1 pt-0.5">
-                      {[14, 16, 18, 20, 24].map((sz) => (
-                        <button
-                          key={sz}
-                          type="button"
-                          onClick={() => updateUserPref('fontSize', sz)}
-                          className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${userPrefs.fontSize === sz
-                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                            }`}
-                        >
-                          {sz}px
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Text Color */}
-                  <div className="space-y-1.5 border-t border-white/10 pt-2">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-slate-300">Text Color:</span>
-                      <span className="font-mono text-[11px]" style={{ color: userPrefs.useCustomColor ? userPrefs.fontColor : '#FBBF24' }}>
-                        {userPrefs.useCustomColor ? userPrefs.fontColor : 'Dynamic Palette'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateUserPref('useCustomColor', false)}
-                        className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer ${!userPrefs.useCustomColor
-                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                          }`}
-                      >
-                        Team Palette
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateUserPref('useCustomColor', true)}
-                        className={`px-2 py-0.5 rounded text-[11px] font-bold border transition cursor-pointer flex items-center gap-1 ${userPrefs.useCustomColor
-                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                          }`}
-                      >
-                        Custom
-                      </button>
-                      {userPrefs.useCustomColor && (
-                        <input
-                          type="color"
-                          value={userPrefs.fontColor || '#FFFFFF'}
-                          onChange={(e) => updateUserPref('fontColor', e.target.value)}
-                          className="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
-                        />
-                      )}
-                    </div>
-                    {userPrefs.useCustomColor && (
-                      <div className="flex items-center gap-1 pt-1">
-                        {[
-                          { hex: '#FFFFFF', name: 'White' },
-                          { hex: '#00F0FF', name: 'Cyan' },
-                          { hex: '#FBBF24', name: 'Gold' },
-                          { hex: '#10B981', name: 'Emerald' },
-                          { hex: '#F43F5E', name: 'Pink' },
-                          { hex: '#A855F7', name: 'Violet' },
-                        ].map((c) => (
-                          <button
-                            key={c.hex}
-                            type="button"
-                            onClick={() => updateUserPref('fontColor', c.hex)}
-                            className="w-5 h-5 rounded-full border border-white/20 transition hover:scale-110 cursor-pointer"
-                            style={{ backgroundColor: c.hex }}
-                            title={c.name}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card Background Atmosphere */}
-                  <div className="space-y-1.5 border-t border-white/10 pt-2">
-                    <span className="text-xs font-bold text-slate-300 block">Card Atmosphere:</span>
-                    <div className="flex items-center gap-1">
-                      {[
-                        { id: 'default', label: 'Default' },
-                        { id: 'oled', label: 'OLED Black' },
-                        { id: 'navy', label: 'Deep Navy' },
-                        { id: 'carbon', label: 'Carbon' },
-                      ].map((atm) => (
-                        <button
-                          key={atm.id}
-                          type="button"
-                          onClick={() => updateUserPref('cardBg', atm.id as any)}
-                          className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${userPrefs.cardBg === atm.id
-                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-                            }`}
-                        >
-                          {atm.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-[11px] font-bold text-slate-300">Neon Border Glow:</span>
-                      <button
-                        type="button"
-                        onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${userPrefs.borderGlow
-                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
-                            : 'bg-slate-900 text-slate-500 border-slate-800'
-                          }`}
-                      >
-                        {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Reset Button */}
-                  <div className="border-t border-white/10 pt-2 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={resetUserPrefs}
-                      className="text-[10px] text-slate-400 hover:text-white font-medium hover:underline cursor-pointer"
-                    >
-                      Reset My UI Defaults
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Timer and Audio controls */}
@@ -1158,9 +1147,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         height: `${el.h}%`,
                         color: el.colour || '#FFFFFF',
                       }}
-                      className="absolute flex items-center justify-center overflow-hidden"
+                      className={`absolute flex items-center justify-center ${key === 'action_bar' ? 'overflow-visible z-30' : 'overflow-hidden'}`}
                     >
-                      <div className="w-full h-full flex items-center overflow-hidden px-1">
+                      <div className={`w-full h-full flex items-center px-1 ${key === 'action_bar' ? 'overflow-visible' : 'overflow-hidden'}`}>
                         {key === 'tournament_title' && (
                           <div className="w-full h-full flex items-center justify-center gap-2 overflow-hidden px-1">
                             {pageDesign?.zones?.branding?.title_image_url ? (
@@ -1220,7 +1209,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                 style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 16) * 0.7))}px` }}
                                 className="text-slate-400 mr-1 font-bold"
                               >
-                                NO.{' '}
+                                {el.custom_label || 'PLAYER NO:'}{' '}
                               </span>
                             )}
                             <span
@@ -1230,7 +1219,9 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                               }}
                               className="font-mono font-bold"
                             >
-                              #{player.serial_no || '1'}
+                              {el.content_override
+                                ? el.content_override.replace('{no}', String(player.serial_no ?? (player as any).player_number ?? ''))
+                                : `${el.show_label ? '' : 'PLAYER '}#${player.serial_no ?? (player as any).player_number ?? '1'}`}
                             </span>
                           </div>
                         )}
@@ -1623,102 +1614,51 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
                         {/* Bottom Action & Player Bar Element (Live Functional Controls) */}
                         {key === 'action_bar' && (
-                          <div className="w-full h-full flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-[#031326]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-hidden shadow-lg">
-                            <div className="flex flex-wrap items-center gap-1.5">
+                          <div className="w-full h-full flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-[#031326]/90 border border-blue-900/60 backdrop-blur-xs select-none overflow-visible relative shadow-lg">
+                            <div className="flex flex-wrap items-center gap-1.5 overflow-visible relative">
                               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">
                                 Action:
                               </span>
-                              {actionButtons
-                                .filter((btn: ActionButtonConfig) => btn.visible !== false)
-                                .map((btn: ActionButtonConfig) => {
-                                  switch (btn.id) {
-                                    case 'sold':
-                                      return (
-                                        <button
-                                          key={btn.id}
-                                          onClick={handleHammerSold}
-                                          disabled={actionLoading || !player || !highestBid}
-                                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                        >
-                                          <Gavel className="w-3 h-3" />
-                                          <span>{btn.label}</span>
-                                        </button>
-                                      )
-                                    case 'unsold':
-                                      return (
-                                        <button
-                                          key={btn.id}
-                                          onClick={handleHammerUnsold}
-                                          disabled={actionLoading || !player}
-                                          className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                        >
-                                          <XCircle className="w-3 h-3" />
-                                          <span>{btn.label}</span>
-                                        </button>
-                                      )
-                                    case 'custom_bid':
-                                      return (
-                                        <button
-                                          key={btn.id}
-                                          onClick={openCustomBidModal}
-                                          disabled={actionLoading || !player}
-                                          className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 font-black text-zinc-950 text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                        >
-                                          <Flame className="w-3 h-3 text-zinc-950" />
-                                          <span>{btn.label}</span>
-                                        </button>
-                                      )
-                                    case 'undo_sale':
-                                      return (
-                                        <button
-                                          key={btn.id}
-                                          onClick={handleUndoSale}
-                                          disabled={actionLoading}
-                                          className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                        >
-                                          <RotateCcw className="w-2.5 h-2.5" />
-                                          <span>{btn.label}</span>
-                                        </button>
-                                      )
-                                    case 'undo_bid':
-                                      return (
-                                        <button
-                                          key={btn.id}
-                                          onClick={undoBid}
-                                          disabled={actionLoading || !highestBid}
-                                          className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                        >
-                                          <span>{btn.label}</span>
-                                        </button>
-                                      )
-                                    case 'reset_bid':
-                                      return (
-                                        <button
-                                          key={btn.id}
-                                          onClick={resetBid}
-                                          disabled={actionLoading || !highestBid}
-                                          className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 text-[10px] font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                        >
-                                          <span>{btn.label}</span>
-                                        </button>
-                                      )
-                                    case 'next_player':
-                                      return (
-                                        <button
-                                          key={btn.id}
-                                          onClick={handleBringNextQueuedPlayer}
-                                          disabled={actionLoading}
-                                          className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[10px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
-                                          title="Bring Next Queued Player"
-                                        >
-                                          <ChevronRight className="w-3 h-3" />
-                                          <span>{btn.label || 'Next Player'}</span>
-                                        </button>
-                                      )
-                                    default:
-                                      return null
-                                  }
-                                })}
+                              {mainActionButtons.map((btn) => renderLiveActionButton(btn, false))}
+
+                              {/* "Other" Dropdown on Live Stage */}
+                              {otherActionButtons.length > 0 && (
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setShowLiveOtherActions((prev) => !prev)
+                                    }}
+                                    className="bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-xs transition cursor-pointer"
+                                    title="Click to view more actions"
+                                  >
+                                    <MoreHorizontal className="w-3 h-3 text-amber-400" />
+                                    <span>Other ({otherActionButtons.length})</span>
+                                    <ChevronDown
+                                      className={`w-3 h-3 text-slate-400 transition-transform ${
+                                        showLiveOtherActions ? 'rotate-180' : ''
+                                      }`}
+                                    />
+                                  </button>
+                                  {showLiveOtherActions && (
+                                    <div
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="absolute left-0 bottom-full mb-1.5 min-w-[200px] bg-slate-950/98 border border-amber-500/40 rounded-xl p-2.5 shadow-2xl z-50 backdrop-blur-md space-y-1.5"
+                                    >
+                                      <div className="text-[10px] font-black uppercase text-amber-400 pb-1 border-b border-white/10 flex items-center justify-between">
+                                        <span>Other Actions</span>
+                                        <span className="text-[9px] text-slate-400">
+                                          {otherActionButtons.length} items
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-0.5">
+                                        {otherActionButtons.map((btn) => renderLiveActionButton(btn, true))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-1.5">
                               <span className="text-slate-400 font-mono text-[11px]">PLAYER NO:</span>
@@ -1726,8 +1666,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                 type="number"
                                 value={jumpPlayerNo}
                                 onChange={(e) => setJumpPlayerNo(e.target.value)}
-                                placeholder="1"
-                                className="w-12 px-2 py-0.5 rounded-md bg-slate-900 border border-slate-700 text-slate-200 font-bold text-xs text-center"
+                                placeholder={String(player?.serial_no ?? (player as any)?.player_number ?? 1)}
+                                className="w-16 px-2 py-0.5 rounded-md bg-slate-900 border border-slate-700 text-slate-200 font-bold text-xs text-center focus:border-amber-400 focus:outline-none"
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     handleJumpPlayer()
@@ -1747,7 +1687,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         {/* Franchise Bidding Stations Element (Option 4 Geometry) */}
                         {key === 'franchise_stations' && (
                           <div
-                            className="w-full h-full p-1.5 rounded-xl border border-blue-900/60 backdrop-blur-xs select-none overflow-visible flex flex-col justify-center shadow-lg relative"
+                            className="w-full h-full p-1.5 rounded-xl border border-blue-900/60 backdrop-blur-xs select-none overflow-y-auto scrollbar-thin flex flex-col justify-center shadow-lg relative"
                             style={{
                               borderRadius: `${el.border_radius ?? 12}px`,
                               backgroundColor: userPrefs.cardBg === 'oled' ? '#000000' : userPrefs.cardBg === 'navy' ? '#020617' : userPrefs.cardBg === 'carbon' ? '#18181b' : 'rgba(3, 15, 30, 0.92)',
@@ -1763,12 +1703,12 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                 className="w-full h-full grid overflow-visible"
                                 style={{
                                   gridTemplateColumns: `repeat(${el.grid_cols || 7}, minmax(0, 1fr))`,
-                                  gridTemplateRows: `repeat(${el.grid_rows || 2}, minmax(0, 1fr))`,
+                                  gridTemplateRows: `repeat(${Math.max(1, Math.ceil((state?.teams?.length || 1) / (el.grid_cols || 7)))}, minmax(0, 1fr))`,
                                   columnGap: `${el.gap_x || 6}px`,
                                   rowGap: `${el.gap_y || 6}px`,
                                 }}
                               >
-                                {state.teams.slice(0, Math.min(state.teams.length, (el.grid_cols || 7) * (el.grid_rows || 2))).map((team, idx) => {
+                                {state.teams.map((team, idx) => {
                                   const isLeading = highestBid?.team_id === team.team_id
                                   const playerCat = player?.category || selectedCategory
                                   const catTarget = categoriesData.find((c) => c.name?.toLowerCase() === playerCat?.toLowerCase())?.target_count || 0
@@ -2273,96 +2213,46 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
               {/* Actions Row (SOLD, UNSOLD, CUSTOM BID, PLAYER NO. + SHOW) */}
               {(pageDesign?.elements?.action_bar ?? DEFAULT_PAGE_DESIGN.elements.action_bar)?.selected === false && (
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-white/5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {actionButtons
-                      .filter((btn) => btn.visible !== false)
-                      .map((btn) => {
-                        switch (btn.id) {
-                          case 'sold':
-                            return (
-                              <button
-                                key={btn.id}
-                                onClick={handleHammerSold}
-                                disabled={actionLoading || !player || !highestBid}
-                                className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                <span>{btn.label}</span>
-                                <span>✓</span>
-                              </button>
-                            )
-                          case 'unsold':
-                            return (
-                              <button
-                                key={btn.id}
-                                onClick={handleHammerUnsold}
-                                disabled={actionLoading || !player}
-                                className="bg-rose-500 hover:bg-rose-400 text-white font-black text-xs px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                <span>{btn.label}</span>
-                              </button>
-                            )
-                          case 'custom_bid':
-                            return (
-                              <button
-                                key={btn.id}
-                                onClick={openCustomBidModal}
-                                disabled={actionLoading || !player}
-                                className="bg-slate-200 hover:bg-white text-zinc-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {btn.label}
-                              </button>
-                            )
-                          case 'undo_sale':
-                            return (
-                              <button
-                                key={btn.id}
-                                onClick={handleUndoSale}
-                                disabled={actionLoading}
-                                className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {btn.label}
-                              </button>
-                            )
-                          case 'undo_bid':
-                            return (
-                              <button
-                                key={btn.id}
-                                onClick={undoBid}
-                                disabled={actionLoading || !highestBid}
-                                className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {btn.label}
-                              </button>
-                            )
-                          case 'reset_bid':
-                            return (
-                              <button
-                                key={btn.id}
-                                onClick={resetBid}
-                                disabled={actionLoading || !highestBid}
-                                className="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {btn.label}
-                              </button>
-                            )
-                          case 'next_player':
-                            return (
-                              <button
-                                key={btn.id}
-                                onClick={handleBringNextQueuedPlayer}
-                                disabled={actionLoading}
-                                className="bg-sky-600 hover:bg-sky-500 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Bring Next Queued Player"
-                              >
-                                <ChevronRight className="w-3.5 h-3.5" />
-                                <span>{btn.label || 'Next Player'}</span>
-                              </button>
-                            )
-                          default:
-                            return null
-                        }
-                      })}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-white/5 relative overflow-visible">
+                  <div className="flex items-center gap-2 flex-wrap relative overflow-visible">
+                    {mainActionButtons.map((btn) => renderLiveActionButton(btn, false))}
+
+                    {otherActionButtons.length > 0 && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowBottomLiveOtherActions((prev) => !prev)
+                          }}
+                          className="bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-md transition cursor-pointer"
+                        >
+                          <MoreHorizontal className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Other ({otherActionButtons.length})</span>
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
+                              showBottomLiveOtherActions ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                        {showBottomLiveOtherActions && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute left-0 bottom-full mb-2 min-w-[220px] bg-slate-950/98 border border-amber-500/40 rounded-xl p-2.5 shadow-2xl z-50 backdrop-blur-md space-y-1.5"
+                          >
+                            <div className="text-[10px] font-black uppercase text-amber-400 pb-1 border-b border-white/10 flex items-center justify-between">
+                              <span>Other Actions</span>
+                              <span className="text-[9px] text-slate-400">
+                                {otherActionButtons.length} items
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-0.5">
+                              {otherActionButtons.map((btn) => renderLiveActionButton(btn, true))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Right Side: Player Jump Input + SHOW Button */}
@@ -2370,7 +2260,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                     <span className="text-[10px] font-black uppercase text-slate-400">PLAYER NO.</span>
                     <input
                       type="number"
-                      placeholder="e.g. 14"
+                      placeholder={String(player?.serial_no ?? (player as any)?.player_number ?? 1)}
                       value={jumpPlayerNo}
                       onChange={(e) => setJumpPlayerNo(e.target.value)}
                       onKeyDown={(e) => {
