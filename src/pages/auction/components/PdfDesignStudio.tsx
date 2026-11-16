@@ -38,7 +38,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { apiClient } from '@/api/apiClient'
+import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 
 interface PdfDesignStudioProps {
   auctionId: string
@@ -92,6 +92,19 @@ export interface CoverPageConfig {
   custom_blocks?: CustomCoverBlock[]
 }
 
+export interface SubDesignerHeaderConfig {
+  show?: boolean
+  title?: string
+  subtitle?: string
+  badge_text?: string
+}
+
+export interface SubDesignerFooterConfig {
+  show?: boolean
+  left_text?: string
+  right_text?: string
+}
+
 export interface TeamsDesignerConfig {
   show_purse: boolean
   show_captain: boolean
@@ -103,6 +116,8 @@ export interface TeamsDesignerConfig {
   show_max_bid?: boolean
   show_category_summary?: boolean
   show_overall_total?: boolean
+  header?: SubDesignerHeaderConfig
+  footer?: SubDesignerFooterConfig
 }
 
 export interface OwnerColumnConfig {
@@ -116,6 +131,8 @@ export interface OwnersDesignerConfig {
   show_contact: boolean
   show_avatar: boolean
   columns?: OwnerColumnConfig[]
+  header?: SubDesignerHeaderConfig
+  footer?: SubDesignerFooterConfig
 }
 
 const DEFAULT_OWNER_COLUMNS: OwnerColumnConfig[] = [
@@ -160,6 +177,17 @@ const DEFAULT_TEAMS_CONFIG: TeamsDesignerConfig = {
   show_max_bid: true,
   show_category_summary: true,
   show_overall_total: true,
+  header: {
+    show: true,
+    title: 'TOURNAMENT SQUADS DIRECTORY',
+    subtitle: 'Franchise Teams Squad Breakdowns & Purse Allocations',
+    badge_text: '{teams_count} Franchises',
+  },
+  footer: {
+    show: true,
+    left_text: 'Turf Premier League • Official Teams Report',
+    right_text: 'Page 3+ Squads',
+  },
 }
 
 const DEFAULT_OWNERS_CONFIG: OwnersDesignerConfig = {
@@ -167,6 +195,17 @@ const DEFAULT_OWNERS_CONFIG: OwnersDesignerConfig = {
   show_contact: true,
   show_avatar: true,
   columns: DEFAULT_OWNER_COLUMNS,
+  header: {
+    show: true,
+    title: 'Franchise Owners & Financial Summary',
+    subtitle: 'Official Purse Allocations, Expenditures & Limits',
+    badge_text: 'Section 02',
+  },
+  footer: {
+    show: true,
+    left_text: 'Turf Premier League • Official Tournament Booklet',
+    right_text: 'Page 2 Financials',
+  },
 }
 
 export interface PlacedLogo {
@@ -382,6 +421,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [draggingListKey, setDraggingListKey] = useState<string | null>(null)
   const [dragOverListKey, setDragOverListKey] = useState<string | null>(null)
+  const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({})
 
   // Adjustable Header & Footer state
   const [headerConfig, setHeaderConfig] = useState<PdfHeaderConfig>(DEFAULT_HEADER_CONFIG)
@@ -703,10 +743,20 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
             setCoverPageConfig({ ...DEFAULT_COVER_CONFIG, ...d.branding.coverPage })
           }
           if (d.teams_designer) {
-            setTeamsDesignerConfig({ ...DEFAULT_TEAMS_CONFIG, ...d.teams_designer })
+            setTeamsDesignerConfig({
+              ...DEFAULT_TEAMS_CONFIG,
+              ...d.teams_designer,
+              header: { ...DEFAULT_TEAMS_CONFIG.header, ...(d.teams_designer.header || {}) },
+              footer: { ...DEFAULT_TEAMS_CONFIG.footer, ...(d.teams_designer.footer || {}) },
+            })
           }
           if (d.owners_designer) {
-            setOwnersDesignerConfig({ ...DEFAULT_OWNERS_CONFIG, ...d.owners_designer })
+            setOwnersDesignerConfig({
+              ...DEFAULT_OWNERS_CONFIG,
+              ...d.owners_designer,
+              header: { ...DEFAULT_OWNERS_CONFIG.header, ...(d.owners_designer.header || {}) },
+              footer: { ...DEFAULT_OWNERS_CONFIG.footer, ...(d.owners_designer.footer || {}) },
+            })
           }
 
           const b = d.branding || {}
@@ -2090,6 +2140,131 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                   </label>
                 </div>
 
+                {/* Teams Designer Configurable Header & Footer */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">
+                        <PanelTop className="w-3.5 h-3.5 text-indigo-600" /> Header Configuration
+                      </span>
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-indigo-900 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={teamsDesignerConfig.header?.show !== false}
+                          onChange={(e) =>
+                            setTeamsDesignerConfig((prev) => ({
+                              ...prev,
+                              header: { ...prev.header, show: e.target.checked },
+                            }))
+                          }
+                          className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5"
+                        />
+                        <span>Show Header</span>
+                      </label>
+                    </div>
+
+                    {teamsDesignerConfig.header?.show !== false && (
+                      <div className="space-y-2 pt-1 text-xs">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Header Title</label>
+                          <Input
+                            value={teamsDesignerConfig.header?.title ?? 'TOURNAMENT SQUADS DIRECTORY'}
+                            onChange={(e) =>
+                              setTeamsDesignerConfig((prev) => ({
+                                ...prev,
+                                header: { ...prev.header, title: e.target.value },
+                              }))
+                            }
+                            placeholder="e.g. TOURNAMENT SQUADS DIRECTORY"
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Subtitle</label>
+                          <Input
+                            value={teamsDesignerConfig.header?.subtitle ?? 'Franchise Teams Squad Breakdowns & Purse Allocations'}
+                            onChange={(e) =>
+                              setTeamsDesignerConfig((prev) => ({
+                                ...prev,
+                                header: { ...prev.header, subtitle: e.target.value },
+                              }))
+                            }
+                            placeholder="Subtitle text"
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Badge / Tag Text</label>
+                          <Input
+                            value={teamsDesignerConfig.header?.badge_text ?? '{teams_count} Franchises'}
+                            onChange={(e) =>
+                              setTeamsDesignerConfig((prev) => ({
+                                ...prev,
+                                header: { ...prev.header, badge_text: e.target.value },
+                              }))
+                            }
+                            placeholder="e.g. {teams_count} Franchises"
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <PanelBottom className="w-3.5 h-3.5 text-slate-600" /> Footer Configuration
+                      </span>
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={teamsDesignerConfig.footer?.show !== false}
+                          onChange={(e) =>
+                            setTeamsDesignerConfig((prev) => ({
+                              ...prev,
+                              footer: { ...prev.footer, show: e.target.checked },
+                            }))
+                          }
+                          className="rounded border-slate-300 text-indigo-600 h-3.5 w-3.5"
+                        />
+                        <span>Show Footer</span>
+                      </label>
+                    </div>
+
+                    {teamsDesignerConfig.footer?.show !== false && (
+                      <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Footer Left</label>
+                          <Input
+                            value={teamsDesignerConfig.footer?.left_text ?? 'Turf Premier League • Official Teams Report'}
+                            onChange={(e) =>
+                              setTeamsDesignerConfig((prev) => ({
+                                ...prev,
+                                footer: { ...prev.footer, left_text: e.target.value },
+                              }))
+                            }
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Footer Right</label>
+                          <Input
+                            value={teamsDesignerConfig.footer?.right_text ?? 'Page 3+ Squads'}
+                            onChange={(e) =>
+                              setTeamsDesignerConfig((prev) => ({
+                                ...prev,
+                                footer: { ...prev.footer, right_text: e.target.value },
+                              }))
+                            }
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Live Teams List */}
                 <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
                   {liveTeams.length === 0 ? (
@@ -2233,6 +2408,131 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                     />
                     <span>Show Contact Number</span>
                   </label>
+                </div>
+
+                {/* Owners Designer Configurable Header & Footer */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-100 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+                        <PanelTop className="w-3.5 h-3.5 text-amber-600" /> Header Configuration
+                      </span>
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-amber-900 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={ownersDesignerConfig.header?.show !== false}
+                          onChange={(e) =>
+                            setOwnersDesignerConfig((prev) => ({
+                              ...prev,
+                              header: { ...prev.header, show: e.target.checked },
+                            }))
+                          }
+                          className="rounded border-slate-300 text-amber-600 h-3.5 w-3.5"
+                        />
+                        <span>Show Header</span>
+                      </label>
+                    </div>
+
+                    {ownersDesignerConfig.header?.show !== false && (
+                      <div className="space-y-2 pt-1 text-xs">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Header Title</label>
+                          <Input
+                            value={ownersDesignerConfig.header?.title ?? 'Franchise Owners & Financial Summary'}
+                            onChange={(e) =>
+                              setOwnersDesignerConfig((prev) => ({
+                                ...prev,
+                                header: { ...prev.header, title: e.target.value },
+                              }))
+                            }
+                            placeholder="e.g. Franchise Owners & Financial Summary"
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Subtitle</label>
+                          <Input
+                            value={ownersDesignerConfig.header?.subtitle ?? 'Official Purse Allocations, Expenditures & Limits'}
+                            onChange={(e) =>
+                              setOwnersDesignerConfig((prev) => ({
+                                ...prev,
+                                header: { ...prev.header, subtitle: e.target.value },
+                              }))
+                            }
+                            placeholder="Subtitle text"
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Badge / Tag Text</label>
+                          <Input
+                            value={ownersDesignerConfig.header?.badge_text ?? 'Section 02'}
+                            onChange={(e) =>
+                              setOwnersDesignerConfig((prev) => ({
+                                ...prev,
+                                header: { ...prev.header, badge_text: e.target.value },
+                              }))
+                            }
+                            placeholder="e.g. Section 02"
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <PanelBottom className="w-3.5 h-3.5 text-slate-600" /> Footer Configuration
+                      </span>
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={ownersDesignerConfig.footer?.show !== false}
+                          onChange={(e) =>
+                            setOwnersDesignerConfig((prev) => ({
+                              ...prev,
+                              footer: { ...prev.footer, show: e.target.checked },
+                            }))
+                          }
+                          className="rounded border-slate-300 text-amber-600 h-3.5 w-3.5"
+                        />
+                        <span>Show Footer</span>
+                      </label>
+                    </div>
+
+                    {ownersDesignerConfig.footer?.show !== false && (
+                      <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Footer Left</label>
+                          <Input
+                            value={ownersDesignerConfig.footer?.left_text ?? 'Turf Premier League • Official Tournament Booklet'}
+                            onChange={(e) =>
+                              setOwnersDesignerConfig((prev) => ({
+                                ...prev,
+                                footer: { ...prev.footer, left_text: e.target.value },
+                              }))
+                            }
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-600 block mb-1">Footer Right</label>
+                          <Input
+                            value={ownersDesignerConfig.footer?.right_text ?? 'Page 2 Financials'}
+                            onChange={(e) =>
+                              setOwnersDesignerConfig((prev) => ({
+                                ...prev,
+                                footer: { ...prev.footer, right_text: e.target.value },
+                              }))
+                            }
+                            className="bg-white border-slate-200 text-xs h-8"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Live Owners List */}
@@ -3367,20 +3667,22 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                 <div className="w-full max-w-[720px] aspect-[1/1.414] bg-white text-slate-900 rounded-xl shadow-2xl p-6 flex flex-col justify-between relative select-none border border-slate-300 overflow-hidden">
                   <div>
                     {/* Header */}
-                    <div className="border-b-2 border-indigo-600 pb-3 flex items-center justify-between">
-                      <div>
-                        <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                          <Shield className="w-5 h-5 text-indigo-600" />
-                          {coverPageConfig.title || 'TOURNAMENT SQUADS DIRECTORY'}
-                        </h2>
-                        <p className="text-xs text-slate-500 font-semibold">
-                          Franchise Teams Squad Breakdowns & Purse Allocations
-                        </p>
+                    {teamsDesignerConfig.header?.show !== false && (
+                      <div className="border-b-2 border-indigo-600 pb-3 flex items-center justify-between">
+                        <div>
+                          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                            <Shield className="w-5 h-5 text-indigo-600" />
+                            {teamsDesignerConfig.header?.title || 'TOURNAMENT SQUADS DIRECTORY'}
+                          </h2>
+                          <p className="text-xs text-slate-500 font-semibold">
+                            {teamsDesignerConfig.header?.subtitle || 'Franchise Teams Squad Breakdowns & Purse Allocations'}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-mono font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 px-2.5 py-1 rounded-md">
+                          {(teamsDesignerConfig.header?.badge_text || '{teams_count} Franchises').replace('{teams_count}', String(liveTeams.length))}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-mono font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 px-2.5 py-1 rounded-md">
-                        {liveTeams.length} Franchises
-                      </span>
-                    </div>
+                    )}
 
                     {/* Team Squads Grid */}
                     <div className="grid grid-cols-2 gap-3 pt-4">
@@ -3476,10 +3778,12 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                     </div>
                   </div>
 
-                  <div className="text-[9px] text-slate-400 border-t border-slate-200 pt-2 flex justify-between uppercase tracking-wider font-semibold">
-                    <span>Turf Premier League • Official Teams Report</span>
-                    <span>Page 3+ Squads</span>
-                  </div>
+                  {teamsDesignerConfig.footer?.show !== false && (
+                    <div className="text-[9px] text-slate-400 border-t border-slate-200 pt-2 flex justify-between uppercase tracking-wider font-semibold">
+                      <span>{teamsDesignerConfig.footer?.left_text || 'Turf Premier League • Official Teams Report'}</span>
+                      <span>{teamsDesignerConfig.footer?.right_text || 'Page 3+ Squads'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -3490,20 +3794,22 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                 <div className="w-full max-w-[720px] aspect-[1/1.414] bg-white text-slate-900 rounded-xl shadow-2xl p-6 flex flex-col justify-between relative select-none border border-slate-300 overflow-hidden">
                   <div>
                     {/* Header */}
-                    <div className="border-b-2 border-amber-500 pb-3 flex items-center justify-between">
-                      <div>
-                        <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                          <Crown className="w-5 h-5 text-amber-500" />
-                          Franchise Owners & Financial Summary
-                        </h2>
-                        <p className="text-xs text-slate-500 font-semibold">
-                          Official Purse Allocations, Expenditures & Limits
-                        </p>
+                    {ownersDesignerConfig.header?.show !== false && (
+                      <div className="border-b-2 border-amber-500 pb-3 flex items-center justify-between">
+                        <div>
+                          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                            <Crown className="w-5 h-5 text-amber-500" />
+                            {ownersDesignerConfig.header?.title || 'Franchise Owners & Financial Summary'}
+                          </h2>
+                          <p className="text-xs text-slate-500 font-semibold">
+                            {ownersDesignerConfig.header?.subtitle || 'Official Purse Allocations, Expenditures & Limits'}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-mono font-bold bg-amber-50 border border-amber-200 text-amber-800 px-2.5 py-1 rounded-md">
+                          {(ownersDesignerConfig.header?.badge_text || 'Section 02').replace('{teams_count}', String(liveTeams.length))}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-mono font-bold bg-amber-50 border border-amber-200 text-amber-800 px-2.5 py-1 rounded-md">
-                        Section 02
-                      </span>
-                    </div>
+                    )}
 
                     {/* Financials Table */}
                     <div className="pt-4 overflow-x-auto">
@@ -3626,10 +3932,12 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                     </div>
                   </div>
 
-                  <div className="text-[9px] text-slate-400 border-t border-slate-200 pt-2 flex justify-between uppercase tracking-wider font-semibold">
-                    <span>Turf Premier League • Official Tournament Booklet</span>
-                    <span>Page 2 Financials</span>
-                  </div>
+                  {ownersDesignerConfig.footer?.show !== false && (
+                    <div className="text-[9px] text-slate-400 border-t border-slate-200 pt-2 flex justify-between uppercase tracking-wider font-semibold">
+                      <span>{ownersDesignerConfig.footer?.left_text || 'Turf Premier League • Official Tournament Booklet'}</span>
+                      <span>{ownersDesignerConfig.footer?.right_text || 'Page 2 Financials'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -3846,7 +4154,8 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                         const pAge = p ? (p.age != null ? String(p.age) : '—') : '—'
                         const pExp = p ? String(p.custom_data?.experience ?? p.experience ?? '—') : '—'
                         const pAppId = p ? String(p.custom_data?.application_id ?? p.application_id ?? (p.id ? String(p.id).slice(0, 8) : `#${cIdx + 1}`)) : `#${cIdx + 1}`
-                        const pPhoto = p ? (p.photo_url || p.photo || '') : ''
+                        const rawPhoto = p ? (p.photo_url || p.photo || '') : ''
+                        const pPhoto = rawPhoto ? resolveMediaUrl(rawPhoto) : ''
 
                         return (
                           <div
@@ -3881,7 +4190,9 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                               // Determine displayed text
                               let valText: string
                               if (el.custom_text) {
-                                valText = el.custom_text
+                                valText = (!el.show_label && el.label && el.custom_text.startsWith(el.label))
+                                  ? el.custom_text.slice(el.label.length).trim()
+                                  : el.custom_text
                               } else if (key === 'player_number') valText = pNum
                               else if (key === 'name') valText = pName
                               else if (key === 'category') valText = pCat
@@ -3899,6 +4210,14 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
                               const labelText = el.show_label && el.label ? `${el.label} ` : ''
                               const displayText = isPhoto ? (el.show_label ? 'PHOTO' : '') : `${labelText}${valText}`
+
+                              // Dynamic text compression to prevent overflow/cutting off
+                              const textLen = (displayText || '').length
+                              const baseFontSize = Math.max(6, Math.round(el.font_size * 0.65))
+                              const estimatedCharLimit = Math.max(6, Math.round((el.w / 100) * 36))
+                              const dynamicFontSize = textLen > estimatedCharLimit
+                                ? Math.max(5.5, Math.round(baseFontSize * Math.max(0.68, estimatedCharLimit / textLen)))
+                                : baseFontSize
 
                               const boxOpacity = el.bg_opacity !== undefined ? el.bg_opacity : elementBoxOpacity
                               const boxBg = el.bg_colour || elementBoxBgColor || '#ffffff'
@@ -3927,7 +4246,7 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                                     top: `${el.y}%`,
                                     width: `${el.w}%`,
                                     height: `${el.h}%`,
-                                    fontSize: `${Math.max(6, Math.round(el.font_size * 0.65))}px`,
+                                    fontSize: `${dynamicFontSize}px`,
                                     fontFamily: el.font_family || 'Helvetica',
                                     color: el.colour,
                                     fontWeight: el.bold ? 800 : 400,
@@ -3956,13 +4275,21 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                                       : undefined
                                   }
                                 >
-                                  {isPhoto && pPhoto ? (
-                                    <img
-                                      src={pPhoto}
-                                      alt={pName}
-                                      style={{ objectFit: el.image_fit || 'cover' }}
-                                      className="w-full h-full rounded pointer-events-none"
-                                    />
+                                  {isPhoto ? (
+                                    pPhoto && !failedPhotos[pPhoto] ? (
+                                      <img
+                                        src={pPhoto}
+                                        alt={pName}
+                                        style={{ objectFit: el.image_fit || 'cover' }}
+                                        className="w-full h-full rounded pointer-events-none"
+                                        onError={() => setFailedPhotos((prev) => ({ ...prev, [pPhoto]: true }))}
+                                      />
+                                    ) : (
+                                      <div className="flex flex-col items-center justify-center w-full h-full text-slate-400 select-none">
+                                        <ImageIcon className="w-5 h-5 opacity-40" />
+                                        <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Photo</span>
+                                      </div>
+                                    )
                                   ) : (
                                     <span
                                       className="truncate w-full pointer-events-none"
@@ -3972,6 +4299,10 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
                                         fontWeight: el.bold ? 800 : 400,
                                         fontStyle: el.italic ? 'italic' : 'normal',
                                         textDecoration: el.underline ? 'underline' : 'none',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        lineHeight: 1.15,
                                       }}
                                     >
                                       {displayText}

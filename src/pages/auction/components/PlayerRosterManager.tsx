@@ -56,9 +56,14 @@ const BOWLING_STYLES = [
   'Right Arm Fast',
   'Right Arm Medium',
   'Right Arm Spin',
+  'Right Arm Off Spin',
+  'Right Arm Leg Spin',
   'Left Arm Fast',
   'Left Arm Medium',
   'Left Arm Spin',
+  'Left Arm Orthodox',
+  'Left Arm Chinaman',
+  'None / Non-Bowler',
 ]
 const TAGGING_OPTIONS = ['Player', 'Captain', 'Icon', 'Marquee', 'Overseas']
 
@@ -69,18 +74,43 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
   const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Dynamically compute unique player roles from tournament players + default roles
+  const dynamicRoles = useMemo(() => {
+    const rolesSet = new Set<string>()
+    DEFAULT_ROLES.forEach((r) => rolesSet.add(r))
+    players.forEach((p: any) => {
+      const r = p.role || p.player_skills
+      if (r && typeof r === 'string' && r.trim()) {
+        rolesSet.add(r.trim())
+      }
+    })
+    return Array.from(rolesSet).filter(Boolean).sort()
+  }, [players])
+
   // Filters State
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL')
   const [roleFilter, setRoleFilter] = useState<string>('ALL')
-  const [auctionStatusFilter, setAuctionStatusFilter] = useState<string>('ALL')
+  const [auctionStatusFilter, setAuctionStatusFilter] = useState<string>(() => {
+    const filterParam = searchParams.get('filter') || searchParams.get('status')
+    if (filterParam) {
+      const up = filterParam.toUpperCase()
+      if (up === 'PENDING' || up === 'AVAILABLE') return 'PENDING'
+      if (up === 'SOLD' || up === 'UNSOLD' || up === 'BIDDING') return up
+    }
+    return 'ALL'
+  })
   const [teamFilter, setTeamFilter] = useState<string>('ALL')
   const [battingFilter, setBattingFilter] = useState<string>('ALL')
   const [bowlingFilter, setBowlingFilter] = useState<string>('ALL')
   const [taggingFilter, setTaggingFilter] = useState<string>('ALL')
   const [showFilterBar, setShowFilterBar] = useState(true)
   const [showPhotos, setShowPhotos] = useState<boolean>(true)
-  const [viewMode, setViewMode] = useState<'list' | 'cards'>('list')
+  const [viewMode, setViewMode] = useState<'list' | 'cards'>(() => {
+    const viewParam = searchParams.get('view')
+    if (viewParam === 'cards' || viewParam === 'card') return 'cards'
+    return 'list'
+  })
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
   const [deletingBulk, setDeletingBulk] = useState(false)
 
@@ -345,17 +375,16 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
     const filterParam = searchParams.get('filter') || searchParams.get('status')
     if (filterParam) {
       const up = filterParam.toUpperCase()
-      if (up === 'PENDING' || up === 'AVAILABLE') {
-        setAuctionStatusFilter('PENDING')
-      } else if (up === 'SOLD' || up === 'UNSOLD' || up === 'BIDDING') {
-        setAuctionStatusFilter(up)
+      const target = (up === 'PENDING' || up === 'AVAILABLE') ? 'PENDING' : (['SOLD', 'UNSOLD', 'BIDDING'].includes(up) ? up : null)
+      if (target) {
+        setAuctionStatusFilter((prev) => (prev !== target ? target : prev))
       }
     }
     const viewParam = searchParams.get('view')
     if (viewParam === 'cards' || viewParam === 'card') {
-      setViewMode('cards')
+      setViewMode((prev) => (prev !== 'cards' ? 'cards' : prev))
     } else if (viewParam === 'list') {
-      setViewMode('list')
+      setViewMode((prev) => (prev !== 'list' ? 'list' : prev))
     }
   }, [searchParams])
 
@@ -1209,7 +1238,7 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
                   className="w-full rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground focus:outline-none"
                 >
                   <option value="ALL">All Roles</option>
-                  {DEFAULT_ROLES.map((r) => (
+                  {dynamicRoles.map((r) => (
                     <option key={r} value={r}>
                       {r}
                     </option>
@@ -1922,6 +1951,7 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
         onClose={() => setShowPlayerModal(false)}
         onSuccess={() => loadPlayers()}
         playerToEdit={editingPlayer}
+        existingRoles={dynamicRoles}
       />
     </div>
   )
