@@ -426,19 +426,6 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
     setSaveSuccess(false)
     setErrorMessage('')
 
-    const totalTarget = categories.reduce((sum, c) => sum + (c.target_count || 0), 0)
-    if (totalTarget > 0 && totalTarget !== maxSquad && categories.length > 0) {
-      if (
-        !confirm(
-          `Notice: Sum of category targets (${totalTarget}) does not equal Max Squad (${maxSquad}). Would you like to auto-adjust Max Squad to ${totalTarget} before saving?`
-        )
-      ) {
-        setSaving(false)
-        return
-      }
-      setMaxSquad(totalTarget)
-    }
-
     try {
       const formData = new FormData()
 
@@ -450,7 +437,7 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
       formData.append('lot_order', lotOrder)
 
       // 2. Budget & Squad
-      formData.append('max_squad', (totalTarget > 0 ? totalTarget : maxSquad).toString())
+      formData.append('max_squad', maxSquad.toString())
       formData.append('team_purse', teamPurse.toString())
       formData.append('retention_allowed', retentionAllowed ? 'true' : 'false')
       formData.append('bring_back_unsold', bringBackUnsold ? 'true' : 'false')
@@ -584,7 +571,6 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
     }
   }
 
-  const sumTargets = categories.reduce((sum, c) => sum + (c.target_count || 0), 0)
   const sumGroupTeams = groups.reduce((sum, g) => sum + (g.team_count || 0), 0)
 
   if (loading) {
@@ -705,18 +691,12 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
                 onChange={(e) => setMaxSquad(parseInt(e.target.value) || 1)}
                 className="text-xs font-bold rounded-xl border-border bg-background"
               />
-              <span
-                className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border whitespace-nowrap ${
-                  sumTargets === maxSquad
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-amber-50 text-amber-800 border-amber-200'
-                }`}
-              >
-                Target Sum: {sumTargets}
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg border whitespace-nowrap bg-muted/40 text-muted-foreground border-border">
+                Players / Team
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Must equal the sum of category target counts ({sumTargets}).
+              Maximum squad size per team (e.g. 13 or 15 players).
             </p>
           </div>
 
