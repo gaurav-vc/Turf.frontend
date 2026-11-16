@@ -901,6 +901,380 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     }
   }
 
+  const handlePrintExactReplicaPdf = () => {
+    // 1. Group players according to activeTab
+    type Group = { title: string; rightText: string; players: typeof realPlayers }
+    const groups: Group[] = []
+
+    if (activeTab === 'category') {
+      const cats = availableCategories.length > 0 ? availableCategories : ['General']
+      cats.forEach((cat) => {
+        const catPlayers = realPlayers.filter(
+          (p) => String(p.category || p.tier || '').trim().toLowerCase() === cat.trim().toLowerCase()
+        )
+        if (catPlayers.length > 0) {
+          groups.push({
+            title: headerConfig.title || `Category: ${cat}`,
+            rightText: headerConfig.right_text || 'Every category on new page',
+            players: catPlayers,
+          })
+        }
+      })
+      if (groups.length === 0) {
+        groups.push({
+          title: headerConfig.title || 'Category: Open',
+          rightText: headerConfig.right_text || 'Every category on new page',
+          players: realPlayers,
+        })
+      }
+    } else {
+      groups.push({
+        title: headerConfig.title || 'Auction Format Order',
+        rightText: headerConfig.right_text || 'Continuous order',
+        players: realPlayers,
+      })
+    }
+
+    const pageSize = cols * rows
+    let pagesHtml = ''
+
+    groups.forEach((group) => {
+      const totalInGroup = group.players.length
+      const pageCount = Math.max(1, Math.ceil(totalInGroup / pageSize))
+
+      for (let pIndex = 0; pIndex < pageCount; pIndex++) {
+        const pagePlayers = group.players.slice(pIndex * pageSize, (pIndex + 1) * pageSize)
+
+        let cardsHtml = ''
+        for (let cIdx = 0; cIdx < pageSize; cIdx++) {
+          const p = pagePlayers[cIdx]
+          if (!p) {
+            cardsHtml += `
+              <div style="
+                border: 1px dashed ${hexToRgba(accentColour, 0.25)};
+                background-color: ${hexToRgba(cardFill, cardFillOpacity / 100)};
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #94a3b8;
+                font-size: 10px;
+                font-weight: bold;
+              ">
+                <span style="opacity: 0.5;">Available Slot</span>
+              </div>
+            `
+            continue
+          }
+
+          const pNum = p.serial_no != null ? `#${p.serial_no}` : `#${cIdx + 1}`
+          const pUser = p.player
+          const pName = p.player_name || p.name || pUser?.full_name || pUser?.first_name || pUser?.username || `Player #${p.serial_no || cIdx + 1}`
+          const pCat = p.category || p.tier || selectedCategory || 'Category'
+          const pRole = p.role || p.player_skills || 'All-Rounder'
+          const pPrice = p.base_price != null ? `₹${Number(p.base_price).toLocaleString('en-IN')}` : '₹0'
+          const pLoc = p.location || '—'
+          const pBat = p.batting_style || '—'
+          const pBowl = p.bowling_style || '—'
+          const pMob = p.mobile || '—'
+          const pAge = p.age != null ? String(p.age) : '—'
+          const pExp = String(p.custom_data?.experience ?? p.experience ?? '—')
+          const pAppId = String(p.custom_data?.application_id ?? p.application_id ?? (p.id ? String(p.id).slice(0, 8) : `#${cIdx + 1}`))
+          const rawPhoto = p.photo_url || p.photo || ''
+          const pPhoto = rawPhoto ? resolveMediaUrl(rawPhoto) : ''
+
+          let elementsHtml = ''
+          Object.entries(elements).forEach(([key, el]) => {
+            if (!el.selected) return
+            const isPhoto = key === 'player_photo'
+
+            let valText: string
+            if (el.custom_text) {
+              valText = (!el.show_label && el.label && el.custom_text.startsWith(el.label))
+                ? el.custom_text.slice(el.label.length).trim()
+                : el.custom_text
+            } else if (key === 'player_number') valText = pNum
+            else if (key === 'name') valText = pName
+            else if (key === 'category') valText = pCat
+            else if (key === 'role') valText = pRole
+            else if (key === 'base_price') valText = pPrice
+            else if (key === 'location') valText = pLoc
+            else if (key === 'batting') valText = pBat
+            else if (key === 'bowling') valText = pBowl
+            else if (key === 'mobile') valText = pMob
+            else if (key === 'age') valText = pAge
+            else if (key === 'experience') valText = pExp
+            else if (key === 'application_id') valText = pAppId
+            else if (p.custom_data && p.custom_data[key]) valText = String(p.custom_data[key])
+            else valText = el.label || ''
+
+            const labelText = el.show_label && el.label ? `${el.label} ` : ''
+            const displayText = isPhoto ? (el.show_label ? 'PHOTO' : '') : `${labelText}${valText}`
+
+            const textLen = (displayText || '').length
+            const baseFontSize = Math.max(6.5, Math.round(el.font_size * 0.72))
+            const estimatedCharLimit = Math.max(6, Math.round((el.w / 100) * 36))
+            const dynamicFontSize = textLen > estimatedCharLimit
+              ? Math.max(5.5, Math.round(baseFontSize * Math.max(0.68, estimatedCharLimit / textLen)))
+              : baseFontSize
+
+            const boxOpacity = el.bg_opacity !== undefined ? el.bg_opacity : elementBoxOpacity
+            const boxBg = el.bg_colour || elementBoxBgColor || '#ffffff'
+            const alignStyle = el.align === 'center' ? 'center' : el.align === 'right' ? 'flex-end' : 'flex-start'
+
+            if (isPhoto) {
+              elementsHtml += `
+                <div style="
+                  position: absolute;
+                  left: ${el.x}%;
+                  top: ${el.y}%;
+                  width: ${el.w}%;
+                  height: ${el.h}%;
+                  background: rgba(241, 245, 249, 0.95);
+                  border: 1px solid rgba(203, 213, 225, 0.8);
+                  border-radius: 4px;
+                  overflow: hidden;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  z-index: ${el.z || 1};
+                ">
+                  ${pPhoto ? `<img src="${pPhoto}" style="width: 100%; height: 100%; object-fit: ${el.image_fit || 'cover'};" />` : `<span style="font-size: 8px; color: #94a3b8; font-weight: bold;">PHOTO</span>`}
+                </div>
+              `
+            } else {
+              const bgRgba = boxOpacity > 0 ? hexToRgba(boxBg, boxOpacity / 100) : 'transparent'
+              const borderStyle = boxOpacity > 0 ? `1px solid ${hexToRgba(el.colour || '#64748b', Math.min(0.4, 0.15 + (boxOpacity / 100) * 0.25))}` : 'none'
+              elementsHtml += `
+                <div style="
+                  position: absolute;
+                  left: ${el.x}%;
+                  top: ${el.y}%;
+                  width: ${el.w}%;
+                  height: ${el.h}%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: ${alignStyle};
+                  font-size: ${dynamicFontSize}px;
+                  font-family: ${el.font_family || 'Inter, system-ui, -apple-system, sans-serif'};
+                  color: ${el.colour};
+                  font-weight: ${el.bold ? 800 : 500};
+                  font-style: ${el.italic ? 'italic' : 'normal'};
+                  text-decoration: ${el.underline ? 'underline' : 'none'};
+                  background-color: ${bgRgba};
+                  border: ${borderStyle};
+                  border-radius: ${boxOpacity > 0 ? '4px' : '0'};
+                  padding: ${boxOpacity > 0 ? '0 4px' : '0'};
+                  box-sizing: border-box;
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  z-index: ${el.z || 2};
+                ">
+                  ${displayText}
+                </div>
+              `
+            }
+          })
+
+          cardsHtml += `
+            <div style="
+              position: relative;
+              background-color: ${hexToRgba(cardFill, cardFillOpacity / 100)};
+              border: 1.5px solid ${accentColour};
+              border-radius: 8px;
+              overflow: hidden;
+              box-sizing: border-box;
+            ">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background-color: ${accentColour}; z-index: 5;"></div>
+              ${elementsHtml}
+            </div>
+          `
+        }
+
+        let logosHtml = ''
+        placedLogos.forEach((logo) => {
+          logosHtml += `
+            <div style="
+              position: absolute;
+              left: ${logo.x}%;
+              top: ${logo.y}%;
+              width: ${logo.width}%;
+              z-index: 30;
+            ">
+              <img src="${logo.url}" style="width: 100%; height: auto; object-fit: contain;" />
+            </div>
+          `
+        })
+
+        let headerHtml = ''
+        if (headerConfig.show) {
+          headerHtml = `
+            <div style="
+              height: ${headerConfig.height}px;
+              background-color: ${headerConfig.bg_colour};
+              color: ${headerConfig.text_colour};
+              border-bottom: 2.5px solid ${accentColour};
+              border-radius: 8px;
+              padding: 0 12px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 8px;
+              position: relative;
+              z-index: 15;
+              box-sizing: border-box;
+            ">
+              <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+                ${showTournamentLogo && placedLogos.length === 0 ? `
+                  <div style="
+                    width: ${Math.max(16, headerConfig.height * 0.7)}px;
+                    height: ${Math.max(16, headerConfig.height * 0.7)}px;
+                    font-size: ${Math.max(8, headerConfig.font_size * 0.75)}px;
+                    background-color: ${accentColour};
+                    color: #fff;
+                    font-weight: 900;
+                    border-radius: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  ">T</div>
+                ` : ''}
+                <span style="
+                  font-size: ${headerConfig.font_size}px;
+                  font-weight: 800;
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+                  white-space: nowrap;
+                ">
+                  ${group.title}
+                </span>
+              </div>
+              <span style="
+                font-size: ${Math.max(7, headerConfig.font_size * 0.8)}px;
+                font-weight: 600;
+                opacity: 0.85;
+                white-space: nowrap;
+              ">
+                ${group.rightText}
+              </span>
+            </div>
+          `
+        }
+
+        let bgWatermarkHtml = ''
+        if (pageBackgroundImage) {
+          bgWatermarkHtml = `
+            <div style="
+              position: absolute;
+              inset: 0;
+              background-image: url('${pageBackgroundImage}');
+              background-size: cover;
+              background-position: center;
+              opacity: ${pageBackgroundOpacity / 100};
+              z-index: 0;
+              pointer-events: none;
+            "></div>
+          `
+        }
+
+        pagesHtml += `
+          <div class="a4-page" style="
+            width: 210mm;
+            height: 296mm;
+            max-height: 296mm;
+            padding: 10mm;
+            box-sizing: border-box;
+            position: relative;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            page-break-after: always;
+            break-after: page;
+            overflow: hidden;
+          ">
+            ${bgWatermarkHtml}
+            ${logosHtml}
+            ${headerHtml}
+            <div style="
+              display: grid;
+              grid-template-columns: repeat(${cols}, 1fr);
+              grid-template-rows: repeat(${rows}, 1fr);
+              gap: 8px;
+              flex: 1;
+              position: relative;
+              z-index: 10;
+              box-sizing: border-box;
+            ">
+              ${cardsHtml}
+            </div>
+          </div>
+        `
+      }
+    })
+
+    const printFrame = document.createElement('iframe')
+    printFrame.style.position = 'fixed'
+    printFrame.style.right = '0'
+    printFrame.style.bottom = '0'
+    printFrame.style.width = '0'
+    printFrame.style.height = '0'
+    printFrame.style.border = '0'
+    document.body.appendChild(printFrame)
+
+    const doc = printFrame.contentWindow?.document
+    if (!doc) return
+
+    doc.open()
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${headerConfig.title || 'Player_Cards_Print'}</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 0;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              background: #fff;
+              font-family: Inter, system-ui, -apple-system, sans-serif;
+            }
+            .a4-page {
+              page-break-after: always;
+              break-after: page;
+            }
+          </style>
+        </head>
+        <body>
+          ${pagesHtml}
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.focus();
+                window.print();
+              }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `)
+    doc.close()
+
+    setTimeout(() => {
+      try {
+        document.body.removeChild(printFrame)
+      } catch (_) {}
+    }, 60000)
+  }
+
   const handleDownloadCardsPdf = async () => {
     try {
       setSaving(true)
@@ -1353,6 +1727,15 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
               <CheckCircle2 className="w-4 h-4 text-emerald-600" /> PDF Design Saved!
             </span>
           )}
+
+          <Button
+            onClick={handlePrintExactReplicaPdf}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md rounded-xl cursor-pointer ring-2 ring-indigo-400"
+            title="Download/Print 100% exact visual replica PDF with zero font or layout change"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            ⚡ Exact Replica PDF (100% Visual)
+          </Button>
 
           <Button
             onClick={handleDownloadCardsPdf}
