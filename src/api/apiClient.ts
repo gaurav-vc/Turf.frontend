@@ -43,10 +43,13 @@ export const resolveMediaUrl = (url: string | null | undefined): string => {
   }
 
   // Google Drive direct image URL converter
-  if (trimmed.includes('drive.google.com')) {
-    const fileIdMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/)
+  if (trimmed.includes('drive.google.com') || trimmed.includes('googleusercontent.com')) {
+    const fileIdMatch =
+      trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+      trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+      trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/)
     if (fileIdMatch && fileIdMatch[1]) {
-      return `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`
+      return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w1000`
     }
   }
 
