@@ -908,10 +908,14 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
 
     if (activeTab === 'category') {
       const cats = availableCategories.length > 0 ? availableCategories : ['General']
+      const accountedIds = new Set<string | number>()
+
       cats.forEach((cat) => {
-        const catPlayers = realPlayers.filter(
-          (p) => String(p.category || p.tier || '').trim().toLowerCase() === cat.trim().toLowerCase()
-        )
+        const catPlayers = realPlayers.filter((p) => {
+          const matches = String(p.category || p.tier || '').trim().toLowerCase() === cat.trim().toLowerCase()
+          if (matches && p.id != null) accountedIds.add(p.id)
+          return matches
+        })
         if (catPlayers.length > 0) {
           groups.push({
             title: headerConfig.title || `Category: ${cat}`,
@@ -920,6 +924,17 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
           })
         }
       })
+
+      // Catch any uncategorized players so zero players are ever left out
+      const remaining = realPlayers.filter((p) => p.id != null && !accountedIds.has(p.id))
+      if (remaining.length > 0) {
+        groups.push({
+          title: headerConfig.title || 'Other Players',
+          rightText: headerConfig.right_text || 'General Pool',
+          players: remaining,
+        })
+      }
+
       if (groups.length === 0) {
         groups.push({
           title: headerConfig.title || 'Category: Open',
@@ -1234,34 +1249,74 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
           <style>
             @page {
               size: A4 portrait;
-              margin: 0;
+              margin: 0mm;
             }
             * {
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
               color-adjust: exact !important;
+              box-sizing: border-box;
             }
-            body {
+            html, body {
               margin: 0;
               padding: 0;
-              background: #fff;
+              background: #ffffff;
               font-family: Inter, system-ui, -apple-system, sans-serif;
             }
             .a4-page {
+              width: 210mm;
+              height: 297mm;
+              max-height: 297mm;
               page-break-after: always;
               break-after: page;
+              page-break-inside: avoid;
+              break-inside: avoid;
+              overflow: hidden;
+              box-sizing: border-box;
+            }
+            .a4-page:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
             }
           </style>
         </head>
         <body>
           ${pagesHtml}
           <script>
-            window.onload = function() {
-              setTimeout(function() {
-                window.focus();
-                window.print();
-              }, 400);
-            };
+            function triggerPrintWhenReady() {
+              var imgs = Array.from(document.images);
+              var pending = imgs.filter(function(img) { return !img.complete; });
+              if (pending.length === 0) {
+                setTimeout(function() {
+                  window.focus();
+                  window.print();
+                }, 300);
+              } else {
+                var loaded = 0;
+                var total = pending.length;
+                var safetyTimer = setTimeout(function() {
+                  window.focus();
+                  window.print();
+                }, 2500);
+                pending.forEach(function(img) {
+                  img.onload = img.onerror = function() {
+                    loaded++;
+                    if (loaded >= total) {
+                      clearTimeout(safetyTimer);
+                      setTimeout(function() {
+                        window.focus();
+                        window.print();
+                      }, 300);
+                    }
+                  };
+                });
+              }
+            }
+            if (document.readyState === 'complete') {
+              triggerPrintWhenReady();
+            } else {
+              window.onload = triggerPrintWhenReady;
+            }
           </script>
         </body>
       </html>
