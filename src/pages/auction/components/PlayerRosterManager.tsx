@@ -27,6 +27,7 @@ import {
   CheckSquare,
   Square,
   Users,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -165,6 +166,26 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
 
   // Registration Link State
   const [regLink, setRegLink] = useState<any>(null)
+  const [syncingPhotos, setSyncingPhotos] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
+
+  const handleSyncDrivePhotos = async () => {
+    try {
+      setSyncingPhotos(true)
+      setSyncResult(null)
+      const res = await apiClient.post(`/v1/auction/console/${auctionId}/sync_drive_photos/`)
+      if (res.data?.success) {
+        setSyncResult(res.data.message)
+        await loadPlayers()
+        setTimeout(() => setSyncResult(null), 6000)
+      }
+    } catch (err: any) {
+      console.error('Failed to sync drive photos', err)
+      alert(err.response?.data?.error || 'Failed to sync photos from Google Drive. Please ensure the Drive folder is shared with "Anyone with the link".')
+    } finally {
+      setSyncingPhotos(false)
+    }
+  }
   const [showRegModal, setShowRegModal] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [regTitle, setRegTitle] = useState('Player Registration')
@@ -914,6 +935,18 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
             <Button
               size="sm"
               variant="outline"
+              disabled={syncingPhotos}
+              onClick={handleSyncDrivePhotos}
+              className="rounded-xl text-xs font-bold border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 h-9 flex items-center gap-1.5 cursor-pointer"
+              title="Download & cache all Google Drive photos onto server disk for 100% reliable PDF exports"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-emerald-600 ${syncingPhotos ? 'animate-spin' : ''}`} />
+              {syncingPhotos ? 'Syncing...' : 'Sync Drive Photos'}
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => setShowRegModal(true)}
               className="rounded-xl text-xs font-bold border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 h-9 flex items-center gap-1.5"
             >
@@ -991,6 +1024,13 @@ export default function PlayerRosterManager({ auctionId, onPlayerSelected }: Pla
             )}
           </div>
         </div>
+
+        {syncResult && (
+          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between shadow-xs">
+            <span>⚡ {syncResult}</span>
+            <button onClick={() => setSyncResult(null)} className="text-emerald-700 hover:text-emerald-950 dark:hover:text-emerald-100 font-black cursor-pointer">✕</button>
+          </div>
+        )}
 
         {/* Real-time Summary Metric Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1 border-b border-border/50 pb-3">

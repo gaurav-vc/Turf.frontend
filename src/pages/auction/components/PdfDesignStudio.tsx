@@ -35,6 +35,7 @@ import {
   BookOpen,
   Shield,
   Crown,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -422,6 +423,8 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
   const [draggingListKey, setDraggingListKey] = useState<string | null>(null)
   const [dragOverListKey, setDragOverListKey] = useState<string | null>(null)
   const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({})
+  const [syncingPhotos, setSyncingPhotos] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
 
   // Adjustable Header & Footer state
   const [headerConfig, setHeaderConfig] = useState<PdfHeaderConfig>(DEFAULT_HEADER_CONFIG)
@@ -1026,6 +1029,25 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
     }
   }
 
+  const handleSyncDrivePhotos = async () => {
+    try {
+      setSyncingPhotos(true)
+      setSyncResult(null)
+      const res = await apiClient.post(`/v1/auction/console/${auctionId}/sync_drive_photos/`)
+      if (res.data?.success) {
+        setSyncResult(res.data.message)
+        // Refresh players so the UI uses local /media/ URLs
+        await loadDesign()
+        setTimeout(() => setSyncResult(null), 6000)
+      }
+    } catch (err: any) {
+      console.error('Failed to sync photos', err)
+      alert(err.response?.data?.error || 'Failed to sync photos from Google Drive. Please ensure the Drive folder is shared with "Anyone with the link".')
+    } finally {
+      setSyncingPhotos(false)
+    }
+  }
+
   const toggleElementSelected = (key: string) => {
     setElements((prev) => {
       const el = prev[key]
@@ -1381,6 +1403,17 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
           </Button>
 
           <Button
+            variant="outline"
+            disabled={syncingPhotos}
+            onClick={handleSyncDrivePhotos}
+            className="border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5 rounded-xl cursor-pointer"
+            title="Download & cache all Google Drive photos onto server disk for 100% reliable PDF exports"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${syncingPhotos ? 'animate-spin' : ''}`} />
+            {syncingPhotos ? 'Syncing Photos...' : 'Sync Drive Photos'}
+          </Button>
+
+          <Button
             onClick={handleSave}
             disabled={saving}
             className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm rounded-xl cursor-pointer"
@@ -1390,6 +1423,13 @@ export default function PdfDesignStudio({ auctionId }: PdfDesignStudioProps) {
           </Button>
         </div>
       </div>
+
+      {syncResult && (
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-800 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between shadow-xs">
+          <span>⚡ {syncResult}</span>
+          <button onClick={() => setSyncResult(null)} className="text-emerald-700 hover:text-emerald-950 font-black cursor-pointer">✕</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="p-12 text-center text-slate-500">Loading PDF design studio...</div>
