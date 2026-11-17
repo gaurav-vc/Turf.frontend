@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { apiClient } from '@/api/apiClient'
+import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import { getTeamShortcut, getTeamTheme } from './teamThemeUtils'
 import { useUserUIPreferences } from './useUserUIPreferences'
 
@@ -345,6 +345,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
   const [showDesignerOtherActions, setShowDesignerOtherActions] = useState(false)
   const [actionBarFilterGroup, setActionBarFilterGroup] = useState<'all' | 'main' | 'other'>('all')
   const [newCustomActionLabel, setNewCustomActionLabel] = useState('')
+  const [bgDesignerFailed, setBgDesignerFailed] = useState(false)
+  const [failedDesignerPhotos, setFailedDesignerPhotos] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const handleOutside = () => setShowDesignerOtherActions(false)
@@ -2955,18 +2957,19 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
           {/* 16:9 Interactive Full-Arena Canvas Stage */}
           <div className="relative overflow-hidden rounded-3xl border-2 border-slate-800 shadow-2xl bg-slate-950">
             {/* Background Image / Preset */}
-            {design.custom_background_url ? (
+            {design.custom_background_url && !bgDesignerFailed ? (
               <img
-                src={design.custom_background_url}
-                alt="Auction Stage Background"
-                className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-40"
+                src={resolveMediaUrl(design.custom_background_url)}
+                alt=""
+                onError={() => setBgDesignerFailed(true)}
+                className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-40 transition-opacity duration-300"
               />
             ) : design.background_mode === 'classic_turf' ? (
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-950 pointer-events-none opacity-60" />
             ) : design.background_mode === 'dark_neon' ? (
               <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-indigo-950 pointer-events-none opacity-60" />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 pointer-events-none" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/40 via-slate-950 to-slate-950 pointer-events-none" />
             )}
 
             {/* Stage Canvas Area */}
@@ -3147,31 +3150,37 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         </div>
                       )}
 
-                      {key === 'player_photo' && (
-                        <div
-                          className="w-full h-full flex flex-col items-center justify-center border border-white/20 bg-slate-900/90 overflow-hidden shadow-inner"
-                          style={getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius)}
-                        >
-                          {samplePlayerData.photo_url ? (
-                            <img
-                              src={samplePlayerData.photo_url}
-                              alt="Player"
-                              style={{
-                                ...getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius),
-                                objectFit: el?.object_fit || 'contain',
-                              }}
-                              className="w-full h-full pointer-events-none"
-                            />
-                          ) : (
-                            <div className="text-center p-2">
-                              <ImageIcon className="w-8 h-8 text-slate-500 mx-auto mb-1" />
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                PLAYER PHOTO
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {key === 'player_photo' && (() => {
+                        const resolvedPhoto = resolveMediaUrl(samplePlayerData.photo_url)
+                        const isPhotoFailed = !resolvedPhoto || failedDesignerPhotos[resolvedPhoto]
+
+                        return (
+                          <div
+                            className="w-full h-full flex flex-col items-center justify-center border border-white/20 bg-slate-900/90 overflow-hidden shadow-inner"
+                            style={getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius)}
+                          >
+                            {!isPhotoFailed ? (
+                              <img
+                                src={resolvedPhoto}
+                                alt=""
+                                onError={() => setFailedDesignerPhotos((prev) => ({ ...prev, [resolvedPhoto]: true }))}
+                                style={{
+                                  ...getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius),
+                                  objectFit: el?.object_fit || 'contain',
+                                }}
+                                className="w-full h-full pointer-events-none"
+                              />
+                            ) : (
+                              <div className="text-center p-2">
+                                <ImageIcon className="w-8 h-8 text-slate-500 mx-auto mb-1" />
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                  PLAYER PHOTO
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
 
                       {key === 'player_name' && (
                         <div className="w-full" style={{ textAlign: el.align || 'left' }}>

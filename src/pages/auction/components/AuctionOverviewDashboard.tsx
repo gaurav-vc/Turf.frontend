@@ -507,7 +507,7 @@ export default function AuctionOverviewDashboard({
                       <div className="flex items-baseline justify-between text-xs">
                         <span className="text-slate-500 font-medium">Target per team:</span>
                         <span className="font-bold text-zinc-900 font-mono">
-                          {c.target || 2} players
+                          {c.target !== undefined && c.target !== null ? c.target : (c.min_players || 1)} players
                         </span>
                       </div>
 

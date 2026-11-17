@@ -37,6 +37,23 @@ export const resolveMediaUrl = (url: string | null | undefined): string => {
   let trimmed = String(url).trim()
   if (!trimmed) return ''
 
+  // Filter out preset keywords, mode names, and non-image strings
+  const lower = trimmed.toLowerCase()
+  if (
+    lower === 'default' ||
+    lower === 'stadium' ||
+    lower === 'classic_turf' ||
+    lower === 'dark_neon' ||
+    lower === 'none' ||
+    lower === 'null' ||
+    lower === 'undefined' ||
+    lower === 'custom' ||
+    lower === 'false' ||
+    lower === 'true'
+  ) {
+    return ''
+  }
+
   // Data URLs or Blob URLs can be rendered immediately
   if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
     return trimmed
@@ -59,7 +76,6 @@ export const resolveMediaUrl = (url: string | null | undefined): string => {
   }
 
   // Base API url (e.g. "https://xrena.99.vibesandbox.live/api" or "http://localhost:8000/api")
-  const baseWithApi = BASE_URL.replace(/\/+$/, '')
   const baseWithoutApi = BASE_URL.replace(/\/api\/?$/, '')
 
   // If the stored URL contains obsolete or test hosts, normalize to active base
@@ -74,7 +90,7 @@ export const resolveMediaUrl = (url: string | null | undefined): string => {
 
   // Pure external URLs that don't belong to our own backend host
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    const isOurBackend = trimmed.startsWith(baseWithoutApi) || trimmed.startsWith(baseWithApi)
+    const isOurBackend = trimmed.startsWith(baseWithoutApi) || trimmed.startsWith(BASE_URL)
     if (!isOurBackend) {
       return trimmed
     }
@@ -100,8 +116,12 @@ export const resolveMediaUrl = (url: string | null | undefined): string => {
     return `${baseWithoutApi}/api/media${trimmed}`
   }
 
-  // Bare filename/path (e.g. "team_logos/logo.png")
-  return `${baseWithApi}/media/${trimmed}`
+  // Bare filename/path (e.g. "team_logos/logo.png" or "player_30.jpg")
+  if (trimmed.includes('/') || /\.(jpe?g|png|webp|svg|gif|ico)$/i.test(trimmed)) {
+    return `${baseWithoutApi}/api/media/${trimmed.replace(/^\/+/, '')}`
+  }
+
+  return ''
 }
 
 export const apiClient = axios.create({

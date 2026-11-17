@@ -1075,8 +1075,8 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
                   </div>
                 </div>
 
-                {/* 3-Column Grid: Base Price, Min Player, Max Player (Target Req/Team removed per Image 6 / Sheet 1) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+                {/* 4-Column Grid: Base Price, Target Req/Team, Min Player, Max Player */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase">
                       Base Price (₹)
@@ -1088,6 +1088,19 @@ export default function SetupRulesManager({ auctionId, onNavigateTab }: SetupRul
                       value={cat.base_price}
                       onChange={(e) => handleUpdateCategory(idx, 'base_price', parseFloat(e.target.value) || 0)}
                       className="text-xs font-bold font-mono rounded-xl bg-background h-8"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase">
+                      Target / Team
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={cat.target_count !== undefined && cat.target_count !== null ? cat.target_count : 1}
+                      onChange={(e) => handleUpdateCategory(idx, 'target_count', parseInt(e.target.value) || 0)}
+                      className="text-xs font-bold font-mono rounded-xl bg-background h-8 border-amber-500/30"
+                      placeholder="Target"
                     />
                   </div>
                   <div className="space-y-1">

@@ -66,6 +66,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const [showQueueDrawer, setShowQueueDrawer] = useState(false)
   const [showLiveOtherActions, setShowLiveOtherActions] = useState(false)
   const [showBottomLiveOtherActions, setShowBottomLiveOtherActions] = useState(false)
+  const [bgImageFailed, setBgImageFailed] = useState(false)
+  const [failedPlayerPhotos, setFailedPlayerPhotos] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const handleOutsideClick = () => {
@@ -753,12 +755,10 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   }
 
   // Stage Background matching Auction Page Designer
-  const customBgUrl = pageDesign?.custom_background_url
-    ? resolveMediaUrl(pageDesign.custom_background_url)
-    : auctionBackground
-      ? resolveMediaUrl(auctionBackground)
-      : ''
-  const backgroundMode = pageDesign?.background_mode || 'stadium'
+  const rawBg = pageDesign?.custom_background_url || auctionBackground || ''
+  const isPresetBg = ['default', 'stadium', 'classic_turf', 'dark_neon', 'none', 'custom'].includes(String(rawBg).trim().toLowerCase())
+  const customBgUrl = !isPresetBg && rawBg ? resolveMediaUrl(rawBg) : ''
+  const backgroundMode = pageDesign?.background_mode || (isPresetBg && rawBg !== 'default' ? rawBg : 'stadium')
   const resolvedBgUrl = customBgUrl
 
   const getBidDisplayShort = (bid: { team_id?: string; team_name?: string; short_name?: string }) => {
@@ -1109,18 +1109,22 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
           {/* Left Stage: Dynamically Configured Live Broadcast Arena Stage */}
           <div className="flex-1 flex flex-col justify-center rounded-2xl border border-blue-900/40 bg-gradient-to-b from-[#07162b] via-[#051122] to-[#030c18] p-2 md:p-4 shadow-2xl relative overflow-hidden">
             {/* Background Image / Preset if configured matching Page Designer */}
-            {customBgUrl ? (
+            {customBgUrl && !bgImageFailed ? (
               <img
                 src={customBgUrl}
-                alt="Stage Background"
-                className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-40"
+                alt=""
+                onError={() => setBgImageFailed(true)}
+                className="absolute inset-0 h-full w-full object-cover pointer-events-none opacity-40 transition-opacity duration-300"
               />
-            ) : backgroundMode === 'classic_turf' ? (
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-950 pointer-events-none opacity-60" />
-            ) : backgroundMode === 'dark_neon' ? (
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-indigo-950 pointer-events-none opacity-60" />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 pointer-events-none" />
+            ) : null}
+            {(!customBgUrl || bgImageFailed) && (
+              backgroundMode === 'classic_turf' ? (
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-950 pointer-events-none opacity-60" />
+              ) : backgroundMode === 'dark_neon' ? (
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-indigo-950 pointer-events-none opacity-60" />
+              ) : (
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/40 via-slate-950 to-slate-950 pointer-events-none" />
+              )
             )}
 
             {player ? (
@@ -1226,31 +1230,38 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           </div>
                         )}
 
-                        {key === 'player_photo' && (
-                          <div
-                            className="relative w-full h-full border-2 border-slate-700 bg-slate-900/90 shadow-2xl flex items-center justify-center overflow-hidden"
-                            style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius)}
-                          >
-                            {player.photo_url ? (
-                              <img
-                                src={player.photo_url}
-                                alt={player.player_name}
-                                className="h-full w-full pointer-events-none"
-                                style={{
-                                  ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius),
-                                  objectFit: el?.object_fit || 'contain',
-                                }}
-                              />
-                            ) : (
-                              <div className="flex flex-col items-center justify-center text-slate-500">
-                                <Trophy className="h-12 w-12 text-slate-600 mb-1" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                  PLAYER PHOTO
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        {key === 'player_photo' && (() => {
+                          const rawPhoto = player.photo_url || (player as any).photo || ((player as any).player?.photo) || ''
+                          const resolvedPhoto = resolveMediaUrl(rawPhoto)
+                          const isFailed = !resolvedPhoto || failedPlayerPhotos[resolvedPhoto]
+
+                          return (
+                            <div
+                              className="relative w-full h-full border-2 border-slate-700 bg-slate-900/90 shadow-2xl flex items-center justify-center overflow-hidden"
+                              style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius)}
+                            >
+                              {!isFailed ? (
+                                <img
+                                  src={resolvedPhoto}
+                                  alt=""
+                                  onError={() => setFailedPlayerPhotos((prev) => ({ ...prev, [resolvedPhoto]: true }))}
+                                  className="h-full w-full pointer-events-none"
+                                  style={{
+                                    ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius),
+                                    objectFit: el?.object_fit || 'contain',
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center justify-center text-slate-500">
+                                  <Trophy className="h-12 w-12 text-slate-600 mb-1" />
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    {player.player_name ? player.player_name.slice(0, 16).toUpperCase() : 'PLAYER PHOTO'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
 
                         {key === 'player_name' && (
                           <div className="w-full" style={{ textAlign: el.align || 'left' }}>
