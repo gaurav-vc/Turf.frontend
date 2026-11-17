@@ -14,6 +14,7 @@ import { useLiveAuctionState } from '../hooks/useLiveAuctionState'
 import { type ActionButtonConfig, DEFAULT_ACTION_BUTTONS, DEFAULT_PAGE_DESIGN, getPhotoShapeStyle } from './AuctionPageDesigner'
 import { getTeamTheme, getTeamShortcut } from './teamThemeUtils'
 import { useUserUIPreferences } from './useUserUIPreferences'
+import SoldStampBadge from './SoldStampBadge'
 
 interface LiveBroadcastConsoleProps {
   auctionId: string
@@ -69,6 +70,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const [bgImageFailed, setBgImageFailed] = useState(false)
   const [failedPlayerPhotos, setFailedPlayerPhotos] = useState<Record<string, boolean>>({})
   const [failedTeamLogos, setFailedTeamLogos] = useState<Record<string, boolean>>({})
+  const [hammerSoldActive, setHammerSoldActive] = useState(false)
 
   useEffect(() => {
     const handleOutsideClick = () => {
@@ -684,6 +686,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
       playSoundEffect('sold')
       setTimerActive(false)
       triggerConfetti()
+      setHammerSoldActive(true)
+      setTimeout(() => setHammerSoldActive(false), 8000)
       setFeedbackMessage({ text: 'PLAYER SOLD! Balance updated in team purse.', type: 'success' })
       if (autoAdvanceQueue) {
         setAutoAdvanceCountdown(3)
@@ -784,7 +788,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 setShowBottomLiveOtherActions(false)
               }
             }}
-            disabled={actionLoading || !player || !highestBid}
+            disabled={actionLoading || !player || !highestBid || player?.status === 'SOLD'}
             className={inOtherPopup
               ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 font-bold text-white text-xs shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
               : "px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1 shrink-0"}
@@ -804,7 +808,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 setShowBottomLiveOtherActions(false)
               }
             }}
-            disabled={actionLoading || !player}
+            disabled={actionLoading || !player || player?.status === 'SOLD'}
             className={inOtherPopup
               ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-500 font-bold text-white text-xs shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
               : "px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 font-extrabold text-white text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1 shrink-0"}
@@ -824,7 +828,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                 setShowBottomLiveOtherActions(false)
               }
             }}
-            disabled={actionLoading || !player}
+            disabled={actionLoading || !player || player?.status === 'SOLD'}
             className={inOtherPopup
               ? "w-full text-left px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 font-black text-zinc-950 text-xs shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
               : "px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 font-black text-zinc-950 text-[11px] shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1 shrink-0"}
@@ -1074,8 +1078,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
             {!pageDesign?.elements?.top_bar?.selected && Boolean(state?.config?.online_timer_enabled) && (
               <div
                 className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-mono font-bold ${timerSeconds <= 5
-                    ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
-                    : 'bg-slate-900 border-slate-700 text-slate-200'
+                  ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
+                  : 'bg-slate-900 border-slate-700 text-slate-200'
                   }`}
               >
                 <Clock className="w-3 h-3 text-amber-400" />
@@ -1214,7 +1218,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                 style={{ fontSize: `${Math.max(8, Math.round((el.font_size || 16) * 0.7))}px` }}
                                 className="text-slate-400 mr-1 font-bold"
                               >
-                                {el.custom_label || 'PLAYER NO:'}{' '}
+                                {el.custom_label || 'PL : no'}{' '}
                               </span>
                             )}
                             <span
@@ -1582,6 +1586,17 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           )
                         })()}
 
+                        {key === 'sold_stamp' && (player?.status === 'SOLD' || hammerSoldActive) && (
+                          <div className="w-full h-full flex items-center justify-center pointer-events-none z-30">
+                            <SoldStampBadge
+                              text={el.custom_text || 'SOLD'}
+                              colour={el.colour || '#EF4444'}
+                              rotation={el.rotation ?? -15}
+                              animate={true}
+                            />
+                          </div>
+                        )}
+
                         {key === 'base_price' && (
                           <div className="w-full" style={{ textAlign: el.align || 'left' }}>
                             {el.show_label && (
@@ -1666,8 +1681,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                               {Boolean(state?.config?.online_timer_enabled) && (
                                 <div
                                   className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-mono font-bold ${timerSeconds <= 5
-                                      ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
-                                      : 'bg-slate-900 border-slate-700 text-slate-200'
+                                    ? 'bg-rose-950 border-rose-500 text-rose-300 animate-pulse'
+                                    : 'bg-slate-900 border-slate-700 text-slate-200'
                                     }`}
                                 >
                                   <Clock className="w-3 h-3 text-amber-400" />
@@ -1704,10 +1719,10 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                         {key === 'bid_history' && (
                           <div
                             className={`w-full h-full flex flex-col justify-between rounded-2xl p-3 shadow-2xl select-none overflow-hidden ${el.panel_theme === 'glass'
-                                ? 'bg-slate-900/60 backdrop-blur-md border border-white/20'
-                                : el.panel_theme === 'solid'
-                                  ? 'bg-black/95 border border-amber-500/30'
-                                  : 'bg-[#030f1e]/95 border border-blue-900/60 backdrop-blur-xs'
+                              ? 'bg-slate-900/60 backdrop-blur-md border border-white/20'
+                              : el.panel_theme === 'solid'
+                                ? 'bg-black/95 border border-amber-500/30'
+                                : 'bg-[#030f1e]/95 border border-blue-900/60 backdrop-blur-xs'
                               }`}
                             style={{ borderRadius: `${el.border_radius ?? 16}px` }}
                           >
@@ -1735,8 +1750,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                     <div
                                       key={bid.id || idx}
                                       className={`flex items-center justify-between rounded-xl p-2 text-xs transition-all ${idx === 0
-                                          ? 'border border-amber-500/50 bg-amber-500/15 text-white font-bold shadow-xs'
-                                          : 'bg-white/5 text-slate-300'
+                                        ? 'border border-amber-500/50 bg-amber-500/15 text-white font-bold shadow-xs'
+                                        : 'bg-white/5 text-slate-300'
                                         }`}
                                     >
                                       <div className="flex items-center gap-1.5 truncate max-w-[140px]">
@@ -1795,9 +1810,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                     <MoreHorizontal className="w-3 h-3 text-amber-400" />
                                     <span>Other ({otherActionButtons.length})</span>
                                     <ChevronDown
-                                      className={`w-3 h-3 text-slate-400 transition-transform ${
-                                        showLiveOtherActions ? 'rotate-180' : ''
-                                      }`}
+                                      className={`w-3 h-3 text-slate-400 transition-transform ${showLiveOtherActions ? 'rotate-180' : ''
+                                        }`}
                                     />
                                   </button>
                                   {showLiveOtherActions && (
@@ -1820,7 +1834,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                               )}
                             </div>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-slate-400 font-mono text-[11px]">PLAYER NO:</span>
+                              <span className="text-slate-400 font-mono text-[11px]">PL : no</span>
                               <input
                                 type="number"
                                 value={jumpPlayerNo}
@@ -1875,9 +1889,16 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                   const isBudgetExceeded = currentBid >= team.max_bid || team.max_bid <= 0
                                   const isSolid = (el.box_style || 'solid') === 'solid'
                                   const shortcut = getTeamShortcut(team.team_name, team.short_name)
+                                  const rawShortName = team.short_name || (team as any).code || ''
+                                  const autoWords = (team.team_name || 'Team').split(/[\s\-_]+/).filter(Boolean)
+                                  const fallbackShortName = autoWords.length >= 2
+                                    ? autoWords.map((w: string) => w[0]).join('').slice(0, 4).toUpperCase()
+                                    : team.team_name ? team.team_name.slice(0, 3).toUpperCase() : `T${idx + 1}`
+                                  const teamShortCode = (rawShortName && rawShortName.trim() ? rawShortName.trim() : fallbackShortName).toUpperCase()
                                   const theme = getTeamTheme(idx, state.teams.length)
                                   const teamColor = (team as any).team_color || theme.accent || '#3B82F6'
                                   const assignedShortcut = ((team as any).shortcut_key || (team as any).custom_data?.shortcut_key || '').toUpperCase()
+                                  const keyBadge = assignedShortcut ? `${idx + 1} - ${assignedShortcut}` : `${idx + 1}`
 
                                   // Account-level UI styling
                                   const dynamicTeamBg = (team as any).card_bg || (team as any).logo_bg || (team as any).background_color || (team as any).custom_data?.card_bg || (team as any).custom_data?.logo_bg
@@ -1906,10 +1927,10 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                       disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull}
                                       title={`Team #${idx + 1}: ${team.team_name}\nShort Name: ${shortcut}\nPurse Balance: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
                                       className={`group relative flex flex-col justify-between p-1 rounded-md transition select-none min-w-0 ${isLeading
-                                          ? 'ring-2 ring-amber-400'
-                                          : isQuotaFull || isBudgetExceeded
-                                            ? 'opacity-40 cursor-not-allowed'
-                                            : 'cursor-pointer hover:scale-105 active:scale-95'
+                                        ? 'ring-2 ring-amber-400'
+                                        : isQuotaFull || isBudgetExceeded
+                                          ? 'opacity-40 cursor-not-allowed'
+                                          : 'cursor-pointer hover:scale-105 active:scale-95'
                                         }`}
                                       style={{
                                         backgroundColor: effectiveCardBg,
@@ -1936,45 +1957,44 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                           <span className="font-mono font-black text-amber-300">₹{Number(team.max_bid || 0).toLocaleString('en-IN')}</span>
                                         </div>
                                       </div>
+                                      {/* Top: Team Number & Keyword Shortcut Key */}
                                       <div
-                                        className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
+                                        className="flex items-center justify-between text-[9px] font-mono font-bold text-slate-300 shrink-0 w-full px-0.5"
                                         style={{ writingMode: 'horizontal-tb' }}
                                       >
                                         <span
                                           style={{ backgroundColor: teamColor }}
-                                          className="w-1.5 h-1.5 rounded-full shadow-xs"
+                                          className="w-1.5 h-1.5 rounded-full shadow-xs shrink-0"
                                         />
-                                        {isLeading && (
-                                          <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
-                                            LEADING
+                                        <span className="font-mono font-bold text-[9px] tracking-wider text-slate-300 truncate">
+                                          {keyBadge}
+                                        </span>
+                                        {isLeading ? (
+                                          <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse shrink-0">
+                                            LEAD
                                           </span>
+                                        ) : (
+                                          <span className="w-1.5 shrink-0" />
                                         )}
                                       </div>
-                                      {/* Center: Number and Key Only (No Logo thumbnail as requested) */}
+
+                                      {/* Center: Team Short Name in Large Bold Display */}
                                       <div
                                         className="w-full flex items-center justify-center font-black my-auto px-0.5"
                                         style={{
-                                          fontSize: `${effectiveFontSize}px`,
+                                          fontSize: `${Math.max(14, effectiveFontSize + 2)}px`,
                                           color: isLightBg ? '#020617' : effectiveColor,
                                           fontFamily: el.font_family || 'inherit',
-                                          fontWeight: el.bold !== false ? 900 : 700,
+                                          fontWeight: el.bold !== false ? 900 : 800,
                                           fontStyle: el.italic ? 'italic' : 'normal',
                                           writingMode: 'horizontal-tb',
                                           whiteSpace: 'nowrap',
                                         }}
                                       >
-                                        <span className="font-mono tracking-wider font-black">
-                                          {idx + 1} - {assignedShortcut || shortcut}
+                                        <span className="tracking-wide font-black uppercase drop-shadow-xs truncate max-w-full">
+                                          {teamShortCode}
                                         </span>
                                       </div>
-                                      {el.show_balance === true && (
-                                        <div
-                                          className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
-                                          style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
-                                        >
-                                          ₹{Number(team.balance || 0).toLocaleString('en-IN')}
-                                        </div>
-                                      )}
                                     </button>
                                   )
                                 })}
@@ -2242,8 +2262,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                     <div
                       key={bid.id || idx}
                       className={`flex items-center justify-between rounded-xl p-2.5 text-xs transition-all ${idx === 0
-                          ? 'border border-amber-500/50 bg-amber-500/15 text-white font-bold shadow-xs'
-                          : 'bg-white/5 text-slate-300'
+                        ? 'border border-amber-500/50 bg-amber-500/15 text-white font-bold shadow-xs'
+                        : 'bg-white/5 text-slate-300'
                         }`}
                     >
                       <div className="flex items-center gap-2">
@@ -2326,14 +2346,14 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           writingMode: 'horizontal-tb',
                         }}
                         className={`group relative flex flex-col items-center justify-between rounded-xl border-2 px-3 py-1.5 transition-all select-none shrink-0 min-w-[76px] min-h-[60px] ${isLeading
-                            ? 'ring-2 ring-amber-400'
-                            : isNumBuffered
-                              ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
-                              : isQuotaFull
-                                ? 'opacity-40 cursor-not-allowed border-rose-800'
-                                : isBudgetExceeded
-                                  ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
-                                  : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
+                          ? 'ring-2 ring-amber-400'
+                          : isNumBuffered
+                            ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
+                            : isQuotaFull
+                              ? 'opacity-40 cursor-not-allowed border-rose-800'
+                              : isBudgetExceeded
+                                ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
+                                : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
                           }`}
                         title={`Team #${theme.sequenceNo} (${team.team_name || team.short_name})${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
                       >
@@ -2389,9 +2409,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           <MoreHorizontal className="w-3.5 h-3.5 text-amber-400" />
                           <span>Other ({otherActionButtons.length})</span>
                           <ChevronDown
-                            className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
-                              showBottomLiveOtherActions ? 'rotate-180' : ''
-                            }`}
+                            className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showBottomLiveOtherActions ? 'rotate-180' : ''
+                              }`}
                           />
                         </button>
                         {showBottomLiveOtherActions && (
@@ -2416,7 +2435,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
 
                   {/* Right Side: Player Jump Input + SHOW Button */}
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase text-slate-400">PLAYER NO.</span>
+                    <span className="text-[10px] font-black uppercase text-slate-400">PL : no</span>
                     <input
                       type="number"
                       placeholder={String(player?.serial_no ?? (player as any)?.player_number ?? 1)}
@@ -2483,8 +2502,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
               } catch (_) { }
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${allowMultipleBids
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
-                : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
+              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+              : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
               }`}
             title="Enable to permit a team to place consecutive bids (re-bidding / raising own bid)"
           >
@@ -2507,8 +2526,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
               } catch (_) { }
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition shadow-xs cursor-pointer ${autoAdvanceQueue
-                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
-                : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
+              ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
+              : 'bg-white/10 text-slate-400 border-white/15 hover:text-white'
               }`}
             title="Automatically load the next player from the queue after SOLD or UNSOLD"
           >
@@ -2663,8 +2682,8 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             className={`flex items-center justify-between rounded-xl border p-4 text-sm font-medium ${feedbackMessage.type === 'success'
-                ? 'border-emerald-500/30 bg-emerald-950/40 text-emerald-300'
-                : 'border-red-500/30 bg-red-950/40 text-red-300'
+              ? 'border-emerald-500/30 bg-emerald-950/40 text-emerald-300'
+              : 'border-red-500/30 bg-red-950/40 text-red-300'
               }`}
           >
             <div className="flex items-center gap-2">

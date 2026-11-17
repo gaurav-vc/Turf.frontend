@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { apiClient, resolveMediaUrl } from '@/api/apiClient'
 import { getTeamShortcut, getTeamTheme } from './teamThemeUtils'
 import { useUserUIPreferences } from './useUserUIPreferences'
+import SoldStampBadge from './SoldStampBadge'
 
 interface AuctionPageDesignerProps {
   auctionId: string
@@ -114,6 +115,7 @@ export interface ElementConfig {
   border_radius?: number
   border_color?: string
   border_width?: number
+  rotation?: number
   max_bids?: number
   panel_theme?: 'cyber' | 'glass' | 'solid'
 }
@@ -188,6 +190,7 @@ export const DEFAULT_PAGE_DESIGN: PageDesignState = {
     bidder_logo: { x: 60, y: 51, w: 7, h: 10, font_size: 14, colour: '#FFFFFF', bold: false, align: 'center', selected: true, show_label: false, shape: 'circle', border_color: '#F59E0B', border_width: 2 },
     balance: { x: 68, y: 62, w: 28, h: 6, font_size: 14, colour: '#B9C7D7', bold: true, align: 'right', selected: true, show_label: true },
     max_bid: { x: 68, y: 70, w: 28, h: 6, font_size: 14, colour: '#FFFFFF', bold: true, align: 'right', selected: true, show_label: true },
+    sold_stamp: { x: 18, y: 14, w: 16, h: 22, font_size: 28, colour: '#EF4444', bold: true, align: 'center', selected: true, show_label: false, rotation: -15, border_width: 3, custom_text: 'SOLD' },
     base_price: { x: 4, y: 80, w: 28, h: 7, font_size: 20, colour: '#FFFFFF', bold: true, align: 'center', selected: true, show_label: true },
     top_bar: { x: 2, y: 1.5, w: 96, h: 6.5, font_size: 13, colour: '#FFFFFF', selected: true, show_label: false },
     bid_history: { x: 74, y: 9.5, w: 24, h: 77, font_size: 12, colour: '#FFFFFF', selected: true, show_label: false, show_short_name: true, show_team_name: true, show_bid_amount: true },
@@ -301,7 +304,7 @@ export const PRESET_TEMPLATES: ScreenTemplate[] = [
 
 const ELEMENT_LABELS: Record<string, { label: string; fieldNameDefault: boolean }> = {
   tournament_title: { label: 'Tournament Title & Logo', fieldNameDefault: false },
-  player_number: { label: 'Player Number', fieldNameDefault: false },
+  player_number: { label: 'PL : no (Player Number)', fieldNameDefault: false },
   player_name: { label: 'Player Name', fieldNameDefault: false },
   player_category: { label: 'Player Category', fieldNameDefault: false },
   base_price: { label: 'Base Price', fieldNameDefault: true },
@@ -315,6 +318,7 @@ const ELEMENT_LABELS: Record<string, { label: string; fieldNameDefault: boolean 
   bidder_logo: { label: 'Bidding Team Logo', fieldNameDefault: false },
   balance: { label: 'Kitty Balance', fieldNameDefault: true },
   max_bid: { label: 'Max Bid Allowed', fieldNameDefault: true },
+  sold_stamp: { label: 'SOLD Stamp Animation / Badge', fieldNameDefault: false },
   top_bar: { label: 'Top Arena Status Bar', fieldNameDefault: false },
   bid_history: { label: 'Bid History Stream Panel', fieldNameDefault: false },
   action_bar: { label: 'Live Action Controls (SOLD / UNSOLD)', fieldNameDefault: false },
@@ -324,6 +328,7 @@ const ELEMENT_LABELS: Record<string, { label: string; fieldNameDefault: boolean 
 export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDesignerProps) {
   const [design, setDesign] = useState<PageDesignState>(DEFAULT_PAGE_DESIGN)
   const { prefs: userPrefs, updatePref: updateUserPref, resetPrefs: resetUserPrefs, user: currentUser, userIdentifier } = useUserUIPreferences(auctionId)
+  const [stampAnimKey, setStampAnimKey] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
@@ -1472,8 +1477,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     setIsChecklistCompressed(false)
                   }}
                   className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition cursor-pointer ${activeSection === s.id
-                      ? 'bg-amber-500 text-zinc-950 font-black shadow-sm ring-2 ring-amber-400'
-                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+                    ? 'bg-amber-500 text-zinc-950 font-black shadow-sm ring-2 ring-amber-400'
+                    : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
                     }`}
                   title={s.label}
                 >
@@ -1633,10 +1638,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         <div
                           onClick={() => setSelectedKey(key)}
                           className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${isSelected
-                              ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-foreground font-bold'
-                              : isChecked
-                                ? 'border-amber-500/40 bg-amber-500/5 text-foreground hover:bg-amber-500/10'
-                                : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                            ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-foreground font-bold'
+                            : isChecked
+                              ? 'border-amber-500/40 bg-amber-500/5 text-foreground hover:bg-amber-500/10'
+                              : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
                             }`}
                         >
                           <div className="flex items-center gap-2.5 truncate">
@@ -1703,8 +1708,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 toggleElementSelected(key)
                               }}
                               className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full cursor-pointer transition ${isChecked
-                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 font-extrabold'
-                                  : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 font-extrabold'
+                                : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
                                 }`}
                             >
                               {isChecked ? 'On' : 'Off'}
@@ -1757,8 +1762,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       type="button"
                                       onClick={() => updateElementProp('bid_history', 'max_bids', num)}
                                       className={`py-1 rounded text-[11px] font-bold border transition cursor-pointer text-center ${(el?.max_bids || 8) === num
-                                          ? 'bg-purple-500 text-white border-purple-400'
-                                          : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                        ? 'bg-purple-500 text-white border-purple-400'
+                                        : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                                         }`}
                                     >
                                       {num}
@@ -1780,8 +1785,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       type="button"
                                       onClick={() => updateElementProp('bid_history', 'panel_theme', t.id)}
                                       className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer text-center ${(el?.panel_theme || 'cyber') === t.id
-                                          ? 'bg-purple-500 text-white border-purple-400'
-                                          : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                        ? 'bg-purple-500 text-white border-purple-400'
+                                        : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                                         }`}
                                     >
                                       {t.label}
@@ -1822,8 +1827,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       type="button"
                                       onClick={() => updateElementProp('player_photo', 'shape', shp.id)}
                                       className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 border cursor-pointer ${isCur
-                                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
-                                          : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                                        : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
                                         }`}
                                     >
                                       <span>{shp.icon}</span>
@@ -1947,10 +1952,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                           <div
                             onClick={() => setSelectedKey(key)}
                             className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${isSelected
-                                ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-foreground font-bold'
-                                : isChecked
-                                  ? 'border-amber-500/40 bg-amber-500/5 text-foreground hover:bg-amber-500/10'
-                                  : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                              ? 'border-amber-400 bg-amber-500/15 ring-2 ring-amber-400/50 text-foreground font-bold'
+                              : isChecked
+                                ? 'border-amber-500/40 bg-amber-500/5 text-foreground hover:bg-amber-500/10'
+                                : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
                               }`}
                           >
                             <div className="flex items-center gap-2.5 truncate">
@@ -1977,10 +1982,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                   </p>
                                   <span
                                     className={`text-[9px] uppercase font-black px-1.5 py-0.2 rounded border shrink-0 ${boxType === 'photo'
-                                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                                        : boxType === 'video'
-                                          ? 'bg-sky-500/20 text-sky-400 border-sky-500/30'
-                                          : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                      : boxType === 'video'
+                                        ? 'bg-sky-500/20 text-sky-400 border-sky-500/30'
+                                        : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                                       }`}
                                   >
                                     {boxType}
@@ -2020,8 +2025,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                   toggleElementSelected(key)
                                 }}
                                 className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full cursor-pointer transition ${isChecked
-                                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 font-extrabold'
-                                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 font-extrabold'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
                                   }`}
                               >
                                 {isChecked ? 'On' : 'Off'}
@@ -2094,8 +2099,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                             type="button"
                                             onClick={() => updateElementProp(key, 'object_fit', fit)}
                                             className={`flex-1 py-1 rounded text-[10px] font-bold capitalize border transition cursor-pointer ${(el.object_fit || 'cover') === fit
-                                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                                : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                                               }`}
                                           >
                                             {fit}
@@ -2113,8 +2118,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                             type="button"
                                             onClick={() => updateElementProp(key, 'border_radius', rad)}
                                             className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${(el.border_radius ?? 12) === rad
-                                                ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                                : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                                               }`}
                                           >
                                             {rad}px
@@ -2185,8 +2190,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                             type="button"
                                             onClick={() => updateElementProp(key, 'object_fit', fit)}
                                             className={`flex-1 py-1 rounded text-[10px] font-bold capitalize border transition cursor-pointer ${(el.object_fit || 'cover') === fit
-                                                ? 'bg-sky-500 text-zinc-950 border-sky-400'
-                                                : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                              ? 'bg-sky-500 text-zinc-950 border-sky-400'
+                                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                                               }`}
                                           >
                                             {fit}
@@ -2204,8 +2209,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                             type="button"
                                             onClick={() => updateElementProp(key, 'border_radius', rad)}
                                             className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${(el.border_radius ?? 12) === rad
-                                                ? 'bg-sky-500 text-zinc-950 border-sky-400'
-                                                : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                              ? 'bg-sky-500 text-zinc-950 border-sky-400'
+                                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                                               }`}
                                           >
                                             {rad}px
@@ -2267,8 +2272,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     type="button"
                     onClick={() => setDesign((prev) => ({ ...prev, canvas_mode: 'professional' }))}
                     className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${design.canvas_mode === 'professional'
-                        ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-extrabold'
-                        : 'border-border text-muted-foreground hover:bg-muted'
+                      ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-extrabold'
+                      : 'border-border text-muted-foreground hover:bg-muted'
                       }`}
                   >
                     Professional
@@ -2277,8 +2282,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     type="button"
                     onClick={() => setDesign((prev) => ({ ...prev, canvas_mode: 'compact' }))}
                     className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${design.canvas_mode === 'compact'
-                        ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-extrabold'
-                        : 'border-border text-muted-foreground hover:bg-muted'
+                      ? 'border-amber-500 bg-amber-500/10 text-amber-600 font-extrabold'
+                      : 'border-border text-muted-foreground hover:bg-muted'
                       }`}
                   >
                     Compact
@@ -2307,8 +2312,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       variant="outline"
                       onClick={() => setDesign((prev) => ({ ...prev, grid_visible: !prev.grid_visible }))}
                       className={`rounded-xl text-xs font-bold ${design.grid_visible
-                          ? 'border-amber-500/40 text-amber-600 bg-amber-500/10'
-                          : 'border-border text-muted-foreground'
+                        ? 'border-amber-500/40 text-amber-600 bg-amber-500/10'
+                        : 'border-border text-muted-foreground'
                         }`}
                     >
                       <Grid className="w-3.5 h-3.5 mr-1" />
@@ -2434,8 +2439,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     type="button"
                     onClick={() => setActionBarFilterGroup('all')}
                     className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${actionBarFilterGroup === 'all'
-                        ? 'bg-amber-500 text-zinc-950 shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
                       }`}
                   >
                     All ({currentActionButtons.length})
@@ -2444,8 +2449,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     type="button"
                     onClick={() => setActionBarFilterGroup('main')}
                     className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${actionBarFilterGroup === 'main'
-                        ? 'bg-amber-500 text-zinc-950 shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
                       }`}
                   >
                     🎯 Main Bar ({currentActionButtons.filter((b) => !isBtnInOther(b)).length})
@@ -2454,8 +2459,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     type="button"
                     onClick={() => setActionBarFilterGroup('other')}
                     className={`flex-1 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${actionBarFilterGroup === 'other'
-                        ? 'bg-amber-500 text-zinc-950 shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-amber-500 text-zinc-950 shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
                       }`}
                   >
                     📦 Inside "Other" ({currentActionButtons.filter((b) => isBtnInOther(b)).length})
@@ -2505,10 +2510,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             if (srcId) handleReorderActionButtonDrag(srcId, btn.id)
                           }}
                           className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${btn.visible
-                              ? inOther
-                                ? 'border-amber-500/40 bg-amber-500/5 shadow-2xs'
-                                : 'border-border bg-card shadow-2xs'
-                              : 'border-border/60 bg-muted/30 opacity-60'
+                            ? inOther
+                              ? 'border-amber-500/40 bg-amber-500/5 shadow-2xs'
+                              : 'border-border bg-card shadow-2xs'
+                            : 'border-border/60 bg-muted/30 opacity-60'
                             }`}
                         >
                           {/* Reorder Buttons Up/Down */}
@@ -2561,8 +2566,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => handleToggleActionButtonGroup(btn.id)}
                             className={`text-[10px] px-2 py-1 rounded-lg font-bold border transition cursor-pointer shrink-0 ${inOther
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
-                                : 'bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30'
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                              : 'bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30'
                               }`}
                             title={inOther ? 'Click to move to Main Bar' : 'Click to place inside "Other" dropdown'}
                           >
@@ -2893,8 +2898,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     if (next) setIsChecklistCompressed(true)
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${isFullScreenDesigner
-                      ? 'bg-amber-400 text-zinc-950 font-black shadow-xs ring-2 ring-amber-300'
-                      : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-amber-400 text-zinc-950 font-black shadow-xs ring-2 ring-amber-300'
+                    : 'text-muted-foreground hover:text-foreground'
                     }`}
                   title="Edit Auction Page Designer in Full Screen"
                 >
@@ -2905,8 +2910,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                   type="button"
                   onClick={() => setIsChecklistCompressed((prev) => !prev)}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer border ${isChecklistCompressed
-                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold'
-                      : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 font-bold'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
                     }`}
                   title={isChecklistCompressed ? 'Expand Checklist Section' : 'Compress Checklist Section (95% Canvas Width)'}
                 >
@@ -2917,8 +2922,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                   type="button"
                   onClick={() => setPreviewArenaMode(true)}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${previewArenaMode
-                      ? 'bg-amber-500 text-zinc-950 font-black shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-amber-500 text-zinc-950 font-black shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                     }`}
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
@@ -2928,8 +2933,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                   type="button"
                   onClick={() => setPreviewArenaMode(false)}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${!previewArenaMode
-                      ? 'bg-amber-500 text-zinc-950 font-black shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-amber-500 text-zinc-950 font-black shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                     }`}
                 >
                   <Layout className="w-3.5 h-3.5" />
@@ -3023,8 +3028,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               }}
               onDrop={handleCanvasDrop}
               className={`relative aspect-video w-full select-none cursor-default overflow-hidden p-2 transition-all ${isDraggingOverCanvas
-                  ? 'ring-4 ring-amber-400 bg-amber-500/10 shadow-2xl'
-                  : ''
+                ? 'ring-4 ring-amber-400 bg-amber-500/10 shadow-2xl'
+                : ''
                 }`}
               style={{
                 backgroundImage: design.grid_visible
@@ -3066,8 +3071,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     setSelectedKey('franchise_stations')
                   }}
                   className={`px-2.5 py-1 rounded border cursor-pointer font-bold transition flex items-center gap-1.5 shadow-md ${selectedKey === 'franchise_stations'
-                      ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                      : 'bg-slate-900/90 hover:bg-slate-800 text-amber-400 border-amber-500/50'
+                    ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                    : 'bg-slate-900/90 hover:bg-slate-800 text-amber-400 border-amber-500/50'
                     }`}
                   title="Click to select & edit Franchise Team Stations and Columns"
                 >
@@ -3081,8 +3086,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     setSelectedKey('action_bar')
                   }}
                   className={`px-2 py-0.5 rounded border cursor-pointer font-bold transition ${selectedKey === 'action_bar'
-                      ? 'bg-emerald-500 text-zinc-950 border-emerald-400'
-                      : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800'
+                    ? 'bg-emerald-500 text-zinc-950 border-emerald-400'
+                    : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800'
                     }`}
                   title="Click to edit Action Controls"
                 >
@@ -3095,8 +3100,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     setSelectedKey('bid_history')
                   }}
                   className={`px-2 py-0.5 rounded border cursor-pointer font-bold transition ${selectedKey === 'bid_history'
-                      ? 'bg-blue-500 text-zinc-950 border-blue-400'
-                      : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800'
+                    ? 'bg-blue-500 text-zinc-950 border-blue-400'
+                    : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800'
                     }`}
                   title="Click to edit Bid History"
                 >
@@ -3129,9 +3134,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       height: `${el.h}%`,
                       color: el.colour || '#FFFFFF',
                     }}
-                    className={`absolute flex items-center justify-center cursor-move transition-shadow rounded-lg ${
-                      key === 'action_bar' ? 'overflow-visible' : 'overflow-hidden'
-                    } ${isSelected
+                    className={`absolute flex items-center justify-center cursor-move transition-shadow rounded-lg ${key === 'action_bar' ? 'overflow-visible' : 'overflow-hidden'
+                      } ${isSelected
                         ? isHidden
                           ? 'border-2 border-dashed border-red-400/80 bg-red-500/10 shadow-lg ring-2 ring-red-400/30 z-40'
                           : 'border-2 border-dashed border-amber-400 bg-amber-500/20 shadow-xl ring-2 ring-amber-400/50 z-40'
@@ -3529,6 +3533,18 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         )
                       })()}
 
+                      {key === 'sold_stamp' && (
+                        <div className="w-full h-full flex items-center justify-center pointer-events-none">
+                          <SoldStampBadge
+                            key={stampAnimKey}
+                            text={el.custom_text || 'SOLD'}
+                            colour={el.colour || '#EF4444'}
+                            rotation={el.rotation ?? -15}
+                            animate={true}
+                          />
+                        </div>
+                      )}
+
                       {key === 'base_price' && (
                         <div className="w-full" style={{ textAlign: el.align || 'left' }}>
                           {el.show_label && (
@@ -3626,10 +3642,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       {key === 'bid_history' && (
                         <div
                           className={`w-full h-full flex flex-col justify-between rounded-2xl p-3 shadow-2xl select-none overflow-hidden ${el.panel_theme === 'glass'
-                              ? 'bg-slate-900/60 backdrop-blur-md border border-white/20'
-                              : el.panel_theme === 'solid'
-                                ? 'bg-black/95 border border-amber-500/30'
-                                : 'bg-[#030f1e]/95 border border-blue-900/60 backdrop-blur-xs'
+                            ? 'bg-slate-900/60 backdrop-blur-md border border-white/20'
+                            : el.panel_theme === 'solid'
+                              ? 'bg-black/95 border border-amber-500/30'
+                              : 'bg-[#030f1e]/95 border border-blue-900/60 backdrop-blur-xs'
                             }`}
                           style={{ borderRadius: `${el.border_radius ?? 16}px` }}
                         >
@@ -3876,7 +3892,13 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 const theme = getTeamTheme(idx, Math.max(1, liveTeams.length))
                                 const isSolid = (el.box_style || 'solid') === 'solid'
                                 const tColor = t.color || t.team_color || theme.accent || '#3B82F6'
-                                const tShortcut = t.short_name || t.code || getTeamShortcut(t.team_name || t.name, '')
+                                const tRawShort = t.short_name || t.code || ''
+                                const tWords = (t.name || t.team_name || 'Team').split(/[\s\-_]+/).filter(Boolean)
+                                const tFallbackShort = tWords.length >= 2
+                                  ? tWords.map((w: string) => w[0]).join('').slice(0, 4).toUpperCase()
+                                  : getTeamShortcut(t.name || t.team_name, 'T' + String(idx + 1))
+                                const tShortCode = (tRawShort && tRawShort.trim() ? tRawShort.trim() : tFallbackShort).toUpperCase()
+                                const tShortcut = tShortCode
                                 const assignedShortcut = ((t as any).shortcut_key || (t as any).custom_data?.shortcut_key || '').toUpperCase()
                                 const badgeKey = assignedShortcut ? `${idx + 1} - ${assignedShortcut}` : `${idx + 1}`
                                 const tBalance = t.balance != null ? (typeof t.balance === 'number' ? `₹${t.balance.toLocaleString('en-IN')}` : t.balance) : '₹0'
@@ -3931,40 +3953,37 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       </div>
                                     </div>
 
-                                    {/* Top Row: Clean indicator */}
+                                    {/* Top: Team Number & Keyword Shortcut Key */}
                                     <div
-                                      className="flex items-center justify-between text-[8px] font-bold text-slate-400 shrink-0 w-full"
+                                      className="flex items-center justify-between text-[9px] font-mono font-bold text-slate-300 shrink-0 w-full px-0.5"
                                       style={{ writingMode: 'horizontal-tb' }}
                                     >
                                       <span
                                         style={{ backgroundColor: tColor }}
-                                        className="w-1.5 h-1.5 rounded-full shadow-xs"
+                                        className="w-1.5 h-1.5 rounded-full shadow-xs shrink-0"
                                       />
+                                      <span className="font-mono font-bold text-[9px] tracking-wider text-slate-300 truncate">
+                                        {badgeKey}
+                                      </span>
+                                      <span className="w-1.5 shrink-0" />
                                     </div>
 
-                                    {/* Center: Number and Key Only (No Logo thumbnail as requested) */}
+                                    {/* Center: Team Short Name in Large Bold Display */}
                                     <div
                                       className="w-full flex items-center justify-center font-black my-auto px-0.5"
                                       style={{
-                                        fontSize: `${effectiveFontSize}px`,
+                                        fontSize: `${Math.max(14, effectiveFontSize + 2)}px`,
                                         color: effectiveColor,
+                                        fontFamily: el.font_family || 'inherit',
+                                        fontWeight: el.bold !== false ? 900 : 800,
                                         writingMode: 'horizontal-tb',
                                         whiteSpace: 'nowrap',
                                       }}
                                     >
-                                      <span className="font-mono tracking-wider font-black">
-                                        {badgeKey}
+                                      <span className="tracking-wide font-black uppercase drop-shadow-xs truncate max-w-full">
+                                        {tShortCode}
                                       </span>
                                     </div>
-
-                                    {el.show_balance === true && (
-                                      <div
-                                        className="w-full text-center font-mono text-[8px] text-slate-300/80 truncate shrink-0"
-                                        style={{ writingMode: 'horizontal-tb', whiteSpace: 'nowrap' }}
-                                      >
-                                        {tBalance}
-                                      </div>
-                                    )}
                                   </div>
                                 )
                               })
@@ -4142,13 +4161,12 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       }
                       setSelectedKey(zone.key)
                     }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border cursor-pointer ${
-                      isCur
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
-                        : isShown
-                          ? 'bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500 hover:text-white'
-                          : 'bg-slate-900/50 text-slate-400 border-dashed border-slate-700 hover:text-slate-200'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border cursor-pointer ${isCur
+                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                      : isShown
+                        ? 'bg-slate-900 text-slate-200 border-slate-700 hover:border-slate-500 hover:text-white'
+                        : 'bg-slate-900/50 text-slate-400 border-dashed border-slate-700 hover:text-slate-200'
+                      }`}
                   >
                     <span>{zone.label}</span>
                     {!isShown && <span className="text-[9px] text-red-400 font-normal">(hidden)</span>}
@@ -4171,11 +4189,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         }
                         setSelectedKey(k)
                       }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border cursor-pointer ${
-                        isCur
-                          ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-xs font-black'
-                          : 'bg-slate-900 text-sky-300 border-sky-800/80 hover:border-sky-500'
-                      }`}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border cursor-pointer ${isCur
+                        ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-xs font-black'
+                        : 'bg-slate-900 text-sky-300 border-sky-800/80 hover:border-sky-500'
+                        }`}
                     >
                       <span>{el.type === 'photo' ? '🖼️' : el.type === 'video' ? '🎬' : '📝'} {el.label || k}</span>
                     </button>
@@ -4248,8 +4265,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     variant="outline"
                     onClick={() => toggleElementSelected(selectedKey)}
                     className={`h-7 text-xs font-bold rounded-lg px-2.5 transition cursor-pointer ${design.elements[selectedKey]?.selected
-                        ? 'border-red-500/40 text-red-400 hover:bg-red-500/10'
-                        : 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
+                      ? 'border-red-500/40 text-red-400 hover:bg-red-500/10'
+                      : 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
                       }`}
                   >
                     {design.elements[selectedKey]?.selected ? (
@@ -4440,8 +4457,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 type="button"
                                 onClick={() => updateElementProp(selectedKey, 'shape', shp.id)}
                                 className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 border cursor-pointer ${isCur
-                                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
-                                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                                  : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
                                   }`}
                               >
                                 <span>{shp.icon}</span>
@@ -4488,11 +4505,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 key={fitMode.id}
                                 type="button"
                                 onClick={() => updateElementProp(selectedKey, 'object_fit', fitMode.id)}
-                                className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition flex flex-col items-center justify-center border cursor-pointer ${
-                                  isCur
-                                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
-                                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
-                                }`}
+                                className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition flex flex-col items-center justify-center border cursor-pointer ${isCur
+                                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs font-black'
+                                  : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                                  }`}
                                 title={fitMode.desc}
                               >
                                 <span>{fitMode.label}</span>
@@ -4627,8 +4643,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                           type="button"
                           onClick={() => updateElementProp(selectedKey, 'fit_to_size', !design.elements[selectedKey].fit_to_size)}
                           className={`h-7 px-2 rounded-lg border text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${design.elements[selectedKey].fit_to_size
-                              ? 'bg-amber-500/20 text-amber-300 border-amber-400'
-                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                             }`}
                           title="Auto-shrink font size to prevent overlapping or hiding text"
                         >
@@ -4657,8 +4673,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 onClick={() => updateElementProp(selectedKey, 'colour', c)}
                                 style={{ backgroundColor: c }}
                                 className={`w-3.5 h-3.5 rounded-full border border-slate-900 shadow-xs hover:scale-125 transition cursor-pointer ${(design.elements[selectedKey].colour || '#FFFFFF').toUpperCase() === c.toUpperCase()
-                                    ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-900'
-                                    : ''
+                                  ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-900'
+                                  : ''
                                   }`}
                                 title={c}
                               />
@@ -4677,8 +4693,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'align', 'left')}
                             className={`p-1 rounded transition cursor-pointer ${design.elements[selectedKey].align === 'left'
-                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                                : 'text-slate-400 hover:text-white'
+                              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                              : 'text-slate-400 hover:text-white'
                               }`}
                             title="Left Align"
                           >
@@ -4688,8 +4704,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'align', 'center')}
                             className={`p-1 rounded transition cursor-pointer ${design.elements[selectedKey].align === 'center'
-                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                                : 'text-slate-400 hover:text-white'
+                              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                              : 'text-slate-400 hover:text-white'
                               }`}
                             title="Center Align"
                           >
@@ -4699,8 +4715,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'align', 'right')}
                             className={`p-1 rounded transition cursor-pointer ${design.elements[selectedKey].align === 'right'
-                                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-                                : 'text-slate-400 hover:text-white'
+                              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                              : 'text-slate-400 hover:text-white'
                               }`}
                             title="Right Align"
                           >
@@ -4736,8 +4752,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'show_label', true)}
                             className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${design.elements[selectedKey].show_label
-                                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                                : 'text-slate-400 hover:text-white'
+                              ? 'bg-amber-500 text-slate-950 shadow-xs'
+                              : 'text-slate-400 hover:text-white'
                               }`}
                           >
                             Yes
@@ -4746,8 +4762,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'show_label', false)}
                             className={`flex-1 h-6 rounded text-[11px] font-bold transition cursor-pointer text-center ${!design.elements[selectedKey].show_label
-                                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                                : 'text-slate-400 hover:text-white'
+                              ? 'bg-amber-500 text-slate-950 shadow-xs'
+                              : 'text-slate-400 hover:text-white'
                               }`}
                           >
                             No
@@ -4796,7 +4812,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               />
 
               {/* Custom Box Content Configuration Sub-Panel */}
-              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history' || selectedKey === 'bidder_name' || selectedKey === 'bidder_logo' || selectedKey === 'franchise_stations' || selectedKey === 'action_bar' || selectedKey === 'player_photo') && (
+              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history' || selectedKey === 'bidder_name' || selectedKey === 'bidder_logo' || selectedKey === 'sold_stamp' || selectedKey === 'franchise_stations' || selectedKey === 'action_bar' || selectedKey === 'player_photo') && (
                 <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/30 space-y-2.5 mt-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -4805,17 +4821,19 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         ? 'Bid History Stream Settings'
                         : selectedKey === 'bidder_name'
                           ? 'Bidder Team Name Settings'
-                        : selectedKey === 'bidder_logo'
-                          ? 'Bidding Team Dynamic Logo Settings'
-                        : selectedKey === 'franchise_stations'
-                          ? 'Franchise Bidding Stations (Option 4)'
-                        : selectedKey === 'action_bar'
-                          ? 'Action & Hammer Controls Settings'
-                        : (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))
-                          ? 'Photo Box Configuration'
-                        : (design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video'))
-                          ? 'Video Stream Configuration'
-                        : 'Custom Box Configuration'}
+                          : selectedKey === 'bidder_logo'
+                            ? 'Bidding Team Dynamic Logo Settings'
+                            : selectedKey === 'sold_stamp'
+                              ? 'SOLD Stamp Animation & Badge Settings'
+                              : selectedKey === 'franchise_stations'
+                                ? 'Franchise Bidding Stations (Option 4)'
+                                : selectedKey === 'action_bar'
+                                  ? 'Action & Hammer Controls Settings'
+                                  : (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))
+                                    ? 'Photo Box Configuration'
+                                    : (design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video'))
+                                      ? 'Video Stream Configuration'
+                                      : 'Custom Box Configuration'}
                     </span>
                     {selectedKey.startsWith('custom_') && (
                       <button
@@ -4845,8 +4863,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             )
                           }
                           className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${design.elements.bidder_name?.show_team_logo !== false
-                              ? 'bg-amber-500 text-zinc-950 border-amber-400 font-bold'
-                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400 font-bold'
+                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                             }`}
                         >
                           {design.elements.bidder_name?.show_team_logo !== false ? 'Inline Logo: ON' : 'Inline Logo: OFF'}
@@ -4877,8 +4895,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             )
                           }
                           className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${design.elements.bidder_logo?.selected !== false
-                              ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
-                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
+                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                             }`}
                         >
                           {design.elements.bidder_logo?.selected !== false ? 'Logo: VISIBLE (ON)' : 'Logo: HIDDEN (OFF)'}
@@ -4923,6 +4941,153 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     </div>
                   )}
 
+                  {/* If SOLD Stamp Animation Element */}
+                  {selectedKey === 'sold_stamp' && (
+                    <div className="space-y-3 pt-1 border-t border-slate-800 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-300 font-semibold">
+                          Show SOLD Stamp on screen
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateElementProp(
+                              'sold_stamp',
+                              'selected',
+                              !(design.elements.sold_stamp?.selected !== false)
+                            )
+                          }
+                          className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${design.elements.sold_stamp?.selected !== false
+                            ? 'bg-red-600 text-white border-red-500 font-black shadow-[0_0_12px_rgba(239,68,68,0.4)]'
+                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                            }`}
+                        >
+                          {design.elements.sold_stamp?.selected !== false ? 'Stamp: VISIBLE (ON)' : 'Stamp: HIDDEN (OFF)'}
+                        </button>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-red-950/30 border border-red-500/30 text-[11px] text-slate-300 space-y-1">
+                        <p className="text-red-400 font-black flex items-center gap-1.5 uppercase tracking-wide">
+                          <Gavel className="w-3.5 h-3.5 text-red-400" />
+                          Broadcast SOLD Stamp Animation
+                        </p>
+                        <p className="leading-relaxed text-slate-400">
+                          Automatically slams with an impact animation onto the stage whenever a player is sold or when a sold player is searched with "PL : no". You can drag, resize, rotate, and style this stamp anywhere on the canvas.
+                        </p>
+                      </div>
+
+                      {/* Stamp Rotation Angle */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                            Stamp Rotation Angle
+                          </label>
+                          <span className="text-xs font-mono font-black text-amber-400">
+                            {design.elements.sold_stamp?.rotation ?? -15}°
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min={-45}
+                            max={45}
+                            step={1}
+                            value={design.elements.sold_stamp?.rotation ?? -15}
+                            onChange={(e) => updateElementProp('sold_stamp', 'rotation', Number(e.target.value))}
+                            className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500"
+                          />
+                          <input
+                            type="number"
+                            min={-90}
+                            max={90}
+                            value={design.elements.sold_stamp?.rotation ?? -15}
+                            onChange={(e) => updateElementProp('sold_stamp', 'rotation', Number(e.target.value))}
+                            className="w-14 h-7 px-1.5 rounded bg-slate-900 border border-slate-700 text-white font-mono text-xs text-center focus:outline-none focus:border-red-400"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          {[-25, -15, -10, 0, 15, 25].map((deg) => (
+                            <button
+                              key={deg}
+                              type="button"
+                              onClick={() => updateElementProp('sold_stamp', 'rotation', deg)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition border cursor-pointer ${(design.elements.sold_stamp?.rotation ?? -15) === deg
+                                ? 'bg-red-500/20 text-red-300 border-red-400'
+                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                                }`}
+                            >
+                              {deg > 0 ? `+${deg}°` : `${deg}°`}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Stamp Text Override */}
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                          Stamp Text (Default: SOLD)
+                        </label>
+                        <input
+                          type="text"
+                          value={design.elements.sold_stamp?.custom_text || 'SOLD'}
+                          onChange={(e) => updateElementProp('sold_stamp', 'custom_text', e.target.value.toUpperCase())}
+                          placeholder="SOLD"
+                          maxLength={12}
+                          className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-black text-xs uppercase tracking-wider focus:outline-none focus:border-red-400"
+                        />
+                      </div>
+
+                      {/* Stamp Colour Palette */}
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                          Stamp Ink Colour
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={design.elements.sold_stamp?.colour || '#EF4444'}
+                            onChange={(e) => updateElementProp('sold_stamp', 'colour', e.target.value)}
+                            className="w-8 h-8 rounded border border-slate-700 bg-slate-900 cursor-pointer p-0.5"
+                          />
+                          <div className="flex items-center gap-1.5">
+                            {[
+                              { label: 'Red', val: '#EF4444' },
+                              { label: 'Crimson', val: '#DC2626' },
+                              { label: 'Rose', val: '#F43F5E' },
+                              { label: 'Amber', val: '#F59E0B' },
+                              { label: 'Emerald', val: '#10B981' },
+                              { label: 'Purple', val: '#8B5CF6' },
+                            ].map((c) => (
+                              <button
+                                key={c.val}
+                                type="button"
+                                title={c.label}
+                                onClick={() => updateElementProp('sold_stamp', 'colour', c.val)}
+                                className={`w-5 h-5 rounded-full border transition cursor-pointer ${(design.elements.sold_stamp?.colour || '#EF4444').toLowerCase() === c.val.toLowerCase()
+                                  ? 'border-white scale-110 shadow-xs'
+                                  : 'border-transparent opacity-70 hover:opacity-100'
+                                  }`}
+                                style={{ backgroundColor: c.val }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Test Stamp Slam Animation Button */}
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setStampAnimKey((k) => k + 1)}
+                          className="w-full py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Sparkles className="w-4 h-4 text-amber-300" />
+                          <span>⚡ Test Stamp Slam Animation</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* If Franchise Bidding Stations (Option 4) */}
                   {selectedKey === 'franchise_stations' && (
                     <div className="space-y-2.5 pt-1 border-t border-slate-800 text-xs">
@@ -4945,9 +5110,9 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                   updateElementProp('franchise_stations', 'grid_cols', g.c)
                                 }}
                                 className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${design.elements.franchise_stations?.grid_rows === g.r &&
-                                    design.elements.franchise_stations?.grid_cols === g.c
-                                    ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                  design.elements.franchise_stations?.grid_cols === g.c
+                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                                   }`}
                               >
                                 {g.l}
@@ -4968,8 +5133,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 type="button"
                                 onClick={() => updateElementProp('franchise_stations', 'box_style', st.id)}
                                 className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${(design.elements.franchise_stations?.box_style || 'solid') === st.id
-                                    ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                                   }`}
                               >
                                 {st.l}
@@ -4992,8 +5157,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                   updateElementProp('franchise_stations', 'gap_y', gp)
                                 }}
                                 className={`flex-1 py-1 rounded text-[10px] font-bold border transition cursor-pointer ${(design.elements.franchise_stations?.gap_x || 6) === gp
-                                    ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                                    : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                                  ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                                  : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
                                   }`}
                               >
                                 {gp}px
@@ -5007,7 +5172,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         <label className="text-[10px] text-slate-400 font-bold block mb-1">
                           Content Inside Box (Strictly contained within boundaries • Horizontal orientation)
                         </label>
-                        <div className="grid grid-cols-3 gap-1.5">
+                        <div className="grid grid-cols-2 gap-1.5">
                           <button
                             type="button"
                             onClick={() =>
@@ -5018,8 +5183,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               )
                             }
                             className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${design.elements.franchise_stations?.show_number !== false
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-400'
-                                : 'bg-slate-900 text-slate-400 border-slate-700'
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                              : 'bg-slate-900 text-slate-400 border-slate-700'
                               }`}
                           >
                             Team Number: {design.elements.franchise_stations?.show_number !== false ? 'ON' : 'OFF'}
@@ -5034,27 +5199,11 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                               )
                             }
                             className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${design.elements.franchise_stations?.show_short_name !== false
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-400'
-                                : 'bg-slate-900 text-slate-400 border-slate-700'
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-400'
+                              : 'bg-slate-900 text-slate-400 border-slate-700'
                               }`}
                           >
                             Short Name: {design.elements.franchise_stations?.show_short_name !== false ? 'ON' : 'OFF'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateElementProp(
-                                'franchise_stations',
-                                'show_balance',
-                                !design.elements.franchise_stations?.show_balance
-                              )
-                            }
-                            className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${design.elements.franchise_stations?.show_balance
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-400'
-                                : 'bg-slate-900 text-slate-400 border-slate-700'
-                              }`}
-                          >
-                            Purse Balance: {design.elements.franchise_stations?.show_balance ? 'ON' : 'OFF'}
                           </button>
                         </div>
                       </div>
@@ -5141,33 +5290,30 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                           <button
                             type="button"
                             onClick={() => setActionBarFilterGroup('all')}
-                            className={`flex-1 py-1 rounded font-bold transition cursor-pointer ${
-                              actionBarFilterGroup === 'all'
-                                ? 'bg-amber-500 text-zinc-950 font-black'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
+                            className={`flex-1 py-1 rounded font-bold transition cursor-pointer ${actionBarFilterGroup === 'all'
+                              ? 'bg-amber-500 text-zinc-950 font-black'
+                              : 'text-slate-400 hover:text-white'
+                              }`}
                           >
                             All ({currentActionButtons.length})
                           </button>
                           <button
                             type="button"
                             onClick={() => setActionBarFilterGroup('main')}
-                            className={`flex-1 py-1 rounded font-bold transition cursor-pointer ${
-                              actionBarFilterGroup === 'main'
-                                ? 'bg-amber-500 text-zinc-950 font-black'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
+                            className={`flex-1 py-1 rounded font-bold transition cursor-pointer ${actionBarFilterGroup === 'main'
+                              ? 'bg-amber-500 text-zinc-950 font-black'
+                              : 'text-slate-400 hover:text-white'
+                              }`}
                           >
                             🎯 Main ({currentActionButtons.filter((b) => !isBtnInOther(b)).length})
                           </button>
                           <button
                             type="button"
                             onClick={() => setActionBarFilterGroup('other')}
-                            className={`flex-1 py-1 rounded font-bold transition cursor-pointer ${
-                              actionBarFilterGroup === 'other'
-                                ? 'bg-amber-500 text-zinc-950 font-black'
-                                : 'text-slate-400 hover:text-white'
-                            }`}
+                            className={`flex-1 py-1 rounded font-bold transition cursor-pointer ${actionBarFilterGroup === 'other'
+                              ? 'bg-amber-500 text-zinc-950 font-black'
+                              : 'text-slate-400 hover:text-white'
+                              }`}
                           >
                             📦 Other ({currentActionButtons.filter((b) => isBtnInOther(b)).length})
                           </button>
@@ -5241,11 +5387,10 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                   <button
                                     type="button"
                                     onClick={() => handleToggleActionButtonGroup(btn.id)}
-                                    className={`text-[9px] px-1.5 py-0.5 rounded font-bold border transition cursor-pointer shrink-0 ${
-                                      inOther
-                                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
-                                        : 'bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30'
-                                    }`}
+                                    className={`text-[9px] px-1.5 py-0.5 rounded font-bold border transition cursor-pointer shrink-0 ${inOther
+                                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                                      : 'bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30'
+                                      }`}
                                     title={inOther ? 'Click to move out to Main Bar' : 'Click to place inside "Other" dropdown'}
                                   >
                                     {inOther ? '📦 In Other' : '🎯 In Main'}
@@ -5366,8 +5511,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'object_fit', 'contain')}
                             className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${(design.elements[selectedKey]?.object_fit || 'contain') === 'contain'
-                                ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
-                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
+                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                               }`}
                             title="Auto-Fit completely inside frame without cropping"
                           >
@@ -5377,8 +5522,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'object_fit', 'cover')}
                             className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${design.elements[selectedKey]?.object_fit === 'cover'
-                                ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
-                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
+                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                               }`}
                             title="Fill frame (crop excess)"
                           >
@@ -5388,8 +5533,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'object_fit', 'fill')}
                             className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${design.elements[selectedKey]?.object_fit === 'fill'
-                                ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
-                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
+                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                               }`}
                             title="Stretch to exact frame size"
                           >
@@ -5437,8 +5582,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'object_fit', 'cover')}
                             className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${(design.elements[selectedKey]?.object_fit || 'cover') === 'cover'
-                                ? 'bg-sky-500 text-zinc-950 border-sky-400'
-                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              ? 'bg-sky-500 text-zinc-950 border-sky-400'
+                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                               }`}
                           >
                             Cover
@@ -5447,8 +5592,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             type="button"
                             onClick={() => updateElementProp(selectedKey, 'object_fit', 'contain')}
                             className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${design.elements[selectedKey]?.object_fit === 'contain'
-                                ? 'bg-sky-500 text-zinc-950 border-sky-400'
-                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                              ? 'bg-sky-500 text-zinc-950 border-sky-400'
+                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                               }`}
                           >
                             Contain
@@ -5529,8 +5674,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 type="button"
                                 onClick={() => updateElementProp('bid_history', 'max_bids', num)}
                                 className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${(design.elements.bid_history?.max_bids || 8) === num
-                                    ? 'bg-purple-500 text-white border-purple-400'
-                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                  ? 'bg-purple-500 text-white border-purple-400'
+                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                                   }`}
                               >
                                 {num}
@@ -5552,8 +5697,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 type="button"
                                 onClick={() => updateElementProp('bid_history', 'panel_theme', t.id)}
                                 className={`flex-1 py-1 rounded text-xs font-bold border transition cursor-pointer ${(design.elements.bid_history?.panel_theme || 'cyber') === t.id
-                                    ? 'bg-purple-500 text-white border-purple-400'
-                                    : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                  ? 'bg-purple-500 text-white border-purple-400'
+                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                                   }`}
                               >
                                 {t.label}
@@ -5575,8 +5720,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 )
                               }
                               className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${design.elements.bid_history?.show_short_name !== false
-                                  ? 'bg-purple-500 text-white border-purple-400'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                ? 'bg-purple-500 text-white border-purple-400'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                                 }`}
                             >
                               Short Name
@@ -5591,8 +5736,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 )
                               }
                               className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${design.elements.bid_history?.show_team_name !== false
-                                  ? 'bg-purple-500 text-white border-purple-400'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                ? 'bg-purple-500 text-white border-purple-400'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                                 }`}
                             >
                               Team Name
@@ -5607,8 +5752,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                 )
                               }
                               className={`py-1 px-1.5 rounded text-[11px] font-bold border transition cursor-pointer text-center ${design.elements.bid_history?.show_bid_amount !== false
-                                  ? 'bg-purple-500 text-white border-purple-400'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                                ? 'bg-purple-500 text-white border-purple-400'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
                                 }`}
                             >
                               Bid Amount
@@ -5787,8 +5932,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                   type="button"
                   onClick={() => toggleElementLabel(selectedKey)}
                   className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] ${design.elements[selectedKey].show_label
-                      ? 'border-amber-500/40 bg-amber-500/10 text-amber-600'
-                      : 'border-border text-muted-foreground'
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-600'
+                    : 'border-border text-muted-foreground'
                     }`}
                 >
                   Label: {design.elements[selectedKey].show_label ? 'ON' : 'OFF'}
@@ -5990,8 +6135,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         updateElementProp('franchise_stations', 'gap_y', gp)
                       }}
                       className={`px-2 py-0.5 rounded border text-[11px] font-bold cursor-pointer transition ${(design.elements.franchise_stations?.gap_x || 6) === gp
-                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                          : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                        ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                        : 'bg-card text-muted-foreground border-border hover:text-foreground'
                         }`}
                     >
                       {gp}px
@@ -6008,8 +6153,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       type="button"
                       onClick={() => updateElementProp('franchise_stations', 'box_style', st.id)}
                       className={`px-2 py-0.5 rounded border text-[11px] font-bold cursor-pointer transition ${(design.elements.franchise_stations?.box_style || 'solid') === st.id
-                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                          : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                        ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                        : 'bg-card text-muted-foreground border-border hover:text-foreground'
                         }`}
                     >
                       {st.label}
@@ -6082,8 +6227,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                           type="button"
                           onClick={() => updateUserPref('fontSize', sz)}
                           className={`flex-1 py-0.5 rounded text-[10px] font-mono font-bold border transition cursor-pointer ${userPrefs.fontSize === sz
-                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                             }`}
                         >
                           {sz}px
@@ -6105,8 +6250,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         type="button"
                         onClick={() => updateUserPref('useCustomColor', false)}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${!userPrefs.useCustomColor
-                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                           }`}
                       >
                         Team Palette
@@ -6115,8 +6260,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         type="button"
                         onClick={() => updateUserPref('useCustomColor', true)}
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer flex items-center gap-1 ${userPrefs.useCustomColor
-                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                          ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                           }`}
                       >
                         <Palette className="w-3 h-3" /> Custom
@@ -6175,8 +6320,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                           type="button"
                           onClick={() => updateUserPref('cardBg', bg.id as any)}
                           className={`py-1 rounded text-[10px] font-bold border transition cursor-pointer ${userPrefs.cardBg === bg.id
-                              ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                              : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                             }`}
                         >
                           {bg.label}
@@ -6189,8 +6334,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         type="button"
                         onClick={() => updateUserPref('borderGlow', !userPrefs.borderGlow)}
                         className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${userPrefs.borderGlow
-                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
-                            : 'bg-slate-900 text-slate-500 border-slate-800'
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
+                          : 'bg-slate-900 text-slate-500 border-slate-800'
                           }`}
                       >
                         {userPrefs.borderGlow ? 'Glow ON' : 'Glow OFF'}
@@ -6332,8 +6477,8 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         </h5>
                         <span
                           className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${tpl.badge === 'DEFAULT'
-                              ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
-                              : 'bg-blue-500/15 text-blue-500 border-blue-500/30'
+                            ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
+                            : 'bg-blue-500/15 text-blue-500 border-blue-500/30'
                             }`}
                         >
                           {tpl.badge}
