@@ -1926,11 +1926,11 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                       onClick={() => handleTeamSelectAndBid(team.team_id)}
                                       disabled={actionLoading || !player || (isLeading && !allowMultipleBids) || isBudgetExceeded || isQuotaFull}
                                       title={`Team #${idx + 1}: ${team.team_name}\nShort Name: ${shortcut}\nPurse Balance: ₹${Number(team.balance || 0).toLocaleString('en-IN')}\nMax Bid: ₹${Number(team.max_bid || 0).toLocaleString('en-IN')}${assignedShortcut ? `\nShortcut Key: [${assignedShortcut}]` : ''}`}
-                                      className={`group relative flex flex-col justify-between p-1 rounded-md transition select-none min-w-0 ${isLeading
+                                      className={`group relative flex flex-col justify-between p-1 rounded-md select-none min-w-0 ${isLeading
                                         ? 'ring-2 ring-amber-400'
                                         : isQuotaFull || isBudgetExceeded
                                           ? 'opacity-40 cursor-not-allowed'
-                                          : 'cursor-pointer hover:scale-105 active:scale-95'
+                                          : 'cursor-pointer hover:brightness-110'
                                         }`}
                                       style={{
                                         backgroundColor: effectiveCardBg,
@@ -1970,7 +1970,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                           {keyBadge}
                                         </span>
                                         {isLeading ? (
-                                          <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse shrink-0">
+                                          <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] shrink-0">
                                             LEAD
                                           </span>
                                         ) : (
@@ -2345,15 +2345,15 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                                 : `0 0 8px ${theme.glow}`,
                           writingMode: 'horizontal-tb',
                         }}
-                        className={`group relative flex flex-col items-center justify-between rounded-xl border-2 px-3 py-1.5 transition-all select-none shrink-0 min-w-[76px] min-h-[60px] ${isLeading
+                        className={`group relative flex flex-col items-center justify-between rounded-xl border-2 px-3 py-1.5 select-none shrink-0 min-w-[76px] min-h-[60px] ${isLeading
                           ? 'ring-2 ring-amber-400'
                           : isNumBuffered
-                            ? 'ring-4 ring-amber-400 scale-105 animate-pulse'
+                            ? 'ring-4 ring-amber-400'
                             : isQuotaFull
                               ? 'opacity-40 cursor-not-allowed border-rose-800'
                               : isBudgetExceeded
                                 ? 'opacity-40 cursor-not-allowed grayscale border-amber-800'
-                                : 'hover:scale-105 active:scale-95 hover:brightness-125 cursor-pointer'
+                                : 'hover:brightness-125 cursor-pointer'
                           }`}
                         title={`Team #${theme.sequenceNo} (${team.team_name || team.short_name})${isQuotaFull ? ' • Quota Full' : isBudgetExceeded ? ' • Purse Limit' : ''}`}
                       >
@@ -2366,7 +2366,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                             #{theme.sequenceNo}
                           </span>
                           {isLeading && (
-                            <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px] animate-pulse">
+                            <span className="px-1 py-0.2 rounded bg-amber-400 text-black font-black text-[7px]">
                               LEADING
                             </span>
                           )}

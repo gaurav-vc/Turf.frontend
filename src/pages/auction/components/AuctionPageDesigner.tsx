@@ -3925,7 +3925,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                                       e.stopPropagation()
                                       setSelectedKey('franchise_stations')
                                     }}
-                                    className="group relative flex flex-col justify-between p-1.5 rounded-xl transition-all select-none min-w-0 cursor-pointer hover:scale-105 active:scale-95"
+                                    className="group relative flex flex-col justify-between p-1.5 rounded-xl select-none min-w-0 cursor-pointer hover:brightness-110"
                                     style={{
                                       backgroundColor: effectiveBg,
                                       borderColor: tColor,

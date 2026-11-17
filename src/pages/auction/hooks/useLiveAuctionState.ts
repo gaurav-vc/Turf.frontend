@@ -72,11 +72,39 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const pollTimerRef = useRef<any>(null)
+  const lastBidSeqRef = useRef<number>(0)
+  const lastBidTimeRef = useRef<number>(0)
+  const lastOptimisticBidRef = useRef<BidHistoryItem | null>(null)
 
   const fetchState = useCallback(async () => {
     if (!auctionId) return
     try {
       const res = await apiClient.get(`/v1/auction/console/${auctionId}/live_state/`)
+
+      // If a bid was placed very recently (within 2.5s), don't allow a stale poll to revert UI to previous team
+      const timeSinceLastBid = Date.now() - lastBidTimeRef.current
+      if (timeSinceLastBid < 2500 && lastOptimisticBidRef.current) {
+        const serverHighest = res.data?.highest_bid
+        const serverAmount = Number(serverHighest?.amount || 0)
+        const optAmount = Number(lastOptimisticBidRef.current.amount || 0)
+
+        if (serverAmount < optAmount || String(serverHighest?.team_id) !== String(lastOptimisticBidRef.current.team_id)) {
+          setState((prev) => {
+            if (!prev) return res.data
+            return {
+              ...res.data,
+              current_bid: Math.max(res.data.current_bid || 0, optAmount),
+              highest_bid: lastOptimisticBidRef.current || res.data.highest_bid,
+              bid_history: res.data.bid_history?.some((b: any) => String(b.team_id) === String(lastOptimisticBidRef.current?.team_id) && b.amount === optAmount)
+                ? res.data.bid_history
+                : [lastOptimisticBidRef.current!, ...(res.data.bid_history || [])],
+            }
+          })
+          setError(null)
+          return
+        }
+      }
+
       setState(res.data)
       setError(null)
     } catch (err: any) {
@@ -99,6 +127,9 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
 
   const placeBid = async (teamId: string, amount?: number, isCustom = false, allowMultiple = false) => {
     if (!auctionId) return
+    const thisBidSeq = ++lastBidSeqRef.current
+    lastBidTimeRef.current = Date.now()
+
     // Instant optimistic UI update
     setState((prev) => {
       if (!prev) return prev
@@ -115,6 +146,7 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
         bid_type: isCustom ? 'Custom Bid' : 'Team Button',
         created_at: new Date().toISOString(),
       }
+      lastOptimisticBidRef.current = optBid
       return {
         ...prev,
         current_bid: nextAmount,
@@ -130,10 +162,16 @@ export function useLiveAuctionState(auctionId: string | null, pollIntervalMs = 1
         is_custom: isCustom,
         allow_multiple: allowMultiple,
       })
-      setState(res.data)
+      // Only apply server state if no newer bid has been submitted since
+      if (thisBidSeq === lastBidSeqRef.current) {
+        setState(res.data)
+      }
       return { success: true }
     } catch (err: any) {
-      fetchState()
+      if (thisBidSeq === lastBidSeqRef.current) {
+        lastOptimisticBidRef.current = null
+        fetchState()
+      }
       const msg = err.response?.data?.error || err.message || 'Bid failed'
       return { success: false, error: msg }
     }
