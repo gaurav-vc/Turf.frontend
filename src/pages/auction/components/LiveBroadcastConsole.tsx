@@ -68,6 +68,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
   const [showBottomLiveOtherActions, setShowBottomLiveOtherActions] = useState(false)
   const [bgImageFailed, setBgImageFailed] = useState(false)
   const [failedPlayerPhotos, setFailedPlayerPhotos] = useState<Record<string, boolean>>({})
+  const [failedTeamLogos, setFailedTeamLogos] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const handleOutsideClick = () => {
@@ -1234,6 +1235,7 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           const rawPhoto = player.photo_url || (player as any).photo || ((player as any).player?.photo) || ''
                           const resolvedPhoto = resolveMediaUrl(rawPhoto)
                           const isFailed = !resolvedPhoto || failedPlayerPhotos[resolvedPhoto]
+                          const fitMode = el?.object_fit || 'cover'
 
                           return (
                             <div
@@ -1241,16 +1243,27 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                               style={getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius)}
                             >
                               {!isFailed ? (
-                                <img
-                                  src={resolvedPhoto}
-                                  alt=""
-                                  onError={() => setFailedPlayerPhotos((prev) => ({ ...prev, [resolvedPhoto]: true }))}
-                                  className="h-full w-full pointer-events-none"
-                                  style={{
-                                    ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius),
-                                    objectFit: el?.object_fit || 'contain',
-                                  }}
-                                />
+                                <>
+                                  {fitMode === 'contain' && (
+                                    <img
+                                      src={resolvedPhoto}
+                                      alt=""
+                                      aria-hidden="true"
+                                      className="absolute inset-0 h-full w-full object-cover blur-md opacity-30 scale-125 pointer-events-none"
+                                    />
+                                  )}
+                                  <img
+                                    src={resolvedPhoto}
+                                    alt={player.player_name || ''}
+                                    onError={() => setFailedPlayerPhotos((prev) => ({ ...prev, [resolvedPhoto]: true }))}
+                                    className="relative z-10 h-full w-full pointer-events-none"
+                                    style={{
+                                      ...getPhotoShapeStyle(el?.shape || el?.photo_shape, el?.border_radius),
+                                      objectFit: fitMode,
+                                      objectPosition: 'top center',
+                                    }}
+                                  />
+                                </>
                               ) : (
                                 <div className="flex flex-col items-center justify-center text-slate-500">
                                   <Trophy className="h-12 w-12 text-slate-600 mb-1" />
@@ -1387,52 +1400,187 @@ export default function LiveBroadcastConsole({ auctionId, auctionName, auctionBa
                           </div>
                         )}
 
-                        {key === 'bidder_name' && (
-                          <div
-                            className="w-full flex items-center gap-2"
-                            style={{
-                              justifyContent:
-                                el.align === 'center'
-                                  ? 'center'
-                                  : el.align === 'left'
-                                    ? 'flex-start'
-                                    : 'flex-end',
-                              textAlign: el.align || 'right',
-                            }}
-                          >
-                            {highestBid?.team_logo && el.show_team_logo !== false && (
-                              <img
-                                src={resolveMediaUrl(highestBid.team_logo)}
-                                alt={highestBid.team_name}
-                                className="w-8 h-8 rounded-full object-contain border border-amber-400/50 shrink-0 shadow-xs"
-                              />
-                            )}
-                            <div className="min-w-0">
-                              {el.show_label && (
-                                <span
-                                  style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px` }}
-                                  className="text-slate-400 block font-bold"
-                                >
-                                  {el.custom_label || 'BIDDER TEAM'}
-                                </span>
+                        {key === 'bidder_name' && (() => {
+                          const teamId = highestBid?.team_id
+                          const matchingTeam = state?.teams?.find(
+                            (t) => String(t.team_id) === String(teamId) || String((t as any).id) === String(teamId)
+                          )
+                          const rawLogo =
+                            highestBid?.team_logo ||
+                            matchingTeam?.team_logo ||
+                            (matchingTeam as any)?.logo ||
+                            (matchingTeam as any)?.logo_url ||
+                            ''
+                          const resolvedLogo = rawLogo ? resolveMediaUrl(rawLogo) : ''
+                          const isFailed = !resolvedLogo || failedTeamLogos[resolvedLogo]
+                          const hasSeparateLogo = pageDesign?.elements?.bidder_logo?.selected !== false
+                          const showInlineLogo = el.show_team_logo !== false && !hasSeparateLogo
+                          const teamColor = matchingTeam?.team_color || '#3b82f6'
+
+                          return (
+                            <div
+                              className="w-full flex items-center gap-2"
+                              style={{
+                                justifyContent:
+                                  el.align === 'center'
+                                    ? 'center'
+                                    : el.align === 'left'
+                                      ? 'flex-start'
+                                      : 'flex-end',
+                                textAlign: el.align || 'right',
+                              }}
+                            >
+                              {showInlineLogo && (
+                                <>
+                                  {highestBid && resolvedLogo && !isFailed ? (
+                                    <img
+                                      src={resolvedLogo}
+                                      alt={highestBid.team_name}
+                                      onError={() => setFailedTeamLogos((prev) => ({ ...prev, [resolvedLogo]: true }))}
+                                      className="w-8 h-8 rounded-full object-contain border border-amber-400/50 shrink-0 shadow-xs"
+                                    />
+                                  ) : highestBid ? (
+                                    <div
+                                      className="w-8 h-8 rounded-full border border-amber-400/40 flex items-center justify-center shrink-0 shadow-xs"
+                                      style={{ backgroundColor: `${teamColor}33` }}
+                                    >
+                                      <Shield className="w-4 h-4 text-amber-400" />
+                                    </div>
+                                  ) : null}
+                                </>
                               )}
-                              <span
-                                style={{
-                                  fontSize: `${el.font_size || 22}px`,
-                                  color: el.colour || '#FFFFFF',
-                                  fontFamily: el.font_family || 'inherit',
-                                  fontWeight: el.bold === false ? 500 : 900,
-                                  fontStyle: el.italic ? 'italic' : 'normal',
-                                  textDecoration: el.underline ? 'underline' : 'none',
-                                  whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
-                                }}
-                                className="font-black uppercase tracking-wide whitespace-nowrap block"
-                              >
-                                {highestBid ? highestBid.team_name : 'Awaiting first bid'}
-                              </span>
+                              <div className="min-w-0">
+                                {el.show_label && (
+                                  <span
+                                    style={{ fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px` }}
+                                    className="text-slate-400 block font-bold"
+                                  >
+                                    {el.custom_label || 'BIDDER TEAM'}
+                                  </span>
+                                )}
+                                <span
+                                  style={{
+                                    fontSize: `${el.font_size || 22}px`,
+                                    color: el.colour || '#FFFFFF',
+                                    fontFamily: el.font_family || 'inherit',
+                                    fontWeight: el.bold === false ? 500 : 900,
+                                    fontStyle: el.italic ? 'italic' : 'normal',
+                                    textDecoration: el.underline ? 'underline' : 'none',
+                                    whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
+                                  }}
+                                  className="font-black uppercase tracking-wide whitespace-nowrap block"
+                                >
+                                  {highestBid ? highestBid.team_name : 'Awaiting first bid'}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )
+                        })()}
+
+                        {key === 'bidder_logo' && (() => {
+                          const teamId = highestBid?.team_id
+                          const matchingTeam = state?.teams?.find(
+                            (t) => String(t.team_id) === String(teamId) || String((t as any).id) === String(teamId)
+                          )
+                          const rawLogo =
+                            highestBid?.team_logo ||
+                            matchingTeam?.team_logo ||
+                            (matchingTeam as any)?.logo ||
+                            (matchingTeam as any)?.logo_url ||
+                            ''
+                          const resolvedLogo = rawLogo ? resolveMediaUrl(rawLogo) : ''
+                          const isFailed = !resolvedLogo || failedTeamLogos[resolvedLogo]
+                          const teamName = highestBid?.team_name || matchingTeam?.team_name || ''
+                          const teamColor = matchingTeam?.team_color || '#3b82f6'
+                          const words = teamName.split(/[\s\-_]+/).filter(Boolean)
+                          const shortName =
+                            highestBid?.short_name ||
+                            matchingTeam?.short_name ||
+                            (words.length >= 2
+                              ? words.map((w: string) => w[0]).join('').slice(0, 3).toUpperCase()
+                              : teamName.slice(0, 3).toUpperCase() || 'BID')
+
+                          // If awaiting first bid: show clean awaiting placeholder crest, never broken image
+                          if (!highestBid) {
+                            return (
+                              <div
+                                className="w-full h-full flex items-center justify-center overflow-hidden"
+                                style={{
+                                  justifyContent:
+                                    el.align === 'center'
+                                      ? 'center'
+                                      : el.align === 'left'
+                                        ? 'flex-start'
+                                        : 'flex-end',
+                                }}
+                              >
+                                <div
+                                  className="relative flex items-center justify-center overflow-hidden border border-slate-700/50 bg-slate-900/60 shadow-md"
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    aspectRatio: '1 / 1',
+                                    ...getPhotoShapeStyle(el?.shape || 'circle', el?.border_radius),
+                                  }}
+                                  title="Awaiting first bid"
+                                >
+                                  <Shield className="w-1/2 h-1/2 text-slate-600/60" />
+                                </div>
+                              </div>
+                            )
+                          }
+
+                          return (
+                            <div
+                              className="w-full h-full flex items-center justify-center overflow-hidden"
+                              style={{
+                                justifyContent:
+                                  el.align === 'center'
+                                    ? 'center'
+                                    : el.align === 'left'
+                                      ? 'flex-start'
+                                      : 'flex-end',
+                              }}
+                            >
+                              <div
+                                className="relative flex items-center justify-center overflow-hidden border shadow-lg"
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  aspectRatio: '1 / 1',
+                                  ...getPhotoShapeStyle(el?.shape || 'circle', el?.border_radius),
+                                  borderColor: el?.border_color || teamColor || '#F59E0B',
+                                  borderWidth: `${el?.border_width ?? 2}px`,
+                                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                                }}
+                                title={`${teamName} (${shortName})`}
+                              >
+                                {resolvedLogo && !isFailed ? (
+                                  <img
+                                    src={resolvedLogo}
+                                    alt={teamName}
+                                    onError={() => setFailedTeamLogos((prev) => ({ ...prev, [resolvedLogo]: true }))}
+                                    style={{
+                                      ...getPhotoShapeStyle(el?.shape || 'circle', el?.border_radius),
+                                      objectFit: el?.object_fit || 'contain',
+                                    }}
+                                    className="w-full h-full object-contain p-1"
+                                  />
+                                ) : (
+                                  <div
+                                    className="w-full h-full flex flex-col items-center justify-center text-center p-1"
+                                    style={{ backgroundColor: `${teamColor}22` }}
+                                  >
+                                    <Shield className="w-1/2 h-1/2 drop-shadow" style={{ color: teamColor }} />
+                                    <span className="text-[10px] font-black tracking-tight font-mono text-white mt-0.5 truncate max-w-full px-1">
+                                      {shortName}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })()}
 
                         {key === 'base_price' && (
                           <div className="w-full" style={{ textAlign: el.align || 'left' }}>

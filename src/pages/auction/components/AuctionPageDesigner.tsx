@@ -113,6 +113,7 @@ export interface ElementConfig {
   object_fit?: 'cover' | 'contain' | 'fill'
   border_radius?: number
   border_color?: string
+  border_width?: number
   max_bids?: number
   panel_theme?: 'cyber' | 'glass' | 'solid'
 }
@@ -176,7 +177,7 @@ export const DEFAULT_PAGE_DESIGN: PageDesignState = {
     tournament_title: { x: 20, y: 2, w: 60, h: 7, font_size: 26, colour: '#FFD54A', bold: true, align: 'center', selected: true, show_label: false },
     player_category: { x: 20, y: 10, w: 60, h: 6, font_size: 22, colour: '#FFD54A', bold: true, align: 'center', selected: true, show_label: false },
     player_number: { x: 4, y: 10, w: 20, h: 5, font_size: 16, colour: '#B8C7DA', bold: true, align: 'left', selected: true, show_label: false },
-    player_photo: { x: 4, y: 18, w: 28, h: 60, font_size: 14, colour: '#FFFFFF', bold: false, align: 'center', selected: true },
+    player_photo: { x: 4, y: 18, w: 28, h: 60, font_size: 14, colour: '#FFFFFF', bold: false, align: 'center', selected: true, object_fit: 'cover' },
     player_name: { x: 35, y: 18, w: 58, h: 10, font_size: 42, colour: '#FFFFFF', bold: true, align: 'left', selected: true, show_label: false },
     role: { x: 35, y: 29, w: 28, h: 6, font_size: 18, colour: '#D8E2EF', bold: true, align: 'left', selected: true, show_label: false },
     batting_style: { x: 35, y: 37, w: 25, h: 6, font_size: 14, colour: '#FFFFFF', bold: false, align: 'left', selected: true, show_label: true },
@@ -184,6 +185,7 @@ export const DEFAULT_PAGE_DESIGN: PageDesignState = {
     location: { x: 75, y: 37, w: 22, h: 6, font_size: 14, colour: '#FFFFFF', bold: false, align: 'left', selected: true, show_label: true },
     current_bid: { x: 35, y: 52, w: 34, h: 14, font_size: 46, colour: '#FFD54A', bold: true, align: 'left', selected: true, show_label: true },
     bidder_name: { x: 68, y: 52, w: 28, h: 8, font_size: 22, colour: '#FFFFFF', bold: true, align: 'right', selected: true, show_label: false },
+    bidder_logo: { x: 60, y: 51, w: 7, h: 10, font_size: 14, colour: '#FFFFFF', bold: false, align: 'center', selected: true, show_label: false, shape: 'circle', border_color: '#F59E0B', border_width: 2 },
     balance: { x: 68, y: 62, w: 28, h: 6, font_size: 14, colour: '#B9C7D7', bold: true, align: 'right', selected: true, show_label: true },
     max_bid: { x: 68, y: 70, w: 28, h: 6, font_size: 14, colour: '#FFFFFF', bold: true, align: 'right', selected: true, show_label: true },
     base_price: { x: 4, y: 80, w: 28, h: 7, font_size: 20, colour: '#FFFFFF', bold: true, align: 'center', selected: true, show_label: true },
@@ -233,6 +235,7 @@ export const PRESET_TEMPLATES: ScreenTemplate[] = [
         player_number: { x: 66, y: 44, w: 28, h: 6, font_size: 14, colour: '#B8C7DA', bold: true, align: 'left', selected: true, show_label: true },
         current_bid: { x: 34, y: 54, w: 60, h: 16, font_size: 52, colour: '#FFD54A', bold: true, align: 'left', selected: true, show_label: true },
         bidder_name: { x: 34, y: 74, w: 35, h: 8, font_size: 22, colour: '#34D399', bold: true, align: 'left', selected: true, show_label: true },
+        bidder_logo: { x: 26, y: 73, w: 7, h: 9, font_size: 14, colour: '#FFFFFF', bold: false, align: 'center', selected: true, show_label: false, shape: 'circle', border_color: '#34D399', border_width: 2 },
         balance: { x: 70, y: 74, w: 25, h: 6, font_size: 14, colour: '#B9C7D7', bold: true, align: 'right', selected: true, show_label: true },
         max_bid: { x: 70, y: 82, w: 25, h: 6, font_size: 14, colour: '#FFD54A', bold: true, align: 'right', selected: true, show_label: true },
       },
@@ -260,6 +263,7 @@ export const PRESET_TEMPLATES: ScreenTemplate[] = [
         location: { x: 40, y: 66, w: 26, h: 6, font_size: 14, colour: '#E2E8F0', bold: false, align: 'left', selected: true, show_label: true },
         player_number: { x: 68, y: 66, w: 26, h: 6, font_size: 14, colour: '#E2E8F0', bold: true, align: 'left', selected: true, show_label: true },
         bidder_name: { x: 40, y: 76, w: 55, h: 9, font_size: 24, colour: '#38BDF8', bold: true, align: 'left', selected: true, show_label: true },
+        bidder_logo: { x: 32, y: 75, w: 7, h: 10, font_size: 14, colour: '#FFFFFF', bold: false, align: 'center', selected: true, show_label: false, shape: 'squircle', border_color: '#38BDF8', border_width: 2 },
         balance: { x: 40, y: 87, w: 26, h: 6, font_size: 14, colour: '#34D399', bold: true, align: 'left', selected: true, show_label: true },
         max_bid: { x: 68, y: 87, w: 26, h: 6, font_size: 14, colour: '#FFD54A', bold: true, align: 'left', selected: true, show_label: true },
       },
@@ -282,6 +286,7 @@ export const PRESET_TEMPLATES: ScreenTemplate[] = [
         player_category: { x: 44, y: 29, w: 50, h: 6, font_size: 20, colour: '#F59E0B', bold: true, align: 'left', selected: true, show_label: false },
         current_bid: { x: 44, y: 40, w: 50, h: 18, font_size: 56, colour: '#FDE047', bold: true, align: 'left', selected: true, show_label: true },
         bidder_name: { x: 44, y: 62, w: 50, h: 10, font_size: 26, colour: '#60A5FA', bold: true, align: 'left', selected: true, show_label: true },
+        bidder_logo: { x: 36, y: 62, w: 7, h: 10, font_size: 14, colour: '#FFFFFF', bold: false, align: 'center', selected: true, show_label: false, shape: 'circle', border_color: '#60A5FA', border_width: 2 },
         balance: { x: 44, y: 74, w: 24, h: 6, font_size: 15, colour: '#34D399', bold: true, align: 'left', selected: true, show_label: true },
         max_bid: { x: 70, y: 74, w: 24, h: 6, font_size: 15, colour: '#FDE047', bold: true, align: 'left', selected: true, show_label: true },
         role: { x: 44, y: 83, w: 24, h: 6, font_size: 14, colour: '#94A3B8', bold: false, align: 'left', selected: true, show_label: false },
@@ -307,6 +312,7 @@ const ELEMENT_LABELS: Record<string, { label: string; fieldNameDefault: boolean 
   location: { label: 'Location', fieldNameDefault: true },
   current_bid: { label: 'Current Bid Amount', fieldNameDefault: true },
   bidder_name: { label: 'Bidder Team Name', fieldNameDefault: false },
+  bidder_logo: { label: 'Bidding Team Logo', fieldNameDefault: false },
   balance: { label: 'Kitty Balance', fieldNameDefault: true },
   max_bid: { label: 'Max Bid Allowed', fieldNameDefault: true },
   top_bar: { label: 'Top Arena Status Bar', fieldNameDefault: false },
@@ -336,6 +342,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
     base_price: 500000,
     current_bid: 400000,
     bidder_name: 'CYCLONE',
+    bidder_logo: '',
     balance: 56000000,
     max_bid: 42000000,
     photo_url: '',
@@ -347,6 +354,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
   const [newCustomActionLabel, setNewCustomActionLabel] = useState('')
   const [bgDesignerFailed, setBgDesignerFailed] = useState(false)
   const [failedDesignerPhotos, setFailedDesignerPhotos] = useState<Record<string, boolean>>({})
+  const [failedDesignerLogos, setFailedDesignerLogos] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const handleOutside = () => setShowDesignerOtherActions(false)
@@ -807,6 +815,25 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
             }))
           })
         }
+        if (stateRes.data?.highest_bid) {
+          const hb = stateRes.data.highest_bid
+          const hbTeam = stateRes.data.teams?.find((t: any) => String(t.team_id || t.id) === String(hb.team_id))
+          const hbLogo = hb.team_logo || hbTeam?.team_logo || hbTeam?.logo || hbTeam?.logo_url || ''
+          setSamplePlayerData((prev: any) => ({
+            ...prev,
+            current_bid: hb.amount || prev.current_bid,
+            bidder_name: hb.team_name || prev.bidder_name,
+            bidder_logo: hbLogo || prev.bidder_logo,
+          }))
+        } else if (stateRes.data?.teams && stateRes.data.teams.length > 0) {
+          const firstT = stateRes.data.teams[0]
+          const tLogo = firstT.team_logo || firstT.logo || firstT.logo_url || ''
+          setSamplePlayerData((prev: any) => ({
+            ...prev,
+            bidder_name: firstT.team_name || firstT.name || prev.bidder_name,
+            bidder_logo: tLogo || prev.bidder_logo,
+          }))
+        }
         if (stateRes.data?.active_player) {
           const p = stateRes.data.active_player
           setSamplePlayerData((prev: any) => ({
@@ -822,6 +849,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
             photo_url: p.photo_url || prev.photo_url,
             current_bid: stateRes.data.current_bid || prev.current_bid,
             bidder_name: stateRes.data.highest_bid?.team_name || prev.bidder_name,
+            bidder_logo: stateRes.data.highest_bid?.team_logo || prev.bidder_logo,
           }))
         }
       } catch (playerErr) {
@@ -3153,23 +3181,35 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       {key === 'player_photo' && (() => {
                         const resolvedPhoto = resolveMediaUrl(samplePlayerData.photo_url)
                         const isPhotoFailed = !resolvedPhoto || failedDesignerPhotos[resolvedPhoto]
+                        const fitMode = el?.object_fit || 'cover'
 
                         return (
                           <div
-                            className="w-full h-full flex flex-col items-center justify-center border border-white/20 bg-slate-900/90 overflow-hidden shadow-inner"
+                            className="relative w-full h-full flex flex-col items-center justify-center border border-white/20 bg-slate-900/90 overflow-hidden shadow-inner"
                             style={getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius)}
                           >
                             {!isPhotoFailed ? (
-                              <img
-                                src={resolvedPhoto}
-                                alt=""
-                                onError={() => setFailedDesignerPhotos((prev) => ({ ...prev, [resolvedPhoto]: true }))}
-                                style={{
-                                  ...getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius),
-                                  objectFit: el?.object_fit || 'contain',
-                                }}
-                                className="w-full h-full pointer-events-none"
-                              />
+                              <>
+                                {fitMode === 'contain' && (
+                                  <img
+                                    src={resolvedPhoto}
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="absolute inset-0 h-full w-full object-cover blur-md opacity-30 scale-125 pointer-events-none"
+                                  />
+                                )}
+                                <img
+                                  src={resolvedPhoto}
+                                  alt=""
+                                  onError={() => setFailedDesignerPhotos((prev) => ({ ...prev, [resolvedPhoto]: true }))}
+                                  style={{
+                                    ...getPhotoShapeStyle(el?.shape || (el as any)?.photo_shape, el?.border_radius),
+                                    objectFit: fitMode,
+                                    objectPosition: 'top center',
+                                  }}
+                                  className="relative z-10 w-full h-full pointer-events-none"
+                                />
+                              </>
                             ) : (
                               <div className="text-center p-2">
                                 <ImageIcon className="w-8 h-8 text-slate-500 mx-auto mb-1" />
@@ -3363,52 +3403,131 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                         </div>
                       )}
 
-                      {key === 'bidder_name' && (
-                        <div
-                          className="w-full flex items-center gap-2"
-                          style={{
-                            justifyContent:
-                              el.align === 'center'
-                                ? 'center'
-                                : el.align === 'left'
-                                  ? 'flex-start'
-                                  : 'flex-end',
-                            textAlign: el.align || 'right',
-                          }}
-                        >
-                          {el.show_team_logo !== false && (
-                            <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-400/50 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
-                              <Shield className="w-4 h-4 text-sky-400" />
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            {el.show_label && (
+                      {key === 'bidder_name' && (() => {
+                        const hasSeparateLogo = design.elements.bidder_logo?.selected !== false
+                        const showInlineLogo = el.show_team_logo !== false && !hasSeparateLogo
+                        const rawLogo = samplePlayerData.bidder_logo || (liveTeams[0]?.logo || liveTeams[0]?.team_logo) || ''
+                        const resolvedLogo = rawLogo ? resolveMediaUrl(rawLogo) : ''
+                        const isLogoFailed = !resolvedLogo || failedDesignerLogos[resolvedLogo]
+
+                        return (
+                          <div
+                            className="w-full flex items-center gap-2"
+                            style={{
+                              justifyContent:
+                                el.align === 'center'
+                                  ? 'center'
+                                  : el.align === 'left'
+                                    ? 'flex-start'
+                                    : 'flex-end',
+                              textAlign: el.align || 'right',
+                            }}
+                          >
+                            {showInlineLogo && (
+                              <>
+                                {resolvedLogo && !isLogoFailed ? (
+                                  <img
+                                    src={resolvedLogo}
+                                    alt=""
+                                    onError={() => setFailedDesignerLogos((prev) => ({ ...prev, [resolvedLogo]: true }))}
+                                    className="w-8 h-8 rounded-full object-contain border border-amber-400/50 shrink-0 shadow-xs"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-400/50 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+                                    <Shield className="w-4 h-4 text-sky-400" />
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            <div className="min-w-0">
+                              {el.show_label && (
+                                <span
+                                  style={{
+                                    fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px`,
+                                  }}
+                                  className="text-slate-400 block font-bold"
+                                >
+                                  {el.custom_label || 'BIDDER TEAM'}
+                                </span>
+                              )}
                               <span
                                 style={{
-                                  fontSize: `${Math.max(9, Math.round((el.font_size || 22) * 0.45))}px`,
+                                  fontSize: `${el.font_size || 22}px`,
+                                  color: el.colour || '#FFFFFF',
+                                  fontFamily: el.font_family || 'inherit',
+                                  fontWeight: el.bold === false ? 500 : 900,
+                                  fontStyle: el.italic ? 'italic' : 'normal',
+                                  textDecoration: el.underline ? 'underline' : 'none',
+                                  whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
                                 }}
-                                className="text-slate-400 block font-bold"
+                                className="font-black uppercase tracking-wide whitespace-nowrap block"
                               >
-                                {el.custom_label || 'BIDDER TEAM'}
+                                {el.custom_text || samplePlayerData.bidder_name}
                               </span>
-                            )}
-                            <span
-                              style={{
-                                fontSize: `${el.font_size || 22}px`,
-                                color: el.colour || '#FFFFFF',
-                                fontFamily: el.font_family || 'inherit',
-                                fontWeight: el.bold === false ? 500 : 900,
-                                fontStyle: el.italic ? 'italic' : 'normal',
-                                textDecoration: el.underline ? 'underline' : 'none',
-                                whiteSpace: el.fit_to_size ? 'nowrap' : 'normal',
-                              }}
-                              className="font-black uppercase tracking-wide whitespace-nowrap block"
-                            >
-                              {el.custom_text || samplePlayerData.bidder_name}
-                            </span>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )
+                      })()}
+
+                      {key === 'bidder_logo' && (() => {
+                        const rawLogo = samplePlayerData.bidder_logo || (liveTeams[0]?.logo || liveTeams[0]?.team_logo) || ''
+                        const resolvedLogo = rawLogo ? resolveMediaUrl(rawLogo) : ''
+                        const isLogoFailed = !resolvedLogo || failedDesignerLogos[resolvedLogo]
+                        const teamName = samplePlayerData.bidder_name || liveTeams[0]?.name || 'Franchise Team'
+                        const teamColor = liveTeams[0]?.color || liveTeams[0]?.team_color || '#3B82F6'
+                        const words = teamName.split(/[\s\-_]+/).filter(Boolean)
+                        const initials = (words.length >= 2 ? words.map((w: string) => w[0]).join('').slice(0, 3) : teamName.slice(0, 3)).toUpperCase() || 'BID'
+
+                        return (
+                          <div
+                            className="w-full h-full flex items-center justify-center overflow-hidden"
+                            style={{
+                              justifyContent:
+                                el.align === 'center'
+                                  ? 'center'
+                                  : el.align === 'left'
+                                    ? 'flex-start'
+                                    : 'flex-end',
+                            }}
+                          >
+                            <div
+                              className="relative flex items-center justify-center overflow-hidden border shadow-lg"
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                aspectRatio: '1 / 1',
+                                ...getPhotoShapeStyle(el?.shape || 'circle', el?.border_radius),
+                                borderColor: el?.border_color || teamColor || '#F59E0B',
+                                borderWidth: `${el?.border_width ?? 2}px`,
+                                backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                              }}
+                            >
+                              {resolvedLogo && !isLogoFailed ? (
+                                <img
+                                  src={resolvedLogo}
+                                  alt={teamName}
+                                  onError={() => setFailedDesignerLogos((prev) => ({ ...prev, [resolvedLogo]: true }))}
+                                  style={{
+                                    ...getPhotoShapeStyle(el?.shape || 'circle', el?.border_radius),
+                                    objectFit: el?.object_fit || 'contain',
+                                  }}
+                                  className="w-full h-full pointer-events-none p-1"
+                                />
+                              ) : (
+                                <div
+                                  className="w-full h-full flex flex-col items-center justify-center text-center p-1"
+                                  style={{ backgroundColor: `${teamColor}22` }}
+                                >
+                                  <Shield className="w-1/2 h-1/2 drop-shadow" style={{ color: teamColor }} />
+                                  <span className="text-[10px] font-black tracking-tight font-mono text-white mt-0.5 truncate max-w-full px-1">
+                                    {initials}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
 
                       {key === 'base_price' && (
                         <div className="w-full" style={{ textAlign: el.align || 'left' }}>
@@ -4006,6 +4125,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                 { key: 'player_photo', label: '📷 Player Photo' },
                 { key: 'player_name', label: '👤 Player Name' },
                 { key: 'current_bid', label: '💰 Current Bid' },
+                { key: 'bidder_logo', label: '🛡️ Bidder Logo' },
                 { key: 'franchise_stations', label: '🛡️ Team Columns' },
                 { key: 'bid_history', label: '📜 Bid History' },
                 { key: 'action_bar', label: '🔨 Action Bar' },
@@ -4294,12 +4414,12 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                 </div>
 
                 {/* Pod 2: Typography & Appearance OR Photo Shape & Frame */}
-                {selectedKey === 'player_photo' || (selectedKey && (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))) ? (
+                {selectedKey === 'player_photo' || selectedKey === 'bidder_logo' || (selectedKey && (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))) ? (
                   <div className="bg-slate-950/70 border border-amber-500/30 rounded-xl p-3 flex flex-col justify-between gap-2.5 shadow-sm ring-1 ring-amber-500/10">
                     <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
                       <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                         <ImageIcon className="w-3.5 h-3.5" />
-                        {selectedKey === 'player_photo' ? 'Player Photo Shape & Frame' : 'Photo Box Shape & Frame'}
+                        {selectedKey === 'player_photo' ? 'Player Photo Shape & Frame' : selectedKey === 'bidder_logo' ? 'Bidding Team Logo Shape & Frame' : 'Photo Box Shape & Frame'}
                       </span>
                       <span className="text-[10px] text-amber-300 font-mono uppercase font-bold">
                         {design.elements[selectedKey]?.shape || 'Rounded'} • {(design.elements[selectedKey]?.object_fit || 'contain').toUpperCase()}
@@ -4309,7 +4429,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                     <div className="space-y-2 pt-0.5">
                       <div>
                         <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                          Select Photo Shape (Any Shape)
+                          {selectedKey === 'bidder_logo' ? 'Select Team Logo Shape' : 'Select Photo Shape (Any Shape)'}
                         </label>
                         <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                           {PHOTO_SHAPES.map((shp) => {
@@ -4361,7 +4481,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                             { id: 'cover', label: 'Fill Frame (Cover)', desc: 'Fills entire frame, clips overflow' },
                             { id: 'fill', label: 'Stretch (Fill)', desc: 'Stretches exactly to frame width & height' },
                           ].map((fitMode) => {
-                            const curFit = design.elements[selectedKey]?.object_fit || 'contain'
+                            const curFit = design.elements[selectedKey]?.object_fit || 'cover'
                             const isCur = curFit === fitMode.id
                             return (
                               <button
@@ -4676,7 +4796,7 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
               />
 
               {/* Custom Box Content Configuration Sub-Panel */}
-              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history' || selectedKey === 'bidder_name' || selectedKey === 'franchise_stations' || selectedKey === 'action_bar' || selectedKey === 'player_photo') && (
+              {selectedKey && (design.elements[selectedKey]?.type || selectedKey.startsWith('custom_') || selectedKey === 'bid_history' || selectedKey === 'bidder_name' || selectedKey === 'bidder_logo' || selectedKey === 'franchise_stations' || selectedKey === 'action_bar' || selectedKey === 'player_photo') && (
                 <div className="p-3 rounded-xl bg-slate-950/80 border border-amber-500/30 space-y-2.5 mt-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -4684,16 +4804,18 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
                       {selectedKey === 'bid_history'
                         ? 'Bid History Stream Settings'
                         : selectedKey === 'bidder_name'
-                          ? 'Bidder Team Name & Logo Settings'
-                          : selectedKey === 'franchise_stations'
-                            ? 'Franchise Bidding Stations (Option 4)'
-                            : selectedKey === 'action_bar'
-                              ? 'Action & Hammer Controls Settings'
-                              : (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))
-                                ? 'Photo Box Configuration'
-                                : (design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video'))
-                                  ? 'Video Stream Configuration'
-                                  : 'Custom Box Configuration'}
+                          ? 'Bidder Team Name Settings'
+                        : selectedKey === 'bidder_logo'
+                          ? 'Bidding Team Dynamic Logo Settings'
+                        : selectedKey === 'franchise_stations'
+                          ? 'Franchise Bidding Stations (Option 4)'
+                        : selectedKey === 'action_bar'
+                          ? 'Action & Hammer Controls Settings'
+                        : (design.elements[selectedKey]?.type === 'photo' || selectedKey.includes('photo'))
+                          ? 'Photo Box Configuration'
+                        : (design.elements[selectedKey]?.type === 'video' || selectedKey.includes('video'))
+                          ? 'Video Stream Configuration'
+                        : 'Custom Box Configuration'}
                     </span>
                     {selectedKey.startsWith('custom_') && (
                       <button
@@ -4708,26 +4830,96 @@ export default function AuctionPageDesigner({ auctionId, onBack }: AuctionPageDe
 
                   {/* If Bidder Team Name */}
                   {selectedKey === 'bidder_name' && (
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-800">
-                      <span className="text-xs text-slate-300 font-semibold">
-                        Show Bidding Team Logo next to team name
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateElementProp(
-                            'bidder_name',
-                            'show_team_logo',
-                            !(design.elements.bidder_name?.show_team_logo !== false)
-                          )
-                        }
-                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${design.elements.bidder_name?.show_team_logo !== false
-                            ? 'bg-amber-500 text-zinc-950 border-amber-400'
-                            : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
-                          }`}
-                      >
-                        {design.elements.bidder_name?.show_team_logo !== false ? 'Team Logo: ON' : 'Team Logo: OFF'}
-                      </button>
+                    <div className="space-y-2 pt-1 border-t border-slate-800 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-300 font-semibold">
+                          Show inline team logo next to name
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateElementProp(
+                              'bidder_name',
+                              'show_team_logo',
+                              !(design.elements.bidder_name?.show_team_logo !== false)
+                            )
+                          }
+                          className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${design.elements.bidder_name?.show_team_logo !== false
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400 font-bold'
+                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                            }`}
+                        >
+                          {design.elements.bidder_name?.show_team_logo !== false ? 'Inline Logo: ON' : 'Inline Logo: OFF'}
+                        </button>
+                      </div>
+                      {design.elements.bidder_logo?.selected !== false && (
+                        <p className="text-[10px] text-amber-300/90 bg-amber-500/10 p-1.5 rounded border border-amber-500/20 font-medium">
+                          Note: Standalone &quot;Bidding Team Logo&quot; box is currently active on screen. Inline logo inside the team name box is automatically suppressed to prevent duplicate logos.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* If Bidder Team Dynamic Logo */}
+                  {selectedKey === 'bidder_logo' && (
+                    <div className="space-y-2.5 pt-1 border-t border-slate-800 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-300 font-semibold">
+                          Show Bidding Team Logo on screen
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateElementProp(
+                              'bidder_logo',
+                              'selected',
+                              !(design.elements.bidder_logo?.selected !== false)
+                            )
+                          }
+                          className={`px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${design.elements.bidder_logo?.selected !== false
+                              ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
+                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-white'
+                            }`}
+                        >
+                          {design.elements.bidder_logo?.selected !== false ? 'Logo: VISIBLE (ON)' : 'Logo: HIDDEN (OFF)'}
+                        </button>
+                      </div>
+
+                      <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                        <p className="text-amber-300 font-bold flex items-center gap-1">
+                          <Shield className="w-3.5 h-3.5 text-amber-400" />
+                          Dynamic Live Synchronization
+                        </p>
+                        <p className="leading-relaxed">
+                          During the live auction, this box dynamically updates in real-time to display the official logo of whichever team holds the active bid. When hidden, it leaves the screen completely clear without any duplicate or misplaced logos.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">
+                          Logo Border Color & Width
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={design.elements.bidder_logo?.border_color || '#F59E0B'}
+                            onChange={(e) => updateElementProp('bidder_logo', 'border_color', e.target.value)}
+                            className="w-8 h-8 rounded border border-slate-700 bg-slate-900 cursor-pointer p-0.5"
+                          />
+                          <input
+                            type="range"
+                            min="0"
+                            max="8"
+                            step="1"
+                            value={design.elements.bidder_logo?.border_width ?? 2}
+                            onChange={(e) => updateElementProp('bidder_logo', 'border_width', Number(e.target.value))}
+                            className="flex-1 accent-amber-500 cursor-pointer"
+                          />
+                          <span className="text-[10px] font-mono text-slate-300 font-bold w-8 text-right">
+                            {design.elements.bidder_logo?.border_width ?? 2}px
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   )}
 
